@@ -1,0 +1,33 @@
+# Rust
+target/
+**/*.rs.bk
+
+# Node
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.pnpm-store/
+
+# Generated from contracts/ — regenerate, never commit
+gen/
+**/generated/
+
+# Matching engine journals (local run artifacts)
+*.journal
+journals/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Logs
+*.log
