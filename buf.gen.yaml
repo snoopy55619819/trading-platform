@@ -1,0 +1,26 @@
+# TypeScript codegen.
+#
+# We emit js + dts rather than ts on purpose. protoc-gen-es renders proto enums as
+# TypeScript `enum`, which Node's type stripping cannot erase (ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX),
+# and Node 26 dropped --experimental-transform-types. Emitting JavaScript plus declaration
+# files keeps generated code directly runnable with no build step while preserving full
+# type information. Two plugin entries, not one with two targets: repeated `target` opts
+# override each other rather than accumulating.
+#
+# Rust does NOT generate protobuf yet: the matching engine (M1) and the FIX layer (M2)
+# touch no protobuf at all, and the first Rust consumer is md-publisher at M3.
+version: v2
+clean: true
+managed:
+  enabled: true
+plugins:
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: gen/ts
+    opt:
+      - target=js
+      - import_extension=js
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: gen/ts
+    opt:
+      - target=dts
+      - import_extension=js
