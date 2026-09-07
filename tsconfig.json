@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "es2023",
+    "lib": ["es2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    // Node 26 runs .ts by stripping types and nothing else - it cannot transpile
+    // `enum` or `namespace`, and --experimental-transform-types no longer exists.
+    // This flag turns "our services need no build step" from a convention people
+    // forget into a compile error. Generated code sidesteps it by being real JS.
+    "erasableSyntaxOnly": true,
+
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "exclude": ["node_modules", "gen", "**/node_modules"]
+}

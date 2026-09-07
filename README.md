@@ -48,6 +48,22 @@ anonymous print on the tape.
 | `infra/` | docker-compose, Postgres migrations, seed scripts |
 | `docs/` | ADRs, sequence diagrams, domain glossary, FIX message catalogue |
 
+## Getting started
+
+```bash
+pnpm install          # TypeScript toolchain + protobuf codegen plugin
+pnpm bootstrap        # start Postgres, apply migrations, seed reference data
+pnpm proto:gen        # generate TypeScript from contracts/proto
+cd services/exchange && cargo build
+```
+
+`pnpm db:status` shows applied vs pending migrations; `pnpm db:reset` wipes and rebuilds.
+
 ## Status
 
-Milestone 0 — foundations. Structure scaffolded; contracts not yet written.
+**Milestone 0 — foundations: complete.** Contracts defined and validated, reference data
+seeded, Postgres running, both toolchains building.
+
+Next: **Milestone 1 — the matching engine.** Order book with price-time priority, limit /
+market / IOC / FOK, append-only journal. Done when replaying the journal reproduces a
+byte-identical book and the benchmark reports p50/p99 match latency.
