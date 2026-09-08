@@ -1,0 +1,18 @@
+# Generates from BOTH the broker's own contracts and the exchange's vendored spec, so
+# service code imports feed types the same way it imports order types.
+#
+# js + dts rather than ts: protoc-gen-es renders proto enums as TypeScript `enum`, which
+# Node's type stripping cannot erase, and Node 26 has no --experimental-transform-types.
+# JavaScript plus declarations keeps generated code runnable with no build step.
+version: v2
+clean: true
+inputs:
+  - directory: contracts
+  - directory: vendor/exchange-alpha
+plugins:
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: gen
+    opt: [target=js, import_extension=js]
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: gen
+    opt: [target=dts, import_extension=js]

@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "es2023",
+    "lib": ["es2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    // Node 26 runs .ts by stripping types and nothing else - no `enum`, no `namespace`.
+    // This makes "our services need no build step" a compile error rather than a
+    // convention people forget. Generated code sidesteps it by being real JavaScript.
+    "erasableSyntaxOnly": true,
+
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "exclude": ["node_modules", "gen"]
+}

@@ -373,33 +373,31 @@ Encode these in `contracts/` at milestone 0. Retrofitting them hurts.
 
 ## Part 6 — Repo layout
 
+Organised **by company**, not by service. Each top-level folder is a business that would
+exist independently, with its own dependencies, build, migrations and tooling.
+
 ```
 trading-platform/
-  contracts/
-    proto/            order.proto, execution.proto, marketdata.proto, ledger.proto
-    fix/              fix44-subset.xml   (dictionary shared by Rust acceptor + TS initiator)
-    refdata/          symbols.json, venues.json, calendar.json
-    DECISIONS.md      money = integer cents · price = integer ticks · id formats · enums
-  services/
-    exchange/         # RUST cargo workspace, one binary
-      fix-core/       #   crate: FIX codec + session state machine
-      fix-gateway/    #   crate: acceptor, validation, engine adapter
-      matching-engine/#   crate: order book + matching + journal
-      md-publisher/   #   crate: sequenced feed
-    oms/              # TS  (+ TS FIX initiator library)
-    broker-ledger/    # TS
-    tick-store/       # TS
-    simulator/        # TS
-    broker-api/       # TS
-  web/                # React, last
-  infra/              # docker-compose, Postgres migrations, seed scripts
-  docs/               # ADRs, sequence diagrams, domain glossary, FIX message catalogue
+  exchange-alpha/          # Alpha Exchange (Rust)
+    spec/                  #   PUBLISHED: fix44.xml, marketdata.proto, listings.json
+    crates/                #   private: fix-core, matching-engine, md-publisher, gateway
+  broker/                  # the broker-dealer (TypeScript)
+    contracts/             #   internal protos, shared by the broker's own services
+    vendor/exchange-alpha/ #   version-stamped copy of Alpha's published spec
+    services/              #   api, oms, ledger, tick-store, web
+    migrations/  scripts/
+  participants/            # simulated third-party trading firms (TypeScript)
+  infra/                   # the shared local Postgres container
+  docs/                    # ADRs, sequence diagrams, glossary
 ```
 
-Monorepo. `contracts/` is load-bearing — it's what lets Rust and TypeScript services agree without
-sharing code.
+Cross-company interfaces are **published specs**, not shared files: the exchange publishes,
+consumers vendor a copy and implement against it, and `spec:check` fails when that copy
+falls behind. That drift is not a repo defect — it is the integration work a real firm does,
+and building the machinery for it is part of the point.
 
----
+Inside a company, sharing is correct: `broker/contracts/` is common to the broker's own
+services because they are one team's codebase.
 
 ## Part 7 — MVP milestones
 

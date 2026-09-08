@@ -5,14 +5,29 @@ data, no real money. Built as a learning project: the point is the systems archi
 UI. See `PLAN.md` for the full architecture and milestone breakdown; read it before making
 structural decisions.
 
-## Stack
+## Layout: organised by company
 
-- **Rust** — the exchange only (`services/exchange/`, a cargo workspace of four crates).
-  Chosen for the in-memory hot path, no GC pauses, and byte-level FIX parsing.
-- **TypeScript** — everything else. Node + pnpm workspaces.
-- **Postgres** — the only database in v1. ClickHouse migration is a post-MVP milestone.
+Each top-level folder is an independent business. They share no code, no build and no
+contracts directory. This is the single most important structural fact about the repo.
+
+- `exchange-alpha/` — Alpha Exchange. **Rust.** `spec/` is what it publishes; `crates/` is
+  private implementation. Chosen for the in-memory hot path and byte-level FIX parsing.
+- `broker/` — a broker-dealer. **TypeScript.** `contracts/` is shared *within* the broker
+  because those services are one team's codebase. `vendor/exchange-alpha/` is a copy of
+  the exchange's published spec, version-stamped.
+- `participants/` — other trading firms. **TypeScript.** Connects over the same public
+  FIX session any client uses.
+
+Cross-company: the exchange **publishes** a spec; consumers vendor a copy and implement
+against it. Never reach across a company boundary to import a file — sync it, stamp the
+version, and let `spec:check` tell you when it goes stale.
+
+## Stack
+- **Postgres** — one local container, one database. Each company owns its own schemas and
+  runs its own migrations with its own tooling; nothing coordinates across companies.
 - **FIX 4.4** — hand-rolled subset between the OMS (TS initiator) and the exchange gateway
-  (Rust acceptor). Two independent implementations sharing only `contracts/fix/`.
+  (Rust acceptor). Two independent implementations sharing only `exchange-alpha/spec/fix44.xml`
+  and the broker's vendored copy of it.
 
 ## Non-negotiable conventions
 
@@ -34,13 +49,21 @@ These are architectural commitments, not preferences. Breaking them causes rewri
 
 ## Two data planes
 
-The most common way to get this architecture wrong is to treat it as one pipeline. It isn't:
+**The canonical architecture diagram lives in [README.md](README.md#how-it-fits-together).**
+Keep it current — it is the first thing anyone reads, and it is the picture to reason from
+before changing how services talk to each other.
 
-- **Order plane** — authenticated, request/response, per-client, FIX-shaped.
-- **Market data plane** — public, broadcast, sequenced, fanned out to everyone.
+The rule it encodes: this is not one pipeline, it is two independent planes.
 
-Live prices and the order book in the UI come from the *second* plane. That data never travels
-back up the order path.
+- **Order plane** — private, authenticated, request/response, one client's data.
+  `web → api → oms → gateway → matching-engine`, execution reports back up.
+- **Market data plane** — public, broadcast, sequenced, anonymous.
+  `matching-engine → md-publisher → everyone`.
+
+Live prices and the order book in the UI come from the *second* plane; that data never
+travels back up the order path. `tick-store` is **history**, not live prices — it subscribes
+to the same feed and persists it. A fill you caused reaches you twice: privately as an
+execution report, publicly as an anonymous print.
 
 ## Working here
 

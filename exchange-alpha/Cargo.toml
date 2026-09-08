@@ -1,0 +1,34 @@
+# Alpha Exchange. An independent business: it publishes a spec (spec/) and everything
+# else here is its private implementation.
+#
+# One binary, four crates.
+#
+# The layering is the point: matching-engine knows nothing about networks or FIX,
+# fix-core knows nothing about order books. fix-gateway is the only crate that has
+# heard of both, and md-publisher only ever sees the engine's public output.
+
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.98"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+fix-core = { path = "crates/fix-core" }
+matching-engine = { path = "crates/matching-engine" }
+md-publisher = { path = "crates/md-publisher" }
+
+[profile.release]
+# The engine's latency numbers are only meaningful with cross-crate inlining and
+# without unwinding tables in the hot path.
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+[profile.bench]
+lto = "fat"
+codegen-units = 1

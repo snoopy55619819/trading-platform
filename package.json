@@ -1,26 +1,11 @@
 {
   "name": "trading-platform",
   "private": true,
-  "type": "module",
-  "packageManager": "pnpm@12.3.4",
-  "engines": {
-    "node": ">=26"
-  },
   "scripts": {
-    "proto:lint": "buf lint",
-    "proto:gen": "buf generate",
-    "proto:breaking": "buf breaking --against '.git#branch=main'",
     "db:up": "docker compose -f infra/docker-compose.yml up -d --wait",
     "db:down": "docker compose -f infra/docker-compose.yml down",
-    "db:migrate": "./infra/migrate.sh",
-    "db:status": "./infra/migrate.sh --status",
-    "db:seed": "./infra/seed.sh",
-    "db:reset": "docker compose -f infra/docker-compose.yml down -v && pnpm db:up && pnpm db:migrate && pnpm db:seed",
-    "bootstrap": "pnpm db:up && pnpm db:migrate && pnpm db:seed"
-  },
-  "devDependencies": {
-    "@bufbuild/protobuf": "^2.2.3",
-    "@bufbuild/protoc-gen-es": "^2.2.3",
-    "typescript": "^5.7.2"
+    "db:reset": "docker compose -f infra/docker-compose.yml down -v && pnpm db:up && pnpm --dir broker db:migrate && pnpm --dir broker db:seed",
+    "exchange:build": "cd exchange-alpha && cargo build",
+    "broker:bootstrap": "pnpm db:up && pnpm --dir broker db:migrate && pnpm --dir broker db:seed"
   }
 }

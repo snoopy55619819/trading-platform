@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package broker.v1;
+
+import "common.proto";
+
+// The PRIVATE half of a match. An ExecutionReport goes to the order's owner and nobody else.
+// It identifies the account and the client_order_id; the public trade print (see
+// tp.marketdata.v1.TradePrint) must never carry either. Leaking them onto the market data
+// plane is a correctness bug, not a privacy nicety.
+
+message ExecutionReport {
+  string exec_id = 1;
+  ExecType exec_type = 2;
+
+  string order_id = 3;
+  string client_order_id = 4;
+  string account_id = 5;
+  string venue = 6;
+  string symbol = 7;
+
+  Side side = 8;
+  OrdStatus ord_status = 9;
+
+  // Set only when exec_type == TRADE.
+  int64 last_qty = 10;
+  int64 last_price_cents = 11;
+  string trade_id = 12;
+  // True when this order was the aggressor (took liquidity) rather than resting.
+  // Determines whether the maker or taker fee applies.
+  bool is_aggressor = 13;
+
+  // Running totals for the parent order after this execution.
+  int64 cum_qty = 14;
+  int64 leaves_qty = 15;
+  int64 avg_price_cents = 16;
+  int64 total_notional_cents = 17;
+  int64 fee_cents = 18;
+
+  RejectReason reject_reason = 19;
+  string reject_text = 20;
+
+  string currency = 21;
+  int64 transact_ts_ns = 22;
+}
+
+// Emitted by the OMS to the ledger when an execution changes a position.
+// One Fill produces exactly one balanced journal entry.
+message Fill {
+  string fill_id = 1;
+  string exec_id = 2;
+  string trade_id = 3;
+  string order_id = 4;
+  string account_id = 5;
+  string venue = 6;
+  string symbol = 7;
+
+  Side side = 8;
+  int64 qty = 9;
+  int64 price_cents = 10;
+  int64 notional_cents = 11;
+  // Negative for a maker rebate. Sign is preserved through the ledger.
+  int64 fee_cents = 12;
+  string currency = 13;
+
+  int64 transact_ts_ns = 14;
+  // The business date this fill belongs to. NOT derivable from transact_ts_ns by
+  // any service other than the clock - trading days do not align to UTC midnight.
+  string business_date = 15;
+}
