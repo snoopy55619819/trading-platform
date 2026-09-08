@@ -120,25 +120,83 @@ initiator against the same published dictionary. It has never heard of an order 
 client order id — structurally, not by convention. Leaking one onto the public feed would be
 a correctness bug, so the schema makes it impossible to write.
 
-## Getting started
+## Running it
+
+**What exists today (milestone 0):** the broker's database, and an exchange binary that
+prints a placeholder. `backend`, `market-data`, `web` and `simulator` are scaffolding —
+directories, configs and specs, no code. The first runnable service is the matching engine
+at M1.
+
+### First time
 
 ```bash
-cd exchange-alpha && cargo build                    # the exchange
-
-cd broker/backend && pnpm install \
-  && docker compose -f ../compose.yml up -d --wait \
-  && pnpm db:migrate && pnpm db:seed                # the broker backend
-
-cd broker/market-data && pnpm install               # market data
+cd exchange-alpha && cargo build
 ```
 
-**Every deployable is self-contained.** Each installs its own dependencies, owns its own
-database and vendors its own copy of the exchange spec. There is no workspace, no shared
-package, and no shared `infra/` directory — which is what makes it true that `market-data`
-could be rewritten in Go tomorrow and nothing else would change.
+```bash
+cd broker/backend && pnpm install
+```
 
-Root `package.json` holds convenience shortcuts only (`pnpm db:reset`, `pnpm backend
-<script>`, `pnpm spec:sync`). Everything it does you can do from inside the folder itself.
+```bash
+cd broker/market-data && pnpm install
+```
+
+Each installs independently — there is no workspace, and no root install.
+
+### Start the database
+
+```bash
+docker compose -f broker/compose.yml up -d --wait
+```
+
+```bash
+cd broker/backend && pnpm db:migrate && pnpm db:seed
+```
+
+`--wait` blocks until the healthcheck passes, so the migration never races the container.
+
+### Look at the database
+
+No local `psql` needed — go through the container:
+
+```bash
+docker compose -f broker/compose.yml exec broker-postgres psql -U broker -d broker
+```
+
+If you do have `psql` locally (`brew install libpq`), or want to point a GUI at it
+(TablePlus, DBeaver, DataGrip):
+
+```
+postgres://broker:broker@127.0.0.1:5432/broker
+```
+
+Useful once you are in:
+
+| | |
+|---|---|
+| `\dn` | list schemas — you should see `broker` |
+| `\dt broker.*` | its tables: `securities`, `schema_migrations` |
+| `\d broker.securities` | columns **and the CHECK constraints** |
+| `SELECT * FROM broker.securities;` | the seeded instruments |
+| `SELECT * FROM broker.schema_migrations;` | what has been applied, and when |
+
+### Run the exchange
+
+```bash
+cd exchange-alpha && cargo run
+```
+
+### Shortcuts from the repo root
+
+| | |
+|---|---|
+| `pnpm db:up` / `pnpm db:down` | start / stop Postgres |
+| `pnpm db:reset` | wipe the volume, re-migrate, re-seed |
+| `pnpm spec:check` | fail if any vendored venue spec is stale |
+| `pnpm backend <script>` | run a script inside `broker/backend` |
+
+These are conveniences only. Everything they do you can do from inside the folder itself —
+no deployable depends on the repo root to build, run or deploy.
 
 ## Status
 
