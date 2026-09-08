@@ -1,0 +1,9 @@
+{
+  "$comment": "v1 trades continuously - the simulator keeps the book alive 24/7 so a solo user always finds a live market. The session/holiday shape is defined now so the clock service can enforce it post-MVP without a schema change. business_date rolls at 21:00 UTC (a stand-in for a US close), which is deliberately NOT UTC midnight: trading days do not align to it.",
+  "mode": "CONTINUOUS_24_7",
+  "timezone": "America/New_York",
+  "business_date_roll_utc": "21:00:00",
+  "settlement_cycle_days": 1,
+  "sessions": [],
+  "holidays": []
+}
