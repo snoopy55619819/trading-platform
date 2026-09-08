@@ -45,6 +45,8 @@ back up the order path.
 ## Working here
 
 - Milestones are independently workable — see `PLAN.md` Part 7. Each has a concrete done-test.
+- Empty directories carry a `.gitkeep` only because git will not track them otherwise. As soon as
+  a directory gains a real file, delete its `.gitkeep` in the same change — it has done its job.
 - ADRs go in `docs/adr/`. Record the *why*, especially for anything that touches the conventions
   above.
 - FIX conformance is tested against QuickFIX, not just against our own initiator. Two of our own

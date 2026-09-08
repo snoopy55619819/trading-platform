@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package tp.order.v1;
+
+import "tp/common/v1/common.proto";
+
+// Order entry, broker-api -> OMS. This is the ORDER PLANE: authenticated, per-client,
+// request/response. Nothing here ever reaches the market data plane.
+
+message Order {
+  string order_id = 1;
+  // Client-assigned idempotency key. Unique per session per business date.
+  // A duplicate is REJECTED, never executed twice.
+  string client_order_id = 2;
+  string account_id = 3;
+  // Always "ALPHA" in v1. Present so adding a venue is data, not a migration.
+  string venue = 4;
+  string symbol = 5;
+
+  tp.common.v1.Side side = 6;
+  tp.common.v1.OrderType order_type = 7;
+  tp.common.v1.TimeInForce time_in_force = 8;
+
+  // Absent for MARKET orders. Must be a multiple of the symbol's tick_size_cents.
+  optional int64 price_cents = 9;
+  int64 qty = 10;
+  string currency = 11;
+
+  tp.common.v1.OrdStatus status = 12;
+  int64 filled_qty = 13;
+  // Integer division of total_notional_cents / filled_qty. Lossy by construction -
+  // never reconstruct notional from it; use total_notional_cents.
+  int64 avg_fill_price_cents = 14;
+  int64 total_notional_cents = 15;
+  int64 fee_cents = 16;
+
+  tp.common.v1.RejectReason reject_reason = 17;
+  string reject_text = 18;
+
+  int64 created_ts_ns = 19;
+  int64 updated_ts_ns = 20;
+}
+
+message PlaceOrderRequest {
+  string account_id = 1;
+  string client_order_id = 2;
+  string symbol = 3;
+  tp.common.v1.Side side = 4;
+  tp.common.v1.OrderType order_type = 5;
+  tp.common.v1.TimeInForce time_in_force = 6;
+  optional int64 price_cents = 7;
+  int64 qty = 8;
+  string currency = 9;
+}
+
+message PlaceOrderResponse {
+  // Set when accepted. Empty when rejected at the gate.
+  string order_id = 1;
+  tp.common.v1.OrdStatus status = 2;
+  tp.common.v1.RejectReason reject_reason = 3;
+  string reject_text = 4;
+}
+
+message CancelOrderRequest {
+  string account_id = 1;
+  // Exactly one of these identifies the order to cancel.
+  oneof target {
+    string order_id = 2;
+    string client_order_id = 3;
+  }
+  // Idempotency key for the cancel request itself.
+  string cancel_client_order_id = 4;
+}
+
+message CancelOrderResponse {
+  string order_id = 1;
+  tp.common.v1.OrdStatus status = 2;
+  tp.common.v1.RejectReason reject_reason = 3;
+  string reject_text = 4;
+}
+
+message GetOrderRequest {
+  string account_id = 1;
+  string order_id = 2;
+}
+
+message GetOrderResponse {
+  Order order = 1;
+}
+
+message ListOrdersRequest {
+  string account_id = 1;
+  // Optional filters.
+  string symbol = 2;
+  bool open_only = 3;
+  int32 limit = 4;
+  string cursor = 5;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+  string next_cursor = 2;
+}
+
+service OrderService {
+  rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+}
