@@ -1,0 +1,39 @@
+# The broker's own database. Owned by the broker, nobody else.
+#
+# Alpha Exchange gets its own compose file and its own database when it needs one
+# (milestone 2, for FIX session state). No company touches another's database.
+#
+#   cd broker && docker compose up -d --wait
+#   docker compose -f broker/compose.yml up -d --wait     (what `pnpm up` runs)
+#
+# `name` is pinned so both of those are the SAME Compose project. Without it the project
+# name comes from whichever directory you happen to be in, and the second invocation
+# collides with the first over the fixed container_name.
+name: broker
+
+services:
+  broker-postgres:
+    image: postgres:18-alpine
+    container_name: broker-postgres
+    environment:
+      POSTGRES_USER: broker
+      POSTGRES_PASSWORD: broker
+      POSTGRES_DB: broker
+      # Deterministic collation. Without it, ORDER BY on text can differ between a
+      # developer machine and CI, which makes cursor pagination subtly unstable.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      # Postgres 18+ stores data in a major-version subdirectory and expects the mount
+      # one level up, at /var/lib/postgresql. Mounting .../data makes it refuse to start.
+      - broker-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U broker -d broker"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  broker-pgdata:

@@ -12,9 +12,23 @@ contracts directory. This is the single most important structural fact about the
 
 - `exchange-alpha/` — Alpha Exchange. **Rust.** `spec/` is what it publishes; `crates/` is
   private implementation. Chosen for the in-memory hot path and byte-level FIX parsing.
-- `broker/` — a broker-dealer. **TypeScript.** `contracts/` is shared *within* the broker
-  because those services are one team's codebase. `vendor/exchange-alpha/` is a copy of
-  the exchange's published spec, version-stamped.
+- `broker/` — a broker-dealer. **TypeScript.** Three deployables, nothing shared between
+  them — no workspace, no shared package, no shared database:
+  - `backend/` — one process: `api` + `oms` + `ledger` + `fix`. They share a process
+    because they share a transaction; splitting them makes a buying-power check
+    non-atomic for no benefit. Single-instance: a FIX session is a stateful singleton.
+  - `market-data/` — separate on technical grounds: continuous write-heavy ingest, no
+    transactional coupling, its own database, headed for a columnar store. Owns live
+    WebSocket fanout *and* chart history.
+  - `web/` — a static bundle. Talks to `backend` for auth and orders, to `market-data`
+    for prices, and joins them itself.
+
+  Each vendors its own copy of the exchange spec under `<deployable>/vendor/`.
+  **Do not introduce a shared package between them** — it would quietly make both sides
+  TypeScript forever, and the point of the split is that either could be any stack.
+  **Do not split a backend module into a service** without a technical reason; "it feels
+  like a microservice" is not one.
+
 - `participants/` — other trading firms. **TypeScript.** Connects over the same public
   FIX session any client uses.
 
@@ -23,9 +37,24 @@ against it. Never reach across a company boundary to import a file — sync it, 
 version, and let `spec:check` tell you when it goes stale.
 
 ## Stack
-- **Postgres** — one local container, one database. Each company owns its own schemas and
-  runs its own migrations with its own tooling; nothing coordinates across companies.
-- **FIX 4.4** — hand-rolled subset between the OMS (TS initiator) and the exchange gateway
+- **Postgres** — **a database per deployable, never shared.** No role holds any
+  grant on another's, so a cross-service query is impossible rather than merely
+  discouraged. Each owns its own migrations and migration tooling; nothing coordinates.
+  There is no shared `infra/` directory — infrastructure belongs to whoever owns it.
+  Today only `broker/backend` has a database. Alpha Exchange gets its own at M2 (FIX
+  session state) and `market-data` at M7 — neither may add a schema to the backend's.
+  One container each is fine; splitting onto separate hosts later costs only a
+  connection string, since nothing else couples to where Postgres lives.
+- **No protobuf inside the broker.** Types that never cross a wire are plain TypeScript
+  inside whichever service owns them (`backend/src/domain/`). Protobuf is for real wire
+  formats only — currently just the exchange's published market data schema.
+- **No build step, anywhere.** Node runs `.ts` directly by stripping types. This holds
+  only because nothing is consumed as a *dependency*: Node refuses to strip types for
+  anything resolving inside `node_modules`
+  (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`), which is exactly where a deploy bundle
+  puts a workspace package. If you ever add a package consumed as a dependency, it must
+  be compiled to JavaScript first — which is a good reason not to add one.
+- **FIX 4.4** — hand-rolled subset between the broker app (TS initiator) and the exchange gateway
   (Rust acceptor). Two independent implementations sharing only `exchange-alpha/spec/fix44.xml`
   and the broker's vendored copy of it.
 
@@ -61,7 +90,7 @@ The rule it encodes: this is not one pipeline, it is two independent planes.
   `matching-engine → md-publisher → everyone`.
 
 Live prices and the order book in the UI come from the *second* plane; that data never
-travels back up the order path. `tick-store` is **history**, not live prices — it subscribes
+travels back up the order path. `market-data` owns both live fanout and history — it subscribes
 to the same feed and persists it. A fill you caused reaches you twice: privately as an
 execution report, publicly as an anonymous print.
 

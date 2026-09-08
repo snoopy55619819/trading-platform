@@ -1,0 +1,22 @@
+{
+  "name": "broker-market-data",
+  "private": true,
+  "type": "module",
+  "description": "Market data service: subscribes to the venue feed, fans out live prices, stores ticks, serves chart history.",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "proto:gen": "buf generate",
+    "spec:sync": "node scripts/sync-spec.mjs",
+    "spec:check": "node scripts/sync-spec.mjs --check"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@bufbuild/protobuf": "^2.2.3",
+    "@bufbuild/protoc-gen-es": "^2.2.3",
+    "@types/node": "^26.0.0",
+    "typescript": "^5.7.2"
+  }
+}

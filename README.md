@@ -12,9 +12,9 @@ independently.** They share no code, no build, and no contracts directory.
 
 ```
 exchange-alpha/   Alpha Exchange        (Rust)  — publishes spec/, everything else is private
-broker/           A broker-dealer       (TS)    — api, oms, ledger, tick-store, web
+broker/           A broker-dealer       (TS)    — backend, market-data, web
+                                                  three deployables, nothing shared
 participants/     Other trading firms   (TS)    — the simulated market
-infra/            The shared local Postgres container
 ```
 
 Cross-company interfaces work the way they do in the industry: **the exchange publishes a
@@ -50,64 +50,71 @@ things — privately as your execution report, publicly as an anonymous print on
 
     web  [1]
      │
-     │  HTTP + WebSocket
+     │  HTTP  auth · orders · positions · symbol list
      ▼
-    api  [2]
-     │
-     │  gRPC  PlaceOrder
-     ▼
-    oms  [3]
-     │
-     │════ FIX 4.4 / TCP ═══════════════════▶  gateway  [4]
-     │       NewOrderSingle (35=D)                 │
-     │                                            ▼
-     │                                     matching-engine  [5]
-     │                                            │
-     │◀═══ FIX 4.4 / TCP ═════════════════════════╯
-     │       ExecutionReport (35=8)  [6]
-     │
-     │  Fill
-     ▼
-    ledger  [7]
+   ┌─────────────────────┐
+   │  backend       [2]  │      one process, one transaction
+   │  ─────────────────  │
+   │   api    front door │
+   │   oms    risk +     │
+   │          lifecycle  │
+   │   ledger books      │
+   │   fix    session    │
+   └──────────┬──────────┘
+              │
+              │═══ FIX 4.4 / TCP ══ NewOrderSingle (35=D) ═══▶  gateway  [3]
+              │                                                    │
+              │                                                    ▼
+              │                                             matching-engine  [4]
+              │                                                    │
+              │◀══ FIX 4.4 / TCP ══ ExecutionReport (35=8)  [5] ═══╯
 
 
 ════════════════════════════ MARKET DATA PLANE ════════════════════════════
          public · broadcast · sequenced · anonymous · everyone sees it
 
-                              matching-engine  [5]
+                              matching-engine  [4]
                                       │
                                       │  BookDelta · Trade
                                       ▼
-                              md-publisher  [8]
+                              md-publisher  [6]
                                       │
-                                      │  WS  [9]
+                                      │  WS  [7]
                                       │
-              ┌───────────────────────┼───────────────────────┐
-              ▼                       ▼                       ▼
-        tick-store  [10]             api                participants  [11]
-              │                       │                       │
-              │  chart history        │  live prices          │  orders
-              └──────▶ api ───────────┴──────▶ web            └──▶ ORDER PLANE
+                    ┌─────────────────┴───────────────────┐
+                    ▼                                     ▼
+             market-data  [8]                      participants  [9]
+                    │                                     │
+                    │  live prices (WS)                   │  orders
+                    │  chart history (REST)               │
+                    ▼                                     │
+                   web                                    └──▶ ORDER PLANE
 ```
+
+`web` talks to **two** services and joins them itself: positions from `backend`, prices from
+`market-data`. That is what keeps the backend free of any market-data dependency.
 
 | | Component | What it does |
 |---|---|---|
-| **[1]** | `web` | The client. Symbol picker, chart, depth ladder, holdings, order ticket. |
-| **[2]** | `api` | The front door — the only thing exposed outside. Auth, sessions, rate limits, and reshaping internal data for the UI. No business logic. |
-| **[3]** | `oms` | **Gatekeeper**: buying power, symbol valid, price within band, duplicate order id. **Tracker**: the lifecycle `PendingNew → New → PartiallyFilled → Filled`. Also the broker's FIX initiator. |
-| **[4]** | `gateway` | The exchange's door. Session authentication and sequence numbers, then validation — tick size, lot size, price band, duplicate `ClOrdID` — before the engine sees anything. |
-| **[5]** | `matching-engine` | The market itself. Holds every resting order and decides who trades with whom: best price first, FIFO within a price. No database — RAM plus an append-only journal, recovered by replay. |
-| **[6]** | `ExecutionReport` | The **private** result. Carries `exec_id`, `account_id`, `client_order_id`, `last_qty`, `last_px`, fees. Goes to the order's owner and nobody else. |
-| **[7]** | `ledger` | Double-entry books, and the authoritative answer to "what do I own, what can I spend". Positions and cash are **derived** by summing journal lines, never stored as a running total. |
-| **[8]** | `md-publisher` | Broadcasts book changes to every subscriber. Never learns whose order moved the book. |
-| **[9]** | The feed | `Snapshot` · `BookDelta` · `TradePrint` · `Heartbeat`, each stamped with `feed_seq`. A gap in that sequence means you **lost data** — recover with a snapshot, never silently continue. |
-| **[10]** | `tick-store` | **History, not live prices.** Subscribes to the same feed and persists it, rolling ticks into 1m/5m/1h/1d candles. If it died, live prices would keep ticking and only the chart would break. |
-| **[11]** | `participants` | Other trading firms — a third party, not part of either company. They read the same public feed and send orders through the same public gateway. **The simulator gets no backdoor**, which is what makes it a valid test of the whole system. |
+| **[1]** | `web` | The client. A static bundle, not a server. |
+| **[2]** | **`backend`** | One process, three modules. **api** — front door: auth, sessions, rate limits, no business logic. **oms** — gatekeeper (buying power, symbol valid, price in band, duplicate order id) and lifecycle tracker. **ledger** — double-entry books; positions and cash *derived* by summing journal lines, never incremented. Plus the **fix** session. They share a process because they share a transaction: checking buying power and writing the order is one commit. Single-instance — a FIX session is a stateful singleton and two replicas cannot share a `SenderCompID`. |
+| **[3]** | `gateway` | The exchange's door. Session authentication and sequence numbers, then validation — tick size, lot size, price band, duplicate `ClOrdID` — before the engine sees anything. |
+| **[4]** | `matching-engine` | The market itself. Every resting order, and who trades with whom: best price first, FIFO within a price. No database — RAM plus an append-only journal, recovered by replay. |
+| **[5]** | `ExecutionReport` | The **private** result: `exec_id`, `account_id`, `client_order_id`, `last_qty`, `last_px`, fees. To the order's owner and nobody else. |
+| **[6]** | `md-publisher` | Broadcasts book changes to every subscriber. Never learns whose order moved the book. |
+| **[7]** | The feed | `Snapshot` · `BookDelta` · `TradePrint` · `Heartbeat`, each stamped with `feed_seq`. A gap means you **lost data** — recover with a snapshot, never silently continue. |
+| **[8]** | `market-data` | Live fanout *and* chart history. Its own database, its own vendored spec, no shared code with the backend — so it could be rewritten in Go and nothing else would change. It sits on the anonymous plane, which is why it needs none of the backend's domain types. |
+| **[9]** | `participants` | Other trading firms — a third party, not part of either company. Same public feed, same public gateway. **The simulator gets no backdoor.** |
+
+**Where the boundaries are, and why.** The company boundary is real: two businesses, a
+network between them, FIX as the contract. Inside the broker, `api`/`oms`/`ledger` are *not*
+separate — splitting them would make a buying-power check non-transactional in exchange for
+nothing. `market-data` is separate on technical grounds: different workload, different
+database, no transactional coupling.
 
 **`fix-core` is deliberately not on the diagram.** It is a *library*, not a server: the FIX
-codec plus the session state machine (heartbeats, sequence numbers, resend). The gateway
-links it in, and the OMS links its own initiator against the same published dictionary. It
-has never heard of an order book.
+codec plus the session state machine. The gateway links it in, and the backend links its own
+initiator against the same published dictionary. It has never heard of an order book.
 
 **What the two planes must never share:** `TradePrint` has no field for an account or a
 client order id — structurally, not by convention. Leaking one onto the public feed would be
@@ -116,14 +123,22 @@ a correctness bug, so the schema makes it impossible to write.
 ## Getting started
 
 ```bash
-pnpm db:up                              # Postgres
-cd exchange-alpha && cargo build        # the exchange
-cd broker && pnpm install && pnpm db:migrate && pnpm db:seed
+cd exchange-alpha && cargo build                    # the exchange
+
+cd broker/backend && pnpm install \
+  && docker compose -f ../compose.yml up -d --wait \
+  && pnpm db:migrate && pnpm db:seed                # the broker backend
+
+cd broker/market-data && pnpm install               # market data
 ```
 
-Each company installs its own dependencies — there is deliberately no workspace spanning
-them. Root `package.json` holds only convenience shortcuts (`pnpm db:reset`,
-`pnpm broker:bootstrap`).
+**Every deployable is self-contained.** Each installs its own dependencies, owns its own
+database and vendors its own copy of the exchange spec. There is no workspace, no shared
+package, and no shared `infra/` directory — which is what makes it true that `market-data`
+could be rewritten in Go tomorrow and nothing else would change.
+
+Root `package.json` holds convenience shortcuts only (`pnpm db:reset`, `pnpm backend
+<script>`, `pnpm spec:sync`). Everything it does you can do from inside the folder itself.
 
 ## Status
 

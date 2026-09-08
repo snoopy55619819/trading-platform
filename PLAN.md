@@ -79,25 +79,28 @@ would teach nothing.
 
 ### In scope
 
+**5 deployables · 2 languages · 2 databases.**
+
 ```
-┌──────────────────────── EXCHANGE (one Rust binary, 4 crates) ────────────────────┐
-│  fix-core  ·  fix-gateway (acceptor)  ·  matching-engine  ·  md-publisher        │
-└──────────────────────────────────────────────────────────────────────────────────┘
-        ▲ FIX 4.4 / TCP                                    │ WS: snapshot + deltas
-        │                                                  ▼
-   ┌─────────┐   gRPC   ┌──────────────┐            ┌─────────────┐   ┌───────────┐
-   │   OMS   │◀────────▶│ broker-ledger│            │ tick-store  │   │ simulator │
-   │  (TS)   │          │     (TS)     │            │    (TS)     │   │   (TS)    │
-   └────┬────┘          └──────────────┘            └──────┬──────┘   └─────┬─────┘
-        │ gRPC                    │                        │                │
-        └──────────┬──────────────┘                        │                │ FIX
-                   ▼                                       │                └──▶ exchange
-            ┌──────────────┐  REST/WS   ┌────────┐         │
-            │  broker-api  │◀──────────▶│  Web   │◀────────┘  (chart history)
-            │     (TS)     │            │   UI   │
-            └──────────────┘            └────────┘
-                                              ▲
-                                              └── live prices/depth via broker-api WS
+┌──────────── ALPHA EXCHANGE — one Rust binary, 4 crates ────────────┐
+│   fix-core  ·  gateway (acceptor)  ·  matching-engine  ·  md-publisher │
+└────────────────────────────────────────────────────────────────────┘
+        ▲ FIX 4.4 / TCP                          │ WS: snapshot + deltas
+        │                                        ├──────────────┐
+        │                                        ▼              ▼
+   ┌─────────────────────┐              ┌──────────────┐  ┌───────────┐
+   │      backend        │              │ market-data  │  │ simulator │
+   │  api · oms · ledger │              │     (TS)     │  │   (TS)    │
+   │       · fix   (TS)  │              │ own database │  └─────┬─────┘
+   └──────────┬──────────┘              └──────┬───────┘        │ FIX
+              │ HTTP                           │ WS + REST      └──▶ exchange
+              │                                │
+              └───────────┐        ┌───────────┘
+                          ▼        ▼
+                       ┌──────────────┐
+                       │     web      │   joins the two itself:
+                       │  static SPA  │   positions from backend,
+                       └──────────────┘   prices from market-data
 ```
 
 ### Explicitly out of scope for v1 (and why that's safe)
@@ -107,7 +110,7 @@ would teach nothing.
 | Exchange Beta, SOR, consolidated tape | SOR is meaningless with one venue | `venue` field exists on every order/fill, always `"ALPHA"`. Adding Beta is data, not migration |
 | Clearing, custodian, settlement bank | A whole plane, 4 services | Ledger posts fills to `CLIENT_SECURITIES_UNSETTLED`, and an **auto-settle job runs instantly**. v2 changes *when* that job fires, not the schema |
 | `clock` service | Nothing to fast-forward yet | Arrives with settlement |
-| Redpanda bus | Single consumers — direct gRPC/WS is honest | Bus earns its place when post-trade creates real fan-out |
+| Redpanda bus | Single consumers, and the only cross-process hops are FIX and WS | A bus earns its place when post-trade creates real fan-out |
 | Redis | In-memory sessions are fine for one user | — |
 | ClickHouse | One DB is simpler | `ticks`/`bars` tables designed to be portable; migrating later gives a *measurable* before/after |
 | `refdata` as a service | ~3 tables | Seeded JSON in `contracts/` + Postgres tables; promote to a service later |
@@ -197,7 +200,7 @@ and not "just a websocket".
 
 ---
 
-### 3.4 `broker-ledger` — **TS** · Postgres
+### 3.4 `backend` / ledger module — **TS** · Postgres
 
 **Purpose.** The broker's books. Every cent and every share accounted for twice. This is what actually
 answers "what do I own, and what can I spend?"
@@ -228,14 +231,14 @@ A fill produces one entry with three balanced pairs: the cash leg, the fee leg, 
 **Auto-settle job** — v1 moves `UNSETTLED → SETTLED` immediately. v2 fires the same job on
 `SettlementDate` from the clock. Same code path, different trigger.
 
-**In** `Fill` events from OMS · **Out** balances, positions and buying power over gRPC
+**In** `Fill` from the oms module · **Out** balances, positions and buying power — in-process calls, inside the caller's transaction
 
 **Nightly recon** proves `Σdebits == Σcredits` per asset, and (post-MVP) that client positions match
 the custodian.
 
 ---
 
-### 3.5 `oms` — **TS** · Postgres · **FIX initiator**
+### 3.5 `backend` / oms module — **TS** · Postgres · **FIX initiator**
 
 **Purpose.** Decides whether you're *allowed* to place an order, then tracks it from birth to death.
 The most business-logic-dense service in the system.
@@ -256,7 +259,9 @@ risk_limits(account_id, max_order_value_cents, max_position_qty, max_orders_per_
 outbox(id, topic, payload, created_at, published_at)
 ```
 
-Note: **no `positions` table** — the ledger owns that, and the OMS asks it.
+Note: **no `positions` table** — the ledger module owns that. Being in the same process,
+the OMS reads it inside the same transaction as the order write, which is the entire
+reason these are not separate services.
 
 **Pre-trade risk checks** (all must pass before routing): buying power (from ledger) · position limit ·
 price band / fat-finger guard · symbol not halted · tick size valid · lot size valid · duplicate
@@ -265,14 +270,20 @@ price band / fat-finger guard · symbol not halted · tick size valid · lot siz
 **Transactional outbox** — the order state change and the "fill event published" record commit in the
 *same* Postgres transaction, so the DB and downstream consumers can never disagree.
 
-**In** `PlaceOrder` / `CancelOrder` gRPC from broker-api · **Out** FIX `NewOrderSingle` to the exchange;
+**In** in-process calls from the api module · **Out** FIX `NewOrderSingle` to the exchange;
 `Fill` events to the ledger
 
 ---
 
-### 3.6 `tick-store` — **TS** · Postgres
+### 3.6 `market-data` — **TS** · its own database
 
-**Purpose.** Remembers price history so the UI can draw a chart.
+**Purpose.** Owns the whole market data concern on the broker side: **live** fanout to
+the client over WebSocket, and **history** — every tick persisted and rolled into candles.
+
+Its own deployable and its own database, on technical grounds rather than organisational
+ones: continuous write-heavy ingest, no transactional coupling to anything, and a columnar
+store in its future. It sits on the anonymous public plane, so it needs none of the
+backend's domain types and could be rewritten in another language unchanged.
 
 **Owns**
 ```sql
@@ -281,8 +292,8 @@ bars(bucket_ts, symbol, interval, open, high, low, close, volume, trade_count)
 ```
 Bars rolled up from `ticks` on a schedule. Intervals: 1m, 5m, 1h, 1d.
 
-**In** the md-publisher WS feed (a normal gap-detecting subscriber) · **Out**
-`GET /history?symbol=&interval=&from=&to=`
+**In** the md-publisher WS feed (a normal gap-detecting subscriber) · **Out** live prices
+over WS to `web`, plus `GET /history?symbol=&interval=&from=&to=`
 
 ---
 
@@ -314,22 +325,22 @@ stock instead of noise around a flat line.
 
 ---
 
-### 3.8 `broker-api` — **TS**
+### 3.8 `backend` / api module — **TS**
 
 **Purpose.** The only thing the outside world talks to. Auth, plus reshaping internal data into
 something a UI can render. Deliberately thin — no business logic.
 
 **Owns** `users(user_id, email, password_hash)`; in-memory sessions and WS subscription registry.
 
-**In** REST + WS from the UI · **Out** gRPC to OMS and ledger; subscribes to md-publisher and fans live
-prices/depth down the client WS
+**In** REST from `web` · **Out** in-process calls to the oms and ledger modules
 
 ---
 
 ### 3.9 `web` — **TS / React**
 
-Minimal, last. Symbol picker · price chart (from tick-store) · depth ladder + live bid/ask (from WS) ·
-holdings (from ledger) · order blotter · order ticket (market or limit).
+Minimal, last. Symbol picker · price chart and live bid/ask (from `market-data`) ·
+holdings and blotter (from `backend`) · order ticket. It calls both services and joins
+them client-side — position P&L is backend positions × market-data prices.
 
 ---
 
@@ -339,16 +350,16 @@ The clearest illustration of what each service is *for*. Trace "buy 100 AAPL at 
 
 | Step | Service | What happens |
 |---|---|---|
-| 1 | `broker-api` | `POST /orders {AAPL, BUY, 100, MARKET}`. Authenticates, assigns `ClOrdID` |
-| 2 | `oms` | Validates symbol/lot/tick against refdata. Asks `broker-ledger` for buying power. Checks position and rate limits |
-| 3 | `oms` | Writes `orders` + `order_events` + `outbox` **in one transaction**, status `PendingNew` |
-| 4 | `oms` → exchange | FIX `NewOrderSingle(35=D)` over TCP |
+| 1 | `backend` api | `POST /orders {AAPL, BUY, 100, MARKET}`. Authenticates, assigns `ClOrdID` |
+| 2 | `backend` oms | Validates symbol/lot/tick against the security master. Reads buying power from the ledger module **in the same transaction** |
+| 3 | `backend` oms | Writes `orders` + `order_events` **in that same transaction**, status `PendingNew`. No outbox needed — nothing crosses a process boundary |
+| 4 | `backend` fix | FIX `NewOrderSingle(35=D)` over TCP |
 | 5 | `fix-gateway` | Checks session sequence numbers, tick size, lot size, duplicate ClOrdID. Converts to an internal command |
 | 6 | `matching-engine` | The aggressive buy **walks the ask side**, matching resting sellers in price-time order. Produces 2–3 `Trade`s |
-| 7a | *private path* | `ExecutionReport(35=8, ExecType=F)` → gateway → OMS. Sets `filled_qty=100`, `avg_price`, status `Filled`. Emits `Fill` |
-| 7b | *public path* | `BookDelta` + `Trade` → md-publisher → **tick-store** (chart history) **and** → broker-api WS, where **everyone's** screen ticks |
-| 8 | `broker-ledger` | Consumes `Fill`. One journal entry, three balanced pairs: cash · fee · shares into `CLIENT_SECURITIES_UNSETTLED` |
-| 9 | `broker-ledger` | Auto-settle job moves `UNSETTLED → SETTLED`. *(In v2 this waits for T+1.)* |
+| 7a | *private path* | `ExecutionReport(35=8, ExecType=F)` → gateway → backend. Sets `filled_qty=100`, `avg_price`, status `Filled`. Hands a `Fill` to the ledger module |
+| 7b | *public path* | `BookDelta` + `Trade` → md-publisher → **market-data**, which persists it for the chart *and* fans it out over WS, where **everyone's** screen ticks |
+| 8 | `backend` ledger | One journal entry, three balanced pairs: cash · fee · shares into `CLIENT_SECURITIES_UNSETTLED` |
+| 9 | `backend` ledger | Auto-settle job moves `UNSETTLED → SETTLED`. *(In v2 this waits for T+1.)* |
 | 10 | `web` | Holdings show 100 AAPL; blotter shows the fill; the chart already ticked at step 7b |
 
 **Steps 7a and 7b are the whole architecture in two rows** — the same event reaching you privately as
@@ -373,31 +384,41 @@ Encode these in `contracts/` at milestone 0. Retrofitting them hurts.
 
 ## Part 6 — Repo layout
 
-Organised **by company**, not by service. Each top-level folder is a business that would
-exist independently, with its own dependencies, build, migrations and tooling.
+Organised **by company**, and within the broker, **by deployable**.
 
 ```
 trading-platform/
-  exchange-alpha/          # Alpha Exchange (Rust)
-    spec/                  #   PUBLISHED: fix44.xml, marketdata.proto, listings.json
-    crates/                #   private: fix-core, matching-engine, md-publisher, gateway
-  broker/                  # the broker-dealer (TypeScript)
-    contracts/             #   internal protos, shared by the broker's own services
-    vendor/exchange-alpha/ #   version-stamped copy of Alpha's published spec
-    services/              #   api, oms, ledger, tick-store, web
-    migrations/  scripts/
-  participants/            # simulated third-party trading firms (TypeScript)
-  infra/                   # the shared local Postgres container
-  docs/                    # ADRs, sequence diagrams, glossary
+  exchange-alpha/              # Alpha Exchange (Rust) — one binary
+    spec/                      #   PUBLISHED: fix44.xml, marketdata.proto, listings.json
+    crates/                    #   private: fix-core, matching-engine, md-publisher, gateway
+  broker/                      # the broker-dealer — three deployables, nothing shared
+    backend/                   #   ONE process: api + oms + ledger + fix
+      src/{api,oms,ledger,fix,domain}/  migrations/  scripts/  vendor/
+    market-data/               #   live WS fanout + chart history; its OWN database
+      src/  scripts/  vendor/
+    web/                       #   static client bundle
+    compose.yml
+  participants/                # third-party trading firms
+    simulator/                 #   a deployable, like any other
+  participants/                # simulated third-party trading firms
+  docs/                        # ADRs, sequence diagrams, glossary
 ```
 
-Cross-company interfaces are **published specs**, not shared files: the exchange publishes,
-consumers vendor a copy and implement against it, and `spec:check` fails when that copy
-falls behind. That drift is not a repo defect — it is the integration work a real firm does,
-and building the machinery for it is part of the point.
+**No workspace, no shared package, no shared database** between the three broker
+deployables. Each installs its own dependencies and vendors its own copy of the exchange
+spec **with its own sync script**, taking only the files it uses — `backend` needs
+`fix44.xml`, `market-data` needs `marketdata.proto`, both need `listings.json`. That is what makes it true that
+`market-data` could be rewritten in Go and nothing else would change.
 
-Inside a company, sharing is correct: `broker/contracts/` is common to the broker's own
-services because they are one team's codebase.
+**Where the boundaries are, and why.** The company boundary is real — two businesses, a
+network between them, FIX as the contract. Inside the broker, `api`/`oms`/`ledger` are
+*not* separate: they share a transaction, and splitting them would make a buying-power
+check non-atomic in exchange for nothing. `market-data` is separate on technical grounds —
+continuous write-heavy ingest, no transactional coupling, a columnar store in its future.
+
+Cross-company interfaces are **published specs**, not shared files: the exchange publishes,
+consumers vendor a copy, and `spec:check` fails when a copy falls behind. That drift is not
+a repo defect — it is the integration work a real firm does.
 
 ## Part 7 — MVP milestones
 
@@ -413,7 +434,7 @@ Each milestone is independently workable with a concrete done-test.
 | **4** | **Simulator.** Fair value process + market-maker, noise, momentum and mean-reversion agents, all over FIX. | M | The book is alive 24/7 and the depth ladder looks like a real market |
 | **5** | **Broker ledger.** Double-entry schema, balanced-entry constraint, derived positions/cash/buying power, auto-settle job, recon job. | M | Post 1,000 random fills; `Σdebits == Σcredits` per asset; derived positions match an independent tally |
 | **6** | **OMS.** Accounts, order state machine, `order_events` audit trail, pre-trade risk (calling the ledger), transactional outbox, FIX initiator to the exchange, fills → ledger. | L | `curl` an order → risk-checked → FIX → filled → ledger updated → holdings correct. Bad orders rejected for the *right* reason |
-| **7** | **Tick store.** Subscribe to the feed, persist ticks, roll up bars, serve `/history`. | S | Chart-ready OHLCV for any symbol over any window |
+| **7** | **Market data service.** Subscribe to the feed, fan out live prices over WS, persist ticks, roll up bars, serve `/history`. Gets its own database here. | S | Chart-ready OHLCV for any symbol over any window |
 | **8** | **Broker API + UI.** Auth, REST + WS BFF, minimal React: symbol picker, chart, depth ladder, holdings, blotter, order ticket. | M | Click "buy 100" in the browser, watch the book move and holdings update |
 
 Milestones 1 → 2 → 3 → 4 are a clean sequential chain on the Rust side. Milestone 5 has **no

@@ -1,0 +1,15 @@
+{
+  "name": "market-simulator",
+  "private": true,
+  "type": "module",
+  "description": "Simulated third-party trading firms. Connects to Alpha Exchange over the same public FIX session and market data feed any client uses - no backdoor.",
+  "engines": { "node": ">=26" },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "^5.7.2"
+  }
+}

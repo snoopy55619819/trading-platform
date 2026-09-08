@@ -1,0 +1,9 @@
+{
+  "venue": "ALPHA",
+  "spec_version": "1.0.0",
+  "synced_at": "2026-09-08T02:52:19.615Z",
+  "files": {
+    "marketdata.proto": "0e5a8a915e113b845ebd22fa0622f36e1e5d06978ead3a7bb51c29333f33a324",
+    "listings.json": "6494d100984b5690c32a8bdeedc8071617de407c9239c19058ec3046f8da6e67"
+  }
+}

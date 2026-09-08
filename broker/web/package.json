@@ -1,0 +1,8 @@
+{
+  "name": "broker-web",
+  "private": true,
+  "type": "module",
+  "description": "The client. A static bundle - talks to broker-backend for orders and auth, to broker-market-data for prices.",
+  "engines": { "node": ">=26" },
+  "scripts": {}
+}
