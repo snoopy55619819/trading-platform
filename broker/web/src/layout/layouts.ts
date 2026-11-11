@@ -8,7 +8,7 @@
 // panel and a placement. Nothing here knows about dragging yet; it only has to be the
 // right shape for it.
 
-export const SECTION_TYPES = ["watchlist", "chart", "book", "tape", "ticket", "positions"] as const;
+export const SECTION_TYPES = ["watchlist", "chart", "book", "tape", "ticket", "activity"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
 /** One panel on screen. Its id is unique within a layout; its type says what it shows. */
@@ -64,12 +64,12 @@ export const DEFAULT_LAYOUTS = {
     desktop: [
       at("watchlist", 0, 0, 2, 12),
       at("chart", 2, 0, 7, 8),
-      at("positions", 2, 8, 7, 4),
-      at("book", 9, 0, 3, 5),
-      at("ticket", 9, 5, 3, 3),
-      at("tape", 9, 8, 3, 4),
+      at("activity", 2, 8, 7, 4),
+      at("book", 9, 0, 3, 4),
+      at("ticket", 9, 4, 3, 5),
+      at("tape", 9, 9, 3, 3),
     ],
-    phone: ["chart", "ticket", "book", "positions", "watchlist", "tape"],
+    phone: ["chart", "ticket", "book", "activity", "watchlist", "tape"],
   },
   // Trading first: the ticket and book beside the chart.
   active: {
@@ -78,14 +78,14 @@ export const DEFAULT_LAYOUTS = {
     rows: 12,
     panels: SECTION_TYPES.map(panel),
     desktop: [
-      at("watchlist", 0, 0, 2, 8),
+      at("watchlist", 0, 0, 2, 5),
+      at("tape", 0, 5, 2, 3),
       at("chart", 2, 0, 7, 8),
-      at("ticket", 9, 0, 3, 4),
-      at("book", 9, 4, 3, 4),
-      at("positions", 0, 8, 9, 4),
-      at("tape", 9, 8, 3, 4),
+      at("activity", 0, 8, 9, 4),
+      at("ticket", 9, 0, 3, 6),
+      at("book", 9, 6, 3, 6),
     ],
-    phone: ["chart", "ticket", "book", "positions", "watchlist", "tape"],
+    phone: ["chart", "ticket", "book", "activity", "watchlist", "tape"],
   },
   // One thing at a time: a single centred column, no depth or tape.
   calm: {
@@ -93,14 +93,14 @@ export const DEFAULT_LAYOUTS = {
     columns: COLUMNS,
     rows: 0,
     maxWidthPx: 880,
-    panels: (["chart", "ticket", "positions", "watchlist"] as const).map(panel),
+    panels: (["chart", "ticket", "activity", "watchlist"] as const).map(panel),
     desktop: [
       at("chart", 0, 0, 12, 10),
       at("ticket", 0, 1, 12, 0),
-      at("positions", 0, 2, 12, 0),
+      at("activity", 0, 2, 12, 0),
       at("watchlist", 0, 3, 12, 0),
     ],
-    phone: ["chart", "ticket", "positions", "watchlist"],
+    phone: ["chart", "ticket", "activity", "watchlist"],
   },
 } as const satisfies Record<string, Layout>;
 
