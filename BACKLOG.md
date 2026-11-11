@@ -8,9 +8,9 @@ way M8 was.
 
 - [x] **README "Running it" rewrite.** It described milestone 2; now it is built around
       `pnpm dev`, with each service's own run section kept for working on one alone.
-- [ ] **Chart: more dynamic.** Show the candle interval on the chart, zoom buttons for the
+- [x] **Chart: more dynamic.** The candle interval on the chart, zoom buttons for the
       time range shown, and a legend with the hovered candle's open, high, low, close and
-      volume. *(in progress)*
+      volume.
 - [ ] **Stay signed in across backend restarts.** Sessions live in the backend's memory, so
       a restart signs everyone out. Store them in the backend's database (hashed tokens,
       an expiry), keeping `sessionStorage` on the client.

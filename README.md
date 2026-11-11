@@ -1,43 +1,75 @@
 # trading-platform
 
-An end-to-end simulation of the equities trading lifecycle, built to learn how market
-infrastructure actually fits together. Entirely synthetic — no real market data, no real money.
+**A stock market built from scratch:** a Rust exchange with its own matching engine and FIX
+4.4 gateway, a broker with an order management system and a double-entry ledger, a live
+market data feed, simulated trading firms that keep the market moving, and a browser
+trading app on top. Entirely synthetic: no real market data, no real money.
 
-See [PLAN.md](PLAN.md) for the architecture and milestone breakdown.
+![The trading screen: watchlist, live candlestick chart with a hover legend, order book, order ticket, positions with P&L, and time and sales](docs/images/trading-screen-pro-dark.png)
 
-## Organised by company, not by service
+## What it is
 
-The top level mirrors the real world: **each folder is a business that would exist
-independently.** They share no code, no build, and no contracts directory.
+The whole life of a trade, end to end. You place an order in the browser; the broker checks
+it against your buying power and sends it over FIX to the exchange; the matching engine fills
+it against orders from simulated market makers and traders; the fill comes back to the
+broker's ledger, and the public feed moves the book and chart for everyone watching.
 
+Each part is a separate business with its own code, language and database, connected only
+by published protocols, the way real market infrastructure is. It was built milestone by
+milestone, each with a concrete test that proves it works (see [Built so far](#built-so-far)).
+
+### Highlights
+
+- **A matching engine with no database.** Price-time priority, market, limit, IOC and FOK
+  orders, in memory. Durability is an append-only journal, and replaying it rebuilds a
+  byte-identical order book.
+- **FIX 4.4 written by hand, twice.** A Rust acceptor on the exchange and a TypeScript
+  initiator in the broker, sharing only the published spec. Conformance-tested against the
+  independent QuickFIX/Go engine, including a fill recovered by resend after the exchange
+  was killed with `kill -9`.
+- **Sequenced market data.** Every feed message carries venue-wide and per-symbol sequence
+  numbers; a subscriber that sees a gap recovers from a fresh snapshot. A property test
+  checks that a subscriber joining at any moment rebuilds the engine's exact book.
+- **A ledger the database enforces.** Double-entry books in Postgres: an entry that does not
+  balance per asset is refused at commit, and history is append-only. Positions and cash
+  are only ever derived from journal lines. 1,000 random fills match an independent tally
+  to the cent.
+- **An order path that survives crashes.** Orders are committed before they are sent, FIX
+  sequence numbers are never reset, and fills are idempotent, so a broker killed mid-trade
+  loses and duplicates nothing.
+- **A live market.** Simulated market makers quote around a hidden fair value and manage
+  their inventory; noise, momentum and mean-reversion traders take liquidity. They connect
+  over the same public FIX session as anyone else, with no backdoor.
+- **A real trading client.** React with live prices over WebSocket, candlestick charts with
+  zoomable ranges, an order book you can click to price an order, confirmations, toasts on
+  fills, and positions with P&L. Three styles (Pro, Active, Calm) in light and dark, from
+  one set of components.
+
+<img src="docs/images/trading-screen-active-light.png" alt="The same screen in the Active style, light mode: big Buy and Sell buttons with a quantity stepper" width="720">
+
+### Stack
+
+| Part | Language | What it does |
+|---|---|---|
+| `exchange-alpha/` | Rust | matching engine, FIX 4.4 gateway, market data publisher |
+| `broker/backend/` | TypeScript (Node) | API, order management, pre-trade risk, ledger, FIX initiator |
+| `broker/market-data/` | TypeScript (Node) | live price fan-out to browsers, candle history |
+| `broker/web/` | TypeScript (React, Vite) | the trading app |
+| `participants/simulator/` | TypeScript (Node) | simulated trading firms |
+| Postgres | | one database per service, never shared |
+
+### Try it
+
+With Docker, Rust, Node 26 and pnpm installed, and the [first-time setup](#quick-start)
+done once:
+
+```bash
+pnpm dev
 ```
-exchange-alpha/   Alpha Exchange        (Rust)  — publishes spec/, everything else is private
-broker/           A broker-dealer       (TS)    — backend, market-data, web
-                                                  three deployables, nothing shared
-participants/     Other trading firms   (TS)    — the simulated market
-```
 
-Cross-company interfaces work the way they do in the industry: **the exchange publishes a
-spec, and everyone else implements against it.** Nasdaq doesn't co-own a schema repo with
-Schwab — it publishes a FIX spec and firms build to it.
+Then open http://localhost:5173, open an account, add funds and place an order.
 
-The exchange publishes `fix44.xml`, `marketdata.proto` and `listings.json` in
-`exchange-alpha/spec/`. Each consumer copies only the files it uses into its own
-`vendor/exchange-alpha/`, stamped with the spec version:
-
-| Consumer | Vendors |
-|---|---|
-| `broker/backend` | `fix44.xml`, `listings.json` |
-| `broker/market-data` | `marketdata.proto`, `listings.json` |
-
-`pnpm spec:sync` updates the copies on purpose; `pnpm spec:check` fails when a copy falls
-behind. A stale copy is not a repo problem: it is integration work, and handling it is part
-of what this project is for.
-
-There are no shared packages, even between the broker's own services. That is what keeps
-each of them free to be rewritten in another language.
-
-## Architecture diagrams
+## Architecture
 
 ### Current plan (MVP)
 
@@ -65,7 +97,7 @@ light/dark toggle. After editing a diagram, regenerate the images with
 
 The single most important structural fact: **this is not one pipeline, it is two independent
 planes.** The same match reaches you twice, by two different routes, carrying two different
-things — privately as your execution report, publicly as an anonymous print on the tape.
+things: privately as your execution report, publicly as an anonymous print on the tape.
 
 The diagrams above show both planes: blue for orders, orange for market data.
 
@@ -74,7 +106,7 @@ The diagrams above show both planes: blue for orders, orange for market data.
 
 **Where the boundaries are, and why.** The company boundary is real: two businesses, a
 network between them, FIX as the contract. Inside the broker, `api`/`oms`/`ledger` are *not*
-separate — splitting them would make a buying-power check non-transactional in exchange for
+separate. Splitting them would make a buying-power check non-transactional in exchange for
 nothing. `market-data` is separate on technical grounds: different workload, different
 database, no transactional coupling.
 
@@ -83,8 +115,40 @@ The gateway links it in, and the backend links its own initiator against the sam
 dictionary. It has never heard of an order book.
 
 **What the two planes must never share:** `TradePrint` has no field for an account or a
-client order id — structurally, not by convention. Leaking one onto the public feed would be
+client order id, structurally, not by convention. Leaking one onto the public feed would be
 a correctness bug, so the schema makes it impossible to write.
+
+## Organised by company, not by service
+
+The top level mirrors the real world: **each folder is a business that would exist
+independently.** They share no code, no build, and no contracts directory.
+
+```
+exchange-alpha/   Alpha Exchange        (Rust)  publishes spec/, everything else is private
+broker/           A broker-dealer       (TS)    backend, market-data, web
+                                                  three deployables, nothing shared
+participants/     Other trading firms   (TS)    the simulated market
+```
+
+Cross-company interfaces work the way they do in the industry: **the exchange publishes a
+spec, and everyone else implements against it.** Nasdaq doesn't co-own a schema repo with
+Schwab; it publishes a FIX spec and firms build to it.
+
+The exchange publishes `fix44.xml`, `marketdata.proto` and `listings.json` in
+`exchange-alpha/spec/`. Each consumer copies only the files it uses into its own
+`vendor/exchange-alpha/`, stamped with the spec version:
+
+| Consumer | Vendors |
+|---|---|
+| `broker/backend` | `fix44.xml`, `listings.json` |
+| `broker/market-data` | `marketdata.proto`, `listings.json` |
+
+`pnpm spec:sync` updates the copies on purpose; `pnpm spec:check` fails when a copy falls
+behind. A stale copy is not a repo problem: it is integration work, and handling it is part
+of what this project is for.
+
+There are no shared packages, even between the broker's own services. That is what keeps
+each of them free to be rewritten in another language.
 
 ## Running it
 
@@ -349,7 +413,7 @@ no deployable depends on the repo root to build, run or deploy.
 
 ## Working on it
 
-Each service carries its own **`TODO.md`** — a checklist plus the inputs and outputs it is
+Each service carries its own **`TODO.md`**: a checklist plus the inputs and outputs it is
 responsible for. Start there rather than from `PLAN.md`, which is the roadmap rather than
 the working document.
 
@@ -367,7 +431,24 @@ the working document.
 Conventions that apply everywhere are in [`docs/DECISIONS.md`](docs/DECISIONS.md); the
 short version is in [`CLAUDE.md`](CLAUDE.md).
 
-## Status
+## Built so far
+
+The MVP, milestones 0 to 8, is complete. Each milestone had a concrete test that proves it;
+the full plan is in [PLAN.md](PLAN.md).
+
+| | Milestone | Proved by |
+|---|---|---|
+| M1 | Matching engine | replaying the journal reproduces a byte-identical book |
+| M2 | FIX 4.4 | QuickFIX/Go trades through the book, survives a `kill -9` of the gateway, and recovers a missed fill by resend |
+| M3 | Market data | a property test: a subscriber joining at any point rebuilds the engine's exact book from the feed alone |
+| M4 | Simulated market | thousands of orders with zero rejects and zero feed gaps; books one-sided for 9 of 721 seconds, market makers within their inventory limits |
+| M5 | Broker ledger | 1,000 random fills match an independent tally to the cent; the database refuses an unbalanced entry |
+| M6 | Order management | a fill that happened while the broker was killed was recovered on restart and booked to the cent |
+| M7 | Market data service | a recorded feed replayed into candles that match an independent tally; killed mid-stream with no gap or double bar |
+| M8 | Web client | "Buy 100" in the browser fills in the blotter while the book moves and holdings and P&L update |
+
+<details>
+<summary>What each milestone built, in more detail</summary>
 
 **Milestone 8, the web client: complete.** The whole MVP runs in a browser with `pnpm dev`.
 A Vite + React client signs in, and joins the two planes itself: prices, depth, candles and
@@ -429,5 +510,10 @@ report. Sequence numbers live in the exchange's own Postgres and survive restart
 Conformance-tested against **QuickFIX/Go**, which trades through the book, survives the
 gateway being SIGKILLed, and recovers a missed fill by resend.
 
-The MVP (milestones 0 to 8) is done. Next: the post-MVP roadmap in `PLAN.md` Part 8, led
-by the post-trade plane (clearing, custody, settlement on a real T+1 clock).
+</details>
+
+## What's next
+
+The post-MVP roadmap is in `PLAN.md` Part 8, led by the post-trade plane (clearing, custody,
+and settlement on a real T+1 clock). Smaller follow-ups and the layout editor are in
+[BACKLOG.md](BACKLOG.md).
