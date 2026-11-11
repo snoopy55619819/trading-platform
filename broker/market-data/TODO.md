@@ -14,6 +14,7 @@ pnpm test
 | | |
 |---|---|
 | `GET /history?symbol=ACME&interval=1m&from=<ISO>&to=<ISO>` | candles, oldest first, at most 1,000 |
+| `GET /trades?symbol=ACME&limit=50` | the latest trades, newest first, at most 200: seeds the web client's time and sales, since `/live` only sends trades from the moment a browser subscribes |
 | `GET /health` | feed state (gaps, reconnects, live books), ticks stored, browsers connected |
 | `WS /live` | `{"subscribe": ["ACME"]}`, then `book` and `trade` messages as JSON |
 
@@ -22,7 +23,7 @@ pnpm test
 | | |
 |---|---|
 | **In** | Alpha Exchange's WebSocket feed, decoded with `marketdata.proto` |
-| **Out** | Live prices and depth over WebSocket to `web`; `GET /history` for charts |
+| **Out** | Live prices and depth over WebSocket to `web`; `GET /history` for charts; `GET /trades` for time and sales |
 | **Owns** | Its **own database**: `broker-market-data-postgres` on 5434, not a schema in the backend's |
 
 It lives on the anonymous public plane, so it never sees an account or an order id. That

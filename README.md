@@ -251,6 +251,7 @@ pnpm --dir broker/market-data db:migrate && cd broker/market-data && pnpm start
 
 ```bash
 curl -s "localhost:8081/history?symbol=ACME&interval=1m"
+curl -s "localhost:8081/trades?symbol=ACME&limit=10"
 ```
 
 Browsers subscribe on `ws://localhost:8081/live` with `{"subscribe": ["ACME"]}`.

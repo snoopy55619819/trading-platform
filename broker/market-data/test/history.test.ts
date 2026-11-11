@@ -14,7 +14,7 @@ import { FeedMessageSchema, type TradePrint } from "../gen/marketdata_pb.js";
 import { type Db, createPool } from "../src/db.ts";
 import { Subscriber } from "../src/feed/subscriber.ts";
 import { type Bar, bars, rollup } from "../src/store/rollup.ts";
-import { type Tick, insertTicks, tickFrom } from "../src/store/ticks.ts";
+import { type Tick, insertTicks, recentTrades, tickFrom } from "../src/store/ticks.ts";
 
 const pool = createPool();
 after(() => pool.end());
@@ -90,6 +90,24 @@ test("a late tick lands in the right bar, and repeating anything changes nothing
     assert.deepEqual(await bars(db, "T_LATE", "1m", ...window), once);
     const { rows } = await db.query("SELECT count(*)::int AS n FROM market_data.bars WHERE symbol = 'T_LATE'");
     assert.equal(rows[0]?.n, 4, "one bar per interval, never two");
+  }));
+
+test("recent trades: the latest few for one symbol, newest first", () =>
+  rolledBack(async (db) => {
+    await insertTicks(db, [
+      tick("T_RECENT", "2026-11-11T10:00:01Z", 1000, 10),
+      tick("T_RECENT", "2026-11-11T10:00:03Z", 1020, 30),
+      tick("T_OTHER", "2026-11-11T10:00:04Z", 5000, 1),
+      tick("T_RECENT", "2026-11-11T10:00:02Z", 1010, 20), // stored late, sorted by time
+    ]);
+    const trades = await recentTrades(db, "T_RECENT", 2);
+    assert.deepEqual(
+      trades.map((t) => [t.ts, t.priceCents, t.qty, t.aggressor]),
+      [
+        ["2026-11-11T10:00:03.000Z", 1020, 30, "BUY"],
+        ["2026-11-11T10:00:02.000Z", 1010, 20, "BUY"],
+      ],
+    );
   }));
 
 test("a recorded feed, replayed, gives the same candles as an independent tally", () =>
