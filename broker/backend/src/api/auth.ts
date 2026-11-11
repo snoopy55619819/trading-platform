@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 
 import type { Db } from "../db.ts";
 import { ulid } from "../ids.ts";
+import { seedWatchlist } from "../watchlist.ts";
 
 const derive = promisify(scrypt) as (password: string, salt: Buffer, length: number) => Promise<Buffer>;
 const SESSION_MS = 12 * 3_600_000;
@@ -46,6 +47,7 @@ export async function signUp(
     userId,
   ]);
   await db.query("INSERT INTO broker.risk_limits (account_id) VALUES ($1)", [accountId]);
+  await seedWatchlist(db, accountId);
   return { userId, accountId };
 }
 

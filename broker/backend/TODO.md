@@ -79,8 +79,9 @@ positions check compare the ledger with itself, each fails a test.
 
 - **Buying power is not here yet.** It is settled cash less what working buy orders have
   reserved, and reservations arrive with orders at M6. `cashBalance` is the ledger's half.
-- **No cost basis.** Average cost per position needs a method choice (average or FIFO) and
-  belongs with the positions API at M6.
+- **Cost basis is average cost only** (added for M8, in `ledger/cost.ts`). FIFO or
+  specific-lot accounting, which tax reporting may need, would be a different method over
+  the same fills.
 - **The street side never settles.** `STREET_CONTRA` holds what the market owes and is owed
   until a clearing model exists (it becomes `CLEARING_RECEIVABLE`/`PAYABLE` then).
 - **Nothing runs the settle job or reconciliation on a timer yet.** That needs the backend
@@ -119,6 +120,14 @@ positions check compare the ledger with itself, each fails a test.
 - [x] Rate limiting (20 requests a second per client, as well as the per-account order rate)
 - [x] Idempotent order placement keyed on `clientOrderId`
 - [x] No business logic here — it calls the oms and ledger modules
+
+## For the web client (M8)
+
+Done: CORS (an origin allowlist, `BROKER_WEB_ORIGIN`), cost basis on `/positions`
+(`costBasisCents`, `avgCostCents`, `realizedPnlCents`, by the average-cost method from
+`fills`, fees included), a watchlist (`GET /watchlist`, `PUT` and `DELETE
+/watchlist/:symbol`, five defaults for a new account), and `GET /status`. Details in
+[`broker/web/TODO.md`](../web/TODO.md), section 1.
 
 ## Done when
 
@@ -181,6 +190,5 @@ correct. Bad orders rejected for the **right** reason, verified per rule.
 - **Sessions live in memory**: a restart logs everyone out.
 - **`fix_outbound` keeps every message forever.** Fine for now; a daily prune once a
   business date exists.
-- **No cost basis or P&L** in `GET /positions` yet; average cost needs a method choice.
 - **DAY behaves like GTC.** Nothing expires orders at the end of the day until a clock
   service exists.

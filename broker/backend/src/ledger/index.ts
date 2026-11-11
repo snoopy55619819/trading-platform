@@ -6,3 +6,5 @@ export type { Holding } from "./ledger.ts";
 export { reconcile } from "./reconcile.ts";
 export type { Discrepancy, Reconciliation } from "./reconcile.ts";
 export { settle } from "./settle.ts";
+export { averageCost, costs } from "./cost.ts";
+export type { Cost } from "./cost.ts";
