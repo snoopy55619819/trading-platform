@@ -179,6 +179,20 @@ that happened while a client was away must reach it by resend:
 cd exchange-alpha && ./conformance/run.sh
 ```
 
+### Bring the market to life
+
+Simulated trading firms (market makers, noise, momentum and mean-reversion traders) that
+connect like any other client: one FIX session, the public feed, no backdoor. With the
+exchange running:
+
+```bash
+cd participants/simulator && pnpm install && pnpm proto:gen && pnpm start
+```
+
+Then watch a symbol with `md-watch` as above. `SIM_SPEED=20` runs prices twenty times
+faster than the clock; `SIM_ACTIVITY=0.2` makes a quiet market for a deployed instance.
+Ctrl-C cancels everything the simulator has resting.
+
 ### Run the matching engine (no network)
 
 A walkthrough of every matching rule (price-time priority, walking the book, IOC, FOK,
@@ -236,6 +250,15 @@ short version is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
+**Milestone 4, simulated participants: complete.** The market is alive. A TypeScript
+simulator, sharing no code with the exchange, logs on over its own FIX 4.4 initiator and
+reads the public feed: market makers quote ten books around a hidden fair value (geometric
+Brownian motion with news jumps), skew to shed inventory and pull quotes on jumps; noise,
+momentum and mean-reversion traders take liquidity. Behaviour runs against the real
+exchange, with an independent recorder on the feed, found and fixed books going one-sided
+and market makers overshooting their inventory limits. Zero rejects and zero feed gaps
+across thousands of orders.
+
 **Milestone 3, market data: complete.** The public plane. Every book change and trade goes
 out over WebSocket as protobuf, per the published `marketdata.proto`, with no field that
 could identify a participant. Each message carries a venue-wide `feed_seq` and a
@@ -254,5 +277,5 @@ report. Sequence numbers live in the exchange's own Postgres and survive restart
 Conformance-tested against **QuickFIX/Go**, which trades through the book, survives the
 gateway being SIGKILLed, and recovers a missed fill by resend.
 
-Next: **Milestone 4, simulated participants** (`participants/simulator`): synthetic trading
-firms that watch this feed and trade over the same public FIX session anyone else uses.
+Next: **Milestone 5, the broker backend** (`broker/backend`): orders, risk checks and the
+double-entry ledger.

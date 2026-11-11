@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "es2023",
+    "lib": ["es2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+
+    // Node runs .ts by stripping types and nothing else - no `enum`, no `namespace`.
+    // Nothing here is consumed as a dependency, so nothing needs compiling: this flag
+    // keeps "no build step" a compile error rather than a convention people forget.
+    "erasableSyntaxOnly": true,
+
+    // The scripts are .mjs. checkJs type-checks them via inference and JSDoc.
+    "allowJs": true,
+    "checkJs": true,
+
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "exclude": ["node_modules", "gen", "data"]
+}

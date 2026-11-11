@@ -230,7 +230,7 @@
 
   <g class="node"><rect x="1080" y="594" width="170" height="56" rx="8"/>
     <text class="n-title" x="1165" y="616" text-anchor="middle">simulator</text>
-    <text class="n-sub" x="1165" y="634" text-anchor="middle">agents · M4</text></g>
+    <text class="n-sub" x="1165" y="634" text-anchor="middle">agents · M4 · <tspan class="tag built">BUILT</tspan></text></g>
 
   <!-- Badges -->
   <g class="badge" transform="translate(320 88)"><circle r="11"/><text y="4" text-anchor="middle">1</text></g>

@@ -1,0 +1,60 @@
+// The FIX tags and message types this initiator uses, by the names in the venue's
+// published dictionary (vendor/exchange-alpha/fix44.xml). test/tags.test.ts checks every
+// number here against that file, so a typo cannot quietly send the wrong field.
+
+export const Tag = {
+  BeginString: 8,
+  BodyLength: 9,
+  CheckSum: 10,
+  MsgSeqNum: 34,
+  MsgType: 35,
+  SenderCompID: 49,
+  TargetCompID: 56,
+  SendingTime: 52,
+  PossDupFlag: 43,
+  OrigSendingTime: 122,
+
+  EncryptMethod: 98,
+  HeartBtInt: 108,
+  ResetSeqNumFlag: 141,
+  TestReqID: 112,
+  BeginSeqNo: 7,
+  EndSeqNo: 16,
+  NewSeqNo: 36,
+  GapFillFlag: 123,
+  RefSeqNum: 45,
+  Text: 58,
+
+  ClOrdID: 11,
+  OrigClOrdID: 41,
+  OrderID: 37,
+  Account: 1,
+  Symbol: 55,
+  Side: 54,
+  TransactTime: 60,
+  OrderQty: 38,
+  OrdType: 40,
+  Price: 44,
+  TimeInForce: 59,
+  ExecType: 150,
+  OrdStatus: 39,
+  LeavesQty: 151,
+  LastQty: 32,
+  LastPx: 31,
+  Commission: 12,
+  OrdRejReason: 103,
+} as const;
+
+export const MsgType = {
+  Heartbeat: "0",
+  TestRequest: "1",
+  ResendRequest: "2",
+  Reject: "3",
+  SequenceReset: "4",
+  Logout: "5",
+  Logon: "A",
+  NewOrderSingle: "D",
+  OrderCancelRequest: "F",
+  ExecutionReport: "8",
+  OrderCancelReject: "9",
+} as const;

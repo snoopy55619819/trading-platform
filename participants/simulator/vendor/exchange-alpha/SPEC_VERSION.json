@@ -1,0 +1,10 @@
+{
+  "venue": "ALPHA",
+  "spec_version": "1.1.0",
+  "synced_at": "2026-11-11T18:15:47.901Z",
+  "files": {
+    "fix44.xml": "3c6a021b655dae28153c6cc94ee49785649844aa13694c00f0f80605ec30fb13",
+    "marketdata.proto": "c72cf4103ae0c9f6ebee121fa3976d45830b548e440368668b72be404d035e9f",
+    "listings.json": "b24f9f5f8d20dcf6c7b4ebd5fb8b5ac8907ea883e9e515c3eaf083120553b916"
+  }
+}

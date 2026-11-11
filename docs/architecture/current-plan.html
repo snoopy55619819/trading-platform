@@ -17,7 +17,7 @@ components:
   fix-core       | FIX codec + session state machine  | library  | alpha    | BUILT (M2)
   journal        | append-only command log            | store    | alpha    | BUILT (M1)
   exchange-db    | FIX session state                  | store    | alpha    | BUILT (M2)
-  simulator      | synthetic trading firms            | process  | third    | planned M4
+  simulator      | synthetic trading firms            | process  | third    | BUILT (M4)
 boundaries:
   broker | web, backend, broker-db, market-data, md-db
   alpha  | exchange-alpha (gateway, matching-engine, md-publisher), fix-core, journal, exchange-db
@@ -34,7 +34,7 @@ flows:
   md    | md-publisher -> simulator           | WebSocket     | Snapshot, Delta
   md    | market-data -> web                  | WebSocket + REST | prices, history
 status note: matching-engine and journal BUILT at M1; gateway, fix-core, exchange-db BUILT at M2;
-  md-publisher BUILT at M3 (WebSocket on 9879, feed_seq + symbol_seq)
+  md-publisher BUILT at M3 (WebSocket on 9879, feed_seq + symbol_seq); simulator BUILT at M4
 omitted on purpose:
   ExecutionReports back to the simulator | same shape as the broker's return path
   every service's own DB migrations      | implementation detail
@@ -285,7 +285,7 @@ omitted on purpose:
 
   <g class="node"><rect x="1080" y="594" width="170" height="56" rx="8"/>
     <text class="n-title" x="1165" y="616" text-anchor="middle">simulator</text>
-    <text class="n-sub" x="1165" y="634" text-anchor="middle">agents · M4</text></g>
+    <text class="n-sub" x="1165" y="634" text-anchor="middle">agents · M4 · <tspan class="tag built">BUILT</tspan></text></g>
 
   <!-- Badges -->
   <g class="badge" transform="translate(320 88)"><circle r="11"/><text y="4" text-anchor="middle">1</text></g>

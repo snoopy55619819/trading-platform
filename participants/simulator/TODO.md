@@ -3,7 +3,13 @@
 **Makes the market look alive when nobody is using the app.** Without it, v1 is an empty
 book and a flat chart.
 
-Status: **not started** · depends on: gateway (M2), md-publisher (M3)
+Status: **done** · 33 tests, plus behaviour runs against the real exchange
+
+```
+pnpm install && pnpm proto:gen      # once: dependencies, and TypeScript from the vendored proto
+pnpm start                          # needs the exchange running (FIX 9878, feed 9879)
+pnpm test                           # FIX codec and session, mirror, price model, agents, orders
+```
 
 ## Inputs / outputs
 
@@ -17,37 +23,140 @@ Status: **not started** · depends on: gateway (M2), md-publisher (M3)
 what makes it a valid test of the whole system rather than a rigged demo — and it means
 the gateway is under continuous load from this milestone onward.
 
+## Settings
+
+All optional, by environment variable (`src/config.ts`):
+
+| Variable | Default | |
+|---|---|---|
+| `SIM_MAX_ORDERS_PER_SEC` | `40` | ceiling on orders and cancels, every agent together |
+| `SIM_ACTIVITY` | `1` | how often the takers trade; `0.2` for a quiet deployed instance |
+| `SIM_SPEED` | `1` | fair value runs this many times faster than the clock, to see hours in minutes |
+| `SIM_SEED` | the clock | the same seed replays the same price paths |
+| `SIM_REPORT_SECS` | `30` | how often the status table prints |
+| `SIM_COMP_ID` | `SIM` | must be in the exchange's `ALPHA_COMP_IDS` |
+| `SIM_FIX_HOST` / `SIM_FIX_PORT` / `SIM_FEED_URL` | from `listings.json` | where the venue is |
+
 ## Checklist
 
 ### 1. Plumbing
-- [ ] Vendor the venue spec (uncomment this service in the sync script's consumers)
-- [ ] FIX initiator — a TypeScript one, independent of the Rust acceptor
-- [ ] Subscribe to the market data feed with gap detection
-- [ ] Per-agent FIX sessions, or one session with distinct account ids — decide and note why
+- [x] Vendor the venue spec (`fix44.xml`, `marketdata.proto`, `listings.json`), added to
+      the root `spec:sync` / `spec:check`
+- [x] FIX initiator — a TypeScript one, independent of the Rust acceptor
+- [x] Subscribe to the market data feed with gap detection (`symbol_seq`, then resync)
+- [x] Per-agent FIX sessions, or one session with distinct account ids: **one session,
+      an account per agent** (see Decisions)
 
 ### 2. Price process
-- [ ] Hidden fair value per symbol on a geometric Brownian motion, seeded from
+- [x] Hidden fair value per symbol on a geometric Brownian motion, seeded from
       `reference_price_cents`
-- [ ] Per-symbol drift and volatility (HELX should move far more than GRID)
-- [ ] Occasional jumps — "news" — or charts look like noise around a flat line
-- [ ] Diurnal multiplier on volume and volatility, so there are quiet and busy hours
+- [x] Per-symbol drift and volatility (HELX should move far more than GRID)
+- [x] Occasional jumps — "news" — or charts look like noise around a flat line
+- [x] Diurnal multiplier on volume and volatility, so there are quiet and busy hours
 
 ### 3. Agents
-- [ ] **Market maker** — quotes both sides around fair value; spread widens with
+- [x] **Market maker** — quotes both sides around fair value; spread widens with
       volatility; **inventory skew** (long → shade quotes down to offload); pulls quotes on
-      a large adverse move. This is the agent that creates liquidity; without it nothing
-      else has anything to trade against.
-- [ ] **Noise trader** — Poisson arrivals, random side, small market orders
-- [ ] **Momentum** — chases short-term moves; creates trends
-- [ ] **Mean reversion** — fades extremes; creates the pullbacks
-- [ ] Global rate control, so you can dial total order volume down for a deployed instance
+      a large adverse move.
+- [x] **Noise trader** — Poisson arrivals, random side, small market orders
+- [x] **Momentum** — chases short-term moves; creates trends
+- [x] **Mean reversion** — fades extremes; creates the pullbacks
+- [x] Global rate control, so you can dial total order volume down for a deployed instance
 
 ### 4. Behaviour checks
-- [ ] The spread stays sane — it should not collapse to zero or blow out permanently
-- [ ] Price wanders without exploding or flatlining over a long run
-- [ ] Market makers end roughly flat rather than accumulating unbounded inventory
-- [ ] The 1-minute chart looks like a real stock to the eye
+- [x] The spread stays sane — it should not collapse to zero or blow out permanently
+- [x] Price wanders without exploding or flatlining over a long run
+- [x] Market makers end roughly flat rather than accumulating unbounded inventory
+- [x] The 1-minute chart looks like a real stock to the eye
 
 ## Done when
 
 The book is alive 24/7 and the depth ladder and chart look like a real market.
+
+**Met**, by two 12-minute runs against the real exchange at `SIM_SPEED=20` (about four
+hours of price action), same seed, with an independent recorder on the public feed taking
+the top of every book each second and every print.
+
+The first run failed the behaviour checks, which is what they were for:
+
+| | first run | after the fixes |
+|---|---|---|
+| seconds a book had only one side, worst symbol | 287 of 721 | 9 of 721 |
+| peak market-maker inventory, against its limit | 103% to 114% | 41% to 78% |
+| crossed or zero spreads | 0 | 0 |
+| rejects / feed gaps | 0 / 0 | 0 / 0 |
+| mean-reversion P&L (it barely traded at first) | $38 | +$10.6k |
+
+What changed: market makers replace a quote at once instead of waiting for the cancel to be
+confirmed (waiting left whole sides empty); what rests on a side must fit the inventory room
+left, with one lot kept at the touch until 1.5x the limit; inventory skews harder; signal
+traders warm up for a minute instead of up to ten. The seconds still one-sided are startup,
+shutdown, and the deliberate pulls on news jumps.
+
+Prices moved from under 1% (GRID) to 14% (CRUX, HELX) over the four simulated hours, with trends, pullbacks
+and gaps on news; spreads held at a few cents for the cheap names and tens of cents for
+CRUX ($286, wider here because of the 20x speed). Momentum lost money and mean reversion
+made it, the usual outcome in a market whose fair value is anchored. The run journaled
+about 15,000 commands (21 a second).
+
+## Design
+
+```
+                fair value (hidden)          public feed (WebSocket)
+                       │                            │
+                market makers                momentum · mean reversion · noise
+                       └──────────────┬─────────────┘
+                                   Orders  ── rate limit ──  one FIX session (SIM)
+```
+
+- `src/fix/` is the FIX initiator: `codec.ts` (framing, checksums, exact cents), a pure
+  `session.ts` state machine (logon, heartbeats, test requests, gap detection, resend
+  requests, gap fills), and `connection.ts`, the socket with reconnect and backoff. It shares
+  nothing with the exchange's Rust: `test/tags.test.ts` checks every tag number against the
+  vendored `fix44.xml`, and the live runs are the interoperability test.
+- `src/feed/` subscribes to every symbol and keeps a `Mirror` per symbol, following the
+  spec's rules: snapshot first, `symbol_seq + 1` applied, a skip makes the book stale and
+  asks for a resync.
+- `src/market/fair-value.ts` is the price model; `diurnal.ts` the time of day.
+- `src/agents/` holds the four agent kinds. Only market makers see fair value (it stands
+  in for their information); the others trade on public prices.
+- `src/orders.ts` tracks the firm's own orders by ClOrdID, routes fills to the owning
+  account, and holds the rate limit. Positions are built from fills alone.
+
+## Decisions
+
+- **One FIX session, an account per agent** (`MM-ACME`, `NOISE`, `MOMENTUM`, `MEANREV`).
+  Alpha's self-trade prevention works per account, so the desks trade with each other as
+  separate desks at one firm would. One session is how a real firm connects, and it means
+  one CompID on the allowlist and one sequence-number state.
+- **Every logon resets sequence numbers, and then cancels everything that might still
+  rest.** A simulator would rather start clean than reconcile. Reports sent while it was
+  away are lost, so a fill it missed is never booked; a real broker could not accept that
+  (its initiator, M6, must recover by resend). Within a connection the full session rules
+  still apply.
+- **Open orders are saved to `data/open-orders.json` every second**, written to a
+  temporary file and renamed. After a crash the next run cancels them on logon. A crash
+  can still orphan up to a second's worth of new orders.
+- **Resend requests are answered with a gap fill, never by resending orders.** A stale
+  order delivered late could trade at a price nobody wants any more.
+- **Fair value is weakly pulled toward the reference price** (half-life 3 days) and kept
+  within 75% of the price band. The venue's band is anchored on the static
+  `reference_price_cents`, so a free random walk would eventually leave it and every order
+  would be rejected. The pull is too weak to see within a day.
+- **Fair value is the only floating-point price.** It is a model quantity; every price that
+  leaves it is rounded to integer cents on the symbol's tick, and FIX prices are formatted
+  and parsed from integer cents without a float.
+- **Cancels skip the rate limit's queue** (they may overdraw it). Pulling a quote is never
+  the thing to delay.
+- **Takers use marketable limits, not unbounded market orders**, except noise traders,
+  whose orders are small. A momentum order cannot sweep the book.
+
+## Known gaps
+
+- **The exchange's storage grows without limit under 24/7 load.** Every command is
+  journaled and every report kept in `fix_outbound`; neither is ever compacted. Fine for
+  development; a deployed instance needs journal snapshots and outbound pruning first.
+- **Market makers know fair value exactly.** Real ones estimate it. Good enough for a
+  market that looks right; an "informed trader" agent would be the honest version.
+- **No ClOrdID memory across a crash beyond the run id.** IDs are `{run id}-{n}`, the run id
+  being the start time in base 36, so two runs started in the same millisecond would clash.

@@ -9,10 +9,17 @@ the same public FIX session a real client uses and read the same public market d
 That is what makes it a valid test of the whole system rather than a cheat, and it means
 the exchange's FIX gateway is under continuous load from milestone 4 onward.
 
-Built at **milestone 4**, once the exchange has a FIX gateway and a market data feed to
-connect to. It will vendor Alpha's published spec the same way the broker does.
+Built at **milestone 4**. It vendors Alpha's published spec the same way the broker does,
+and its FIX initiator is its own: it shares no code with the exchange or the broker.
 
-## Agents (planned)
+```bash
+cd participants/simulator && pnpm install && pnpm proto:gen   # once
+pnpm start                                                     # needs the exchange running
+```
+
+Details, settings and design decisions: [`simulator/TODO.md`](simulator/TODO.md).
+
+## Agents
 
 | Agent | Behaviour |
 |---|---|

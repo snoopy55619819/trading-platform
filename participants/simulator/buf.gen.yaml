@@ -1,0 +1,16 @@
+# Generates TypeScript for the exchange's published market data schema, from our own
+# vendored copy. Output lands in gen/, which is never committed: run `pnpm proto:gen`.
+#
+# js + dts rather than ts: protoc-gen-es renders proto enums as TypeScript `enum`, which
+# Node's type stripping cannot erase.
+version: v2
+clean: true
+inputs:
+  - directory: vendor/exchange-alpha
+plugins:
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: gen
+    opt: [target=js, import_extension=js]
+  - local: ./node_modules/.bin/protoc-gen-es
+    out: gen
+    opt: [target=dts, import_extension=js]
