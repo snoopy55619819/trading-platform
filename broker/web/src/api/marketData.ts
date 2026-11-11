@@ -60,6 +60,15 @@ export async function fetchHistory(symbol: string, interval: Interval, bars = 30
   return body.bars;
 }
 
+/** The latest trades for a symbol, newest first, as stored: what time and sales starts from. */
+export async function fetchRecentTrades(symbol: string, limit = 50): Promise<TradeMessage[]> {
+  const query = new URLSearchParams({ symbol, limit: String(limit) });
+  const response = await fetch(`${config.marketDataUrl}/trades?${query}`);
+  const body = (await response.json()) as { trades?: Omit<TradeMessage, "type" | "symbol">[]; text?: string };
+  if (!response.ok || !body.trades) throw new Error(body.text ?? `trades: HTTP ${response.status}`);
+  return body.trades.map((t) => ({ ...t, type: "trade", symbol }));
+}
+
 export type ConnectionState = "connecting" | "open" | "closed";
 
 /**
