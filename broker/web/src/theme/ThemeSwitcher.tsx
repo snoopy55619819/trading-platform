@@ -1,4 +1,4 @@
-// The two display settings. Lives in Settings in step 5; shown in the header until then.
+// The two display settings, in Settings and on the sign-in screen.
 
 import { Segmented } from "../ui/controls.tsx";
 import { MODES, type ModeChoice, STYLES, STYLE_NAMES, type Style, themeStore, useTheme } from "./theme.ts";

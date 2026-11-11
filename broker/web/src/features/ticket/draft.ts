@@ -6,6 +6,7 @@ import { useSyncExternalStore } from "react";
 
 import type { OrderType, Side, TimeInForce } from "../../api/backend.ts";
 import { formatCents } from "../../money.ts";
+import { settingsStore } from "../../settings.ts";
 
 export interface Draft {
   side: Side;
@@ -16,8 +17,13 @@ export interface Draft {
   timeInForce: TimeInForce;
 }
 
-export const DEFAULT_QTY = "1";
-const initial: Draft = { side: "BUY", orderType: "MARKET", qtyText: DEFAULT_QTY, priceText: "", timeInForce: "DAY" };
+const initial: Draft = {
+  side: "BUY",
+  orderType: "MARKET",
+  qtyText: String(settingsStore.get().defaultQty),
+  priceText: "",
+  timeInForce: "DAY",
+};
 
 let current = initial;
 const listeners = new Set<() => void>();
@@ -26,6 +32,14 @@ export function updateDraft(change: Partial<Draft>): void {
   current = { ...current, ...change };
   for (const listener of listeners) listener();
 }
+
+// A new default quantity (Settings) goes straight onto the ticket.
+let defaultQty = settingsStore.get().defaultQty;
+settingsStore.subscribe(() => {
+  const next = settingsStore.get().defaultQty;
+  if (next !== defaultQty) updateDraft({ qtyText: String(next) });
+  defaultQty = next;
+});
 
 export function useDraft(): Draft {
   return useSyncExternalStore(
