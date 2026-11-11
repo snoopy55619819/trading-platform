@@ -19,8 +19,10 @@ Go without touching anything else.
 
 ## Checklist
 
-- [ ] Feed subscriber with **gap detection** on `feed_seq` — a gap means data was lost;
-      request a resync, never silently continue
+- [ ] Feed subscriber with **gap detection** on `symbol_seq` (per symbol; `feed_seq` jumps
+      whenever another symbol trades, see ADR 0001). A gap means data was lost: send
+      `ResyncRequest`, never silently continue. The exchange's `md-publisher/src/mirror.rs`
+      is the reference for the rules; implement them here, do not import it.
 - [ ] Reconnect with backoff, resync on reconnect
 - [ ] Own compose entry, own database, own migrations
 - [ ] `ticks(ts, symbol, venue, event_type, price_cents, size, feed_seq)`
