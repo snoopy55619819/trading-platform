@@ -98,16 +98,32 @@ config and CORS together; the real app shell replaces it in step 5.
 
 ### 3. Data layer (no UI)
 
-- [ ] `api/backend.ts`: a typed client for every backend call; a 401 signs you out
-- [ ] `api/marketData.ts`: `fetchHistory`, and a `LiveFeed` that subscribes, reconnects and
+- [x] `api/backend.ts`: a typed client for every backend call; a 401 signs you out
+- [x] `api/marketData.ts`: `fetchHistory`, and a `LiveFeed` that subscribes, reconnects and
       resubscribes
-- [ ] The market data store: books, trades and the live candle per symbol; snapshots replaced,
-      never mutated, so `useSyncExternalStore` stays stable
-- [ ] TanStack Query hooks: symbols, positions, orders (every second while any order is
+- [x] The market data store: books and recent trades per symbol; snapshots replaced, never
+      mutated, so `useSyncExternalStore` stays stable. The live candle is folded from those
+      trades by `useHistory` (`market/candles.ts`), since it depends on the chart's interval
+- [x] TanStack Query hooks: symbols, positions, orders (every second while any order is
       working, every 5 otherwise), watchlist, status; placing or cancelling an order
       refetches orders and positions at once
-- [ ] `money.ts`: cents to display, and typed dollars ("42.10") to cents without a float
-- [ ] Unit tests for the store and `money.ts`
+- [x] `money.ts`: cents to display, and typed dollars ("42.10") to cents without a float
+- [x] Unit tests for the store and `money.ts`
+
+Done. 17 unit tests (money, the store, candle folding, the live feed's reconnect and
+resubscribe, polling intervals, the backend client's errors and sign-out on 401), plus 2
+integration tests run with `pnpm test:live` against the real exchange, simulator, backend
+and market-data: sign up, fund, buy, see the holding with its cost; history; a live book
+arriving in the store.
+
+Decisions:
+- **The session token lives in `sessionStorage`**: a reload stays signed in, a new tab
+  asks again. A 401 on a signed-in request signs out and clears every cached query.
+- **Refusals are not retried.** A 4xx will not change by asking again; a network error
+  or 5xx is retried twice.
+- **The live candle never double-counts.** Only trades after the history fetch are folded
+  in; one printed just before it but not yet rolled up is missed until the next refetch
+  (every minute), the lesser error.
 
 ### 4. Theme system
 
