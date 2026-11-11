@@ -43,7 +43,7 @@ export function ChartSection({ symbol }: { symbol: string | undefined }) {
           : undefined;
   return (
     <Panel
-      title={symbol ? `${symbol} · ${interval}` : "Chart"}
+      title={symbol ?? "Chart"}
       actions={<Segmented label="Interval" options={INTERVALS.map((i) => ({ value: i, label: i }))} value={interval} onChange={choose} />}
     >
       <div className="chart-frame">

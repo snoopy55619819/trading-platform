@@ -2,9 +2,12 @@
 // limit, a quantity in shares, and (under "More") how long it lasts. Review opens a
 // confirmation; only Place order there sends it, with a fresh clientOrderId each time.
 //
+// Three views of the same ticket, one per style (theme/variants.ts): the full form (Pro),
+// quick Buy and Sell buttons (Active), and a simple one-question-at-a-time form (Calm).
+//
 // What is typed lives in the draft store (draft.ts), so the order book can set the price.
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 
 import { ApiError, type Order, type Security, type TimeInForce } from "../../api/backend.ts";
 import { formatCents, formatDollars } from "../../money.ts";
@@ -13,7 +16,8 @@ import { useHistory, useMarket } from "../../market/hooks.ts";
 import { newClientOrderId, useOrder, useOrders, usePlaceOrder, usePositions } from "../../query/hooks.ts";
 import { ConfirmDialog } from "../../ui/Dialog.tsx";
 import { Panel } from "../../ui/Shell.tsx";
-import { Segmented } from "../../ui/controls.tsx";
+import { Segmented, Stepper } from "../../ui/controls.tsx";
+import { type Variants, useVariants } from "../../theme/variants.ts";
 import { STATUS_LABEL, availableToSell } from "../activity/orders.ts";
 import { quoteFrom } from "../header/quote.ts";
 import { type Draft, updateDraft, useDraft } from "./draft.ts";
@@ -25,6 +29,7 @@ type Outcome = { ok: true; orderId: string; summary: string } | { ok: false; tex
 
 export function OrderTicket({ symbol, security }: { symbol: string | undefined; security: Security | undefined }) {
   const draft = useDraft();
+  const variants = useVariants();
   const market = useMarket(symbol);
   const daily = useHistory(symbol, "1d");
   const positions = usePositions();
@@ -74,7 +79,11 @@ export function OrderTicket({ symbol, security }: { symbol: string | undefined; 
   return (
     <TicketView
       symbol={symbol}
+      variant={variants.ticket}
       draft={draft}
+      bidCents={quote.bidCents}
+      askCents={quote.askCents}
+      lotSize={security?.lotSize ?? 1}
       check={check}
       buyingPowerCents={positions.data?.buyingPowerCents}
       outcome={outcome}
@@ -133,8 +142,12 @@ function CostLines({ check, draft }: { check: TicketCheck; draft: Draft }) {
 
 export function TicketView({
   symbol,
+  variant,
   draft,
   check,
+  bidCents,
+  askCents,
+  lotSize,
   buyingPowerCents,
   outcome,
   onChange,
@@ -142,8 +155,12 @@ export function TicketView({
   confirm,
 }: {
   symbol: string;
+  variant: Variants["ticket"];
   draft: Draft;
   check: TicketCheck;
+  bidCents: number | undefined;
+  askCents: number | undefined;
+  lotSize: number;
   buyingPowerCents: number | undefined;
   outcome: Outcome | undefined;
   onChange: (change: Partial<Draft>) => void;
@@ -151,98 +168,194 @@ export function TicketView({
   confirm: ReactNode;
 }) {
   const buy = draft.side === "BUY";
+  const limit = draft.orderType === "LIMIT";
+
+  const side = (
+    <Segmented
+      label="Side"
+      options={[
+        { value: "BUY", label: "Buy" },
+        { value: "SELL", label: "Sell" },
+      ]}
+      value={draft.side}
+      onChange={(side) => onChange({ side })}
+    />
+  );
+  const orderType = (
+    <Segmented
+      label="Order type"
+      options={[
+        { value: "MARKET", label: "Market" },
+        { value: "LIMIT", label: "Limit" },
+      ]}
+      value={draft.orderType}
+      onChange={(orderType) => onChange({ orderType })}
+    />
+  );
+  const shares =
+    variant === "form" ? (
+      <label className="field">
+        Shares
+        <input
+          className="input numbers"
+          inputMode="numeric"
+          autoComplete="off"
+          value={draft.qtyText}
+          onChange={(e) => onChange({ qtyText: e.target.value })}
+        />
+      </label>
+    ) : (
+      <div className="field">
+        Shares
+        <Stepper label="Shares" value={draft.qtyText} step={lotSize} onChange={(qtyText) => onChange({ qtyText })} />
+      </div>
+    );
+  const price = limit && (
+    <label className="field">
+      Limit price
+      <input
+        className="input numbers"
+        inputMode="decimal"
+        autoComplete="off"
+        placeholder="0.00"
+        value={draft.priceText}
+        onChange={(e) => onChange({ priceText: e.target.value })}
+      />
+    </label>
+  );
+  const timeInForce = (
+    <label className="field">
+      Time in force
+      <select
+        className="input select"
+        value={draft.timeInForce}
+        onChange={(e) => onChange({ timeInForce: e.target.value as TimeInForce })}
+      >
+        {TIF_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+  const findings = [...check.problems, ...check.hints].map((text) => (
+    <p key={text} className="hint">
+      {text}
+    </p>
+  ));
+  const outcomeLine =
+    outcome &&
+    (outcome.ok ? (
+      <PlacedOrder orderId={outcome.orderId} summary={outcome.summary} />
+    ) : (
+      <p className="ticket-outcome refused" role="status">
+        {outcome.text}
+      </p>
+    ));
+  const power = (
+    <dl className="ticket-costs">
+      <div>
+        <dt>Buying power</dt>
+        <dd className="numbers">{buyingPowerCents === undefined ? "–" : formatDollars(buyingPowerCents)}</dd>
+      </div>
+    </dl>
+  );
+  // Whichever variant, Enter in a field reviews the order as it stands.
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (check.order) onReview();
+  };
+
+  if (variant === "quick") {
+    // Quantity first, then one press on the side you want: it opens the confirmation.
+    const press = (s: Draft["side"]) => {
+      onChange({ side: s });
+      onReview();
+    };
+    const at = (cents: number | undefined) => (limit ? "" : cents === undefined ? "" : ` ${formatCents(cents)}`);
+    return (
+      <Panel title={`Trade ${symbol}`}>
+        <form className="ticket" onSubmit={submit}>
+          {orderType}
+          <div className="ticket-fields">
+            {shares}
+            {price}
+          </div>
+          <div className="quick-sides">
+            <button type="button" className="button sell quick" disabled={!check.order} onClick={() => press("SELL")}>
+              <span>Sell</span>
+              <span className="numbers">{limit ? "at limit" : `bid${at(bidCents)}`}</span>
+            </button>
+            <button type="button" className="button buy quick" disabled={!check.order} onClick={() => press("BUY")}>
+              <span>Buy</span>
+              <span className="numbers">{limit ? "at limit" : `ask${at(askCents)}`}</span>
+            </button>
+          </div>
+          {power}
+          {findings}
+          <details className="ticket-more" open={draft.timeInForce !== "DAY" || undefined}>
+            <summary>More</summary>
+            {timeInForce}
+          </details>
+          {outcomeLine}
+        </form>
+        {confirm}
+      </Panel>
+    );
+  }
+
+  if (variant === "simple") {
+    // One question at a time: which way, how many, what it comes to. The rest is tucked away.
+    return (
+      <Panel title={`${buy ? "Buy" : "Sell"} ${symbol}`}>
+        <form className="ticket simple" onSubmit={submit}>
+          {side}
+          {shares}
+          <p className="simple-estimate">
+            <span className="muted">{limit ? "Comes to" : "About"}</span>
+            <span className="numbers">{check.estimateCents === undefined ? "–" : formatDollars(check.estimateCents)}</span>
+          </p>
+          {findings}
+          <button type="submit" className={`button ${buy ? "buy" : "sell"}`} disabled={!check.order}>
+            Review
+          </button>
+          {power}
+          <details className="ticket-more" open={limit || draft.timeInForce !== "DAY" || undefined}>
+            <summary>More options</summary>
+            <div className="ticket-more-body">
+              {orderType}
+              {price}
+              {timeInForce}
+            </div>
+          </details>
+          {outcomeLine}
+        </form>
+        {confirm}
+      </Panel>
+    );
+  }
+
   return (
     <Panel title={`Trade ${symbol}`}>
-      <form
-        className="ticket"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (check.order) onReview();
-        }}
-      >
-        <Segmented
-          label="Side"
-          options={[
-            { value: "BUY", label: "Buy" },
-            { value: "SELL", label: "Sell" },
-          ]}
-          value={draft.side}
-          onChange={(side) => onChange({ side })}
-        />
-        <Segmented
-          label="Order type"
-          options={[
-            { value: "MARKET", label: "Market" },
-            { value: "LIMIT", label: "Limit" },
-          ]}
-          value={draft.orderType}
-          onChange={(orderType) => onChange({ orderType })}
-        />
+      <form className="ticket" onSubmit={submit}>
+        {side}
+        {orderType}
         <div className="ticket-fields">
-          <label className="field">
-            Shares
-            <input
-              className="input numbers"
-              inputMode="numeric"
-              autoComplete="off"
-              value={draft.qtyText}
-              onChange={(e) => onChange({ qtyText: e.target.value })}
-            />
-          </label>
-          {draft.orderType === "LIMIT" && (
-            <label className="field">
-              Limit price
-              <input
-                className="input numbers"
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder="0.00"
-                value={draft.priceText}
-                onChange={(e) => onChange({ priceText: e.target.value })}
-              />
-            </label>
-          )}
+          {shares}
+          {price}
         </div>
         <details className="ticket-more" open={draft.timeInForce !== "DAY" || undefined}>
           <summary>More</summary>
-          <label className="field">
-            Time in force
-            <select
-              className="input select"
-              value={draft.timeInForce}
-              onChange={(e) => onChange({ timeInForce: e.target.value as TimeInForce })}
-            >
-              {TIF_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          {timeInForce}
         </details>
         <CostLines check={check} draft={draft} />
-        <dl className="ticket-costs">
-          <div>
-            <dt>Buying power</dt>
-            <dd className="numbers">{buyingPowerCents === undefined ? "–" : formatDollars(buyingPowerCents)}</dd>
-          </div>
-        </dl>
-        {[...check.problems, ...check.hints].map((text) => (
-          <p key={text} className="hint">
-            {text}
-          </p>
-        ))}
+        {power}
+        {findings}
         <button type="submit" className={`button ${buy ? "buy" : "sell"}`} disabled={!check.order}>
           Review {buy ? "buy" : "sell"}
         </button>
-        {outcome &&
-          (outcome.ok ? (
-            <PlacedOrder orderId={outcome.orderId} summary={outcome.summary} />
-          ) : (
-            <p className="ticket-outcome refused" role="status">
-              {outcome.text}
-            </p>
-          ))}
+        {outcomeLine}
       </form>
       {confirm}
     </Panel>
