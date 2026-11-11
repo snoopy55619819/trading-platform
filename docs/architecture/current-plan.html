@@ -9,7 +9,7 @@ MODEL
 
 components:
   web            | static SPA                         | process  | broker   | planned M8
-  backend        | api + oms + ledger + fix modules   | process  | broker   | ledger BUILT (M5); rest planned M6
+  backend        | api + oms + ledger + fix modules   | process  | broker   | BUILT (M5-M6)
   broker-db      | Postgres, broker.securities        | store    | broker   | BUILT (M0)
   market-data    | live fanout + history              | process  | broker   | planned M7
   md-db          | market-data's own database         | store    | broker   | planned M7
@@ -35,7 +35,7 @@ flows:
   md    | market-data -> web                  | WebSocket + REST | prices, history
 status note: matching-engine and journal BUILT at M1; gateway, fix-core, exchange-db BUILT at M2;
   md-publisher BUILT at M3 (WebSocket on 9879, feed_seq + symbol_seq); simulator BUILT at M4;
-  backend's ledger module BUILT at M5 (tables in broker-db)
+  backend BUILT: ledger at M5; oms, fix initiator and api at M6 (all tables in broker-db)
 omitted on purpose:
   ExecutionReports back to the simulator | same shape as the broker's return path
   every service's own DB migrations      | implementation detail
@@ -161,7 +161,8 @@ omitted on purpose:
   <!-- Process shells (drawn before edges and modules) -->
   <g class="node"><rect x="190" y="180" width="420" height="172" rx="10"/>
     <text class="n-title" x="276" y="202">backend</text>
-    <text class="n-sub" x="276" y="219">one process · one transaction · M5-M6</text></g>
+    <text class="n-sub" x="276" y="219">one process · one transaction · M5-M6</text>
+    <text class="tag built" x="210" y="338">BUILT</text></g>
   <g class="node"><rect x="680" y="180" width="220" height="490" rx="10"/>
     <text class="n-title" x="694" y="202">exchange-alpha</text>
     <text class="n-sub" x="694" y="219">one Rust binary · M1-M3</text></g>
@@ -246,7 +247,6 @@ omitted on purpose:
   <g class="module"><rect x="350" y="298" width="100" height="42" rx="6"/>
     <text class="n-title" x="400" y="316" text-anchor="middle">ledger</text>
     <text class="n-sub" x="400" y="332" text-anchor="middle">double-entry</text></g>
-  <text class="tag built" x="458" y="324">BUILT</text>
 
   <g class="node"><path d="M354,394 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="400" y="426" text-anchor="middle">broker-db</text>
@@ -326,7 +326,7 @@ omitted on purpose:
   <tbody>
     <tr><td class="n"><span>1</span></td><td><code>web</code></td><td>Static bundle, not a server. Calls <code>backend</code> for orders and positions, <code>market-data</code> for prices, and joins the two itself, so the backend has no market data dependency.</td></tr>
     <tr><td class="n"><span>2</span></td><td><code>backend</code></td><td>One process, four modules: <code>api</code> (auth, no business logic), <code>oms</code> (pre-trade risk and order lifecycle), <code>ledger</code> (double-entry books), <code>fix</code> (session to the exchange). Merged because a buying-power check and the order write must be one transaction. Single instance: a FIX session is a stateful singleton.</td></tr>
-    <tr><td class="n"><span>3</span></td><td><code>broker-db</code></td><td>Built. Holds the security master and, since M5, the double-entry ledger; orders land here at M6.</td></tr>
+    <tr><td class="n"><span>3</span></td><td><code>broker-db</code></td><td>Built. The security master, the double-entry ledger (M5), and users, orders, their event history and the FIX session state (M6).</td></tr>
     <tr><td class="n"><span>4</span></td><td>Order (edge)</td><td>FIX 4.4 over TCP. The broker is the initiator (TypeScript), the exchange the acceptor (Rust): two independent implementations sharing only the dictionary.</td></tr>
     <tr><td class="n"><span>5</span></td><td><code>gateway</code></td><td>Built (M2). The exchange's door. Session sequence numbers, then tick size, lot size, price band and duplicate <code>ClOrdID</code> checks before the engine sees anything. Conformance-tested against QuickFIX/Go, including a SIGKILL and recovery by resend.</td></tr>
     <tr><td class="n"><span>6</span></td><td><code>exchange-db</code></td><td>Built (M2). FIX session state, so sequence numbers survive a restart. The exchange's own database, never a schema in the broker's.</td></tr>
