@@ -5,15 +5,24 @@
 //   POST   /users          {email, password, name}         sign up: a user and an account
 //   POST   /sessions       {email, password}                log in: {token}
 //   GET    /symbols                                         what can be traded
+//   GET    /status                                          is the exchange connection up
 //   ---- with Authorization: Bearer <token> ----
 //   POST   /deposits       {amountCents, reference?}        add cash (stands in for a bank transfer)
-//   GET    /positions                                       cash, buying power, holdings
+//   GET    /positions                                       cash, buying power, holdings with cost
+//   GET    /watchlist                                       the account's symbols, in order
+//   PUT    /watchlist/:symbol                               add one (at the end)
+//   DELETE /watchlist/:symbol                               remove one
 //   POST   /orders         {clientOrderId, symbol, side, orderType, timeInForce?, priceCents?, qty}
 //   GET    /orders                                          the blotter, newest first
 //   GET    /orders/:id                                      one order and its history
 //   DELETE /orders/:id                                      cancel
 //
 // Money is integer cents, quantities whole shares, in both directions. No floats.
+//
+// CORS: the web client is served from its own origin, so browsers ask first. Only origins
+// in BROKER_WEB_ORIGIN (comma-separated) are answered with permission; any other gets no
+// CORS headers, and the browser refuses to let its page read the response. Never "*": this
+// API carries a user's session.
 
 import { type IncomingMessage, type ServerResponse, createServer } from "node:http";
 
@@ -22,13 +31,15 @@ import type pg from "pg";
 import { transaction } from "../db.ts";
 import { RejectReason } from "../domain/index.ts";
 import { ulid } from "../ids.ts";
-import { cashBalance, creditCash, holdings } from "../ledger/index.ts";
+import { cashBalance, costs, creditCash, holdings } from "../ledger/index.ts";
 import type { OrderRow } from "../oms/orders.ts";
 import type { OrderRequest } from "../oms/risk.ts";
 import type { Oms } from "../oms/service.ts";
+import { unwatch, watch, watchlist } from "../watchlist.ts";
 import { Sessions, signUp } from "./auth.ts";
 
 const REQUESTS_PER_SEC = 20;
+const DEFAULT_WEB_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"; // Vite's dev server
 const MAX_BODY_BYTES = 16_384;
 
 class HttpError extends Error {
@@ -129,9 +140,10 @@ class RequestLimiter {
   }
 }
 
-export function createApi(pool: pg.Pool, oms: Oms) {
+export function createApi(pool: pg.Pool, oms: Oms, webOrigins = process.env.BROKER_WEB_ORIGIN ?? DEFAULT_WEB_ORIGINS) {
   const sessions = new Sessions();
   const limiter = new RequestLimiter();
+  const allowedOrigins = new Set(webOrigins.split(",").map((o) => o.trim()).filter(Boolean));
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<{ status: number; body: object }> {
     const url = new URL(req.url ?? "/", "http://localhost");
@@ -157,6 +169,9 @@ export function createApi(pool: pg.Pool, oms: Oms) {
       const issued = await sessions.logIn(pool, email, password);
       if (!issued) return { status: 401, body: { text: "wrong email or password" } };
       return { status: 201, body: { token: issued } };
+    }
+    if (route === "GET /status") {
+      return { status: 200, body: { venue: "ALPHA", connected: oms.venueUp() } };
     }
     if (route === "GET /symbols") {
       const { rows } = await pool.query(
@@ -189,6 +204,8 @@ export function createApi(pool: pg.Pool, oms: Oms) {
       );
       const cashCents = await cashBalance(pool, account);
       const reservedCents = rows[0]?.reserved ?? 0;
+      const cost = await costs(pool, account);
+      const held = await holdings(pool, account);
       return {
         status: 200,
         body: {
@@ -196,7 +213,19 @@ export function createApi(pool: pg.Pool, oms: Oms) {
           cashCents,
           reservedCents,
           buyingPowerCents: cashCents - reservedCents,
-          holdings: await holdings(pool, account),
+          holdings: held.map((h) => {
+            const c = cost.get(h.symbol);
+            return {
+              ...h,
+              costBasisCents: c?.costBasisCents ?? 0,
+              avgCostCents: c?.avgCostCents ?? null,
+              realizedPnlCents: c?.realizedPnlCents ?? 0,
+            };
+          }),
+          // Profit already taken on symbols no longer held.
+          closedRealizedPnlCents: [...cost.values()]
+            .filter((c) => !held.some((h) => h.symbol === c.symbol))
+            .reduce((sum, c) => sum + c.realizedPnlCents, 0),
         },
       };
     }
@@ -215,6 +244,18 @@ export function createApi(pool: pg.Pool, oms: Oms) {
           return { status, body: { status: "REJECTED", rejectReason: placed.reason, rejectText: placed.text } };
         }
       }
+    }
+    if (route === "GET /watchlist") {
+      return { status: 200, body: { symbols: await watchlist(pool, account) } };
+    }
+    const watched = /^\/watchlist\/([A-Z]{1,8})$/.exec(url.pathname)?.[1];
+    if (watched && req.method === "PUT") {
+      const result = await watch(pool, account, watched);
+      if (!result.ok) return { status: result.reason === "UNKNOWN_SYMBOL" ? 404 : 409, body: { reason: result.reason } };
+      return { status: 200, body: { symbols: result.symbols } };
+    }
+    if (watched && req.method === "DELETE") {
+      return { status: 200, body: { symbols: await unwatch(pool, account, watched) } };
     }
     if (route === "GET /orders") {
       const { rows } = await pool.query<OrderRow>(
@@ -247,7 +288,31 @@ export function createApi(pool: pg.Pool, oms: Oms) {
     return { status: 404, body: { text: `no route ${req.method} ${url.pathname}` } };
   }
 
+  /** Sets CORS headers if the request comes from an allowed origin. Returns whether it does. */
+  function cors(req: IncomingMessage, res: ServerResponse): boolean {
+    const origin = req.headers.origin;
+    if (!origin || !allowedOrigins.has(origin)) return false;
+    res.setHeader("access-control-allow-origin", origin);
+    res.setHeader("vary", "Origin"); // caches must not serve one origin's answer to another
+    return true;
+  }
+
   return createServer((req, res) => {
+    const allowed = cors(req, res);
+    if (req.method === "OPTIONS") {
+      // A preflight: the browser asking whether its real request may be sent.
+      if (!allowed) {
+        res.writeHead(403).end();
+        return;
+      }
+      res.writeHead(204, {
+        "access-control-allow-methods": "GET, POST, PUT, DELETE",
+        "access-control-allow-headers": "authorization, content-type",
+        "access-control-max-age": "600",
+      });
+      res.end();
+      return;
+    }
     handle(req, res)
       .catch((error: unknown) => {
         if (error instanceof HttpError) return { status: error.status, body: error.body };
