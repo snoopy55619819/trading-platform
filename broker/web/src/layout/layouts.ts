@@ -78,9 +78,9 @@ export const DEFAULT_LAYOUTS = {
     rows: 12,
     panels: SECTION_TYPES.map(panel),
     desktop: [
-      at("watchlist", 0, 0, 2, 8),
+      at("watchlist", 0, 0, 2, 12),
       at("chart", 2, 0, 7, 8),
-      at("activity", 0, 8, 9, 4),
+      at("activity", 2, 8, 7, 4),
       at("ticket", 9, 0, 3, 5),
       at("book", 9, 5, 3, 4),
       at("tape", 9, 9, 3, 3),
