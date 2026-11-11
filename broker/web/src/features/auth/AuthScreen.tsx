@@ -57,7 +57,7 @@ export function AuthView({ mode, pending, error, onModeChange, onSubmit }: AuthV
   return (
     <main className="auth">
       <form className="auth-card" onSubmit={submit} noValidate={false}>
-        <h1 className="auth-title">Broker</h1>
+        <h1 className="auth-title">Trading Platform</h1>
         <p className="muted auth-subtitle">{signUp ? "Open an account" : "Sign in to trade"}</p>
 
         {signUp && (

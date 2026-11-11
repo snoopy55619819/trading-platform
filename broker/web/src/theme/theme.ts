@@ -14,6 +14,8 @@ export type Mode = "light" | "dark";
 export const STYLES = ["pro", "active", "calm"] as const;
 export type Style = (typeof STYLES)[number];
 export const STYLE_NAMES: Record<Style, string> = { pro: "Pro", active: "Active", calm: "Calm" };
+/** What a first visit looks like. index.html's pre-paint script repeats it: keep the two the same. */
+export const DEFAULT_STYLE: Style = "active";
 
 export interface Theme {
   /** What the user chose. */
@@ -35,7 +37,7 @@ export function parseSaved(text: string | null | undefined): { modeChoice: ModeC
   }
   return {
     modeChoice: MODES.includes(saved.modeChoice as ModeChoice) ? (saved.modeChoice as ModeChoice) : "system",
-    style: STYLES.includes(saved.style as Style) ? (saved.style as Style) : "pro",
+    style: STYLES.includes(saved.style as Style) ? (saved.style as Style) : DEFAULT_STYLE,
   };
 }
 

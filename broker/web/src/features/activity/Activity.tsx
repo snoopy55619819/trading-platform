@@ -39,7 +39,7 @@ export function Activity({ selected, onSelect }: { selected: string | undefined;
         <Segmented
           label="Activity"
           options={[
-            { value: "positions", label: `Positions${holdings.length ? ` ${holdings.length}` : ""}` },
+            { value: "positions", label: "Positions" },
             { value: "open", label: `Open orders${open.length ? ` ${open.length}` : ""}` },
             { value: "history", label: "History" },
           ]}

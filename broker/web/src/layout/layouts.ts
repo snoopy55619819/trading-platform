@@ -78,14 +78,14 @@ export const DEFAULT_LAYOUTS = {
     rows: 12,
     panels: SECTION_TYPES.map(panel),
     desktop: [
-      at("watchlist", 0, 0, 2, 5),
-      at("tape", 0, 5, 2, 3),
+      at("watchlist", 0, 0, 2, 8),
       at("chart", 2, 0, 7, 8),
       at("activity", 0, 8, 9, 4),
-      at("ticket", 9, 0, 3, 6),
-      at("book", 9, 6, 3, 6),
+      at("ticket", 9, 0, 3, 5),
+      at("book", 9, 5, 3, 4),
+      at("tape", 9, 9, 3, 3),
     ],
-    phone: ["chart", "ticket", "book", "activity", "watchlist", "tape"],
+    phone: ["chart", "ticket", "book", "tape", "activity", "watchlist"],
   },
   // One thing at a time: a single centred column, no depth or tape.
   calm: {
