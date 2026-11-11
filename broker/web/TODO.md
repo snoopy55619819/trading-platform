@@ -46,7 +46,8 @@ A style changes things at three levels; use the cheapest that does the job:
 
 1. **Tokens:** colours per mode; spacing, density, radius, type scale, font and border weight
    per style. CSS custom properties only: no component hard-codes a colour or a size.
-2. **Layout:** a grid arrangement per style.
+2. **Layout:** each style's default layout, as data (`layout/layouts.ts`): which panels,
+   and where each sits on a 12-column grid. See "Layouts as data" below.
 3. **View variants (rarely):** when CSS cannot express the difference, a section takes a
    `variant` from the style's config (for example the ticket as a full form, or as big Buy
    and Sell buttons with a quantity stepper).
@@ -127,10 +128,49 @@ Decisions:
 
 ### 4. Theme system
 
-- [ ] Tokens for light and dark, and for Pro, Active and Calm
-- [ ] The mode and style settings, saved and restored; mode follows the system until chosen
-- [ ] A layout per style
+- [x] Tokens for light and dark, and for Pro, Active and Calm
+- [x] The mode and style settings, saved and restored; mode follows the system until chosen
+- [x] A layout per style
 - [ ] Every later section checked in all six combinations, at desktop and phone width
+
+Built: `theme/tokens.css` (colours per mode; type, spacing, shape and a few colours per
+style), `layout/layouts.ts` (each style's default layout as data, and `validateLayout`),
+`theme/layout.css` (draws any layout), `theme/theme.ts` (the settings, saved, following
+the system until chosen), `Shell` and `Panel`, and a `Segmented` control. An inline script in `index.html`
+applies the saved settings before the first paint, so a reload never flashes the wrong
+colours. Checked in all six combinations at desktop and phone width, with stand-in panels:
+no sideways overflow anywhere, and the settings survive a reload.
+
+Found while checking: in Calm, and at phone width, panels collapsed to their headings. A
+panel body scrolls inside a fixed-height grid (Pro and Active on a desktop), but the same
+rule let it shrink to nothing where rows size to their content. That rule now applies only
+to the fixed-height layouts.
+
+### Layouts as data, for the layout editor to come
+
+Users will be able to drag, resize and add panels later, so layouts are data from the
+start, in the shape grid-based drag-and-drop editors use (react-grid-layout and similar):
+
+- A **panel** is an instance, `{ id, type, props? }`: two charts on different symbols are
+  two panels of one type.
+- Its **placement** is `{ id, x, y, w, h }` on a 12-column grid. Dragging changes x and y,
+  resizing changes w and h, adding appends a panel and a placement.
+- The **phone** order is a list of ids; a panel left off it is not shown on a phone.
+- **`fit`** is `screen` (the grid fills the window and panels scroll inside themselves:
+  Pro, Active) or `flow` (rows size to content and the page scrolls: Calm).
+- **`validateLayout`** reports overlaps, placements off the grid, duplicate ids and
+  panels with no place, so a saved layout can be checked before it is drawn.
+
+`Shell` draws whatever layout it is given: each panel's place goes in as CSS variables,
+and `layout.css` turns them into grid positions on a desktop and one column on a phone. A
+default and a layout the user arranged are drawn the same way.
+
+The layout editor itself, later:
+- [ ] Save a user's layout per style, with the account (a backend table, like the
+      watchlist); on load, a layout that fails `validateLayout` falls back to the default
+- [ ] An edit mode: drag to move, drag a corner to resize, add a panel from a list,
+      remove one, reset to the default
+- [ ] Per-panel settings through `props` (a chart's symbol and interval)
 
 ### 5. Sections
 

@@ -1,0 +1,68 @@
+/* Shared controls, styled from tokens only. */
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.segmented {
+  display: inline-flex;
+  padding: var(--space-1);
+  gap: var(--space-1);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.segment {
+  min-height: calc(var(--control-h) - 2 * var(--space-1));
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: calc(var(--radius) * 0.75);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.segment:hover {
+  color: var(--text);
+}
+.segment.selected {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: var(--weight-strong);
+  box-shadow: var(--shadow);
+}
+:root[data-mode="dark"] .segment.selected {
+  background: var(--border);
+}
+
+.button {
+  min-height: var(--control-h);
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: var(--fs-md);
+}
+.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: var(--weight-strong);
+}
+.button.buy {
+  background: var(--up);
+  border-color: var(--up);
+  color: #fff;
+  font-weight: var(--weight-strong);
+}
+.button.sell {
+  background: var(--down);
+  border-color: var(--down);
+  color: #fff;
+  font-weight: var(--weight-strong);
+}
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

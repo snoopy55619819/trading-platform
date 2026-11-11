@@ -1,0 +1,121 @@
+/*
+  How a layout is drawn. Where each panel goes is data (layout/layouts.ts); Shell hands it
+  over as CSS variables on each panel, and these rules turn them into grid positions:
+
+    --col     its columns on the desktop grid, "x+1 / span w"
+    --row     its rows, "y+1 / span h"
+    --min-h   in a flow layout, the least height it gets
+    --order   its place in the phone column
+
+  Two fits:
+    screen  the grid fills the window; rows are equal shares of the height, and a panel
+            taller than its cells scrolls inside itself (Pro, Active)
+    flow    rows size to their content and the page scrolls (Calm)
+*/
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: var(--gap);
+}
+.shell.fit-flow {
+  max-width: var(--max-width, none);
+  margin: 0 auto;
+}
+
+/* Phone width, every layout: one column, in the layout's phone order. */
+.grid {
+  display: grid;
+  gap: var(--gap);
+  grid-template-columns: minmax(0, 1fr);
+}
+.area {
+  min-width: 0;
+  order: var(--order);
+}
+.area.hide-on-phone {
+  display: none;
+}
+.area[data-type="chart"] {
+  height: 340px;
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  }
+  .area,
+  .area.hide-on-phone {
+    display: block;
+    order: 0;
+    grid-column: var(--col);
+    grid-row: var(--row);
+  }
+
+  /* screen: exactly the window, each row an equal share. */
+  .shell.fit-screen {
+    height: 100vh;
+  }
+  .fit-screen .grid {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+  }
+  .fit-screen .area {
+    min-height: 0;
+  }
+  .fit-screen .area[data-type="chart"] {
+    height: auto;
+  }
+  .fit-screen .panel-body {
+    min-height: 0;
+  }
+
+  /* flow: as tall as the content, never shorter than the layout asks. */
+  .fit-flow .area {
+    min-height: var(--min-h);
+  }
+  .fit-flow .area[data-type="chart"] {
+    height: var(--min-h);
+  }
+}
+
+/* ---------- panel: the card every section sits in ---------- */
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--panel-pad);
+  border-bottom: var(--border-width) solid var(--border);
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-strong);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+:root[data-style="calm"] .panel-head {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-lg);
+  color: var(--text);
+  border-bottom: none;
+  padding-top: var(--panel-pad);
+}
+.panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--panel-pad);
+}
