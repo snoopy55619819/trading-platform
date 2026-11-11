@@ -127,10 +127,23 @@ Decisions:
 
 ### 4. Theme system
 
-- [ ] Tokens for light and dark, and for Pro, Active and Calm
-- [ ] The mode and style settings, saved and restored; mode follows the system until chosen
-- [ ] A layout per style
+- [x] Tokens for light and dark, and for Pro, Active and Calm
+- [x] The mode and style settings, saved and restored; mode follows the system until chosen
+- [x] A layout per style
 - [ ] Every later section checked in all six combinations, at desktop and phone width
+
+Built: `theme/tokens.css` (colours per mode; type, spacing, shape and a few colours per
+style), `theme/layout.css` (a grid per style over named areas: header, watch, chart, book,
+tape, ticket, bottom), `theme/theme.ts` (the settings, saved, following the system until
+chosen), `Shell` and `Panel`, and a `Segmented` control. An inline script in `index.html`
+applies the saved settings before the first paint, so a reload never flashes the wrong
+colours. Checked in all six combinations at desktop and phone width, with stand-in panels:
+no sideways overflow anywhere, and the settings survive a reload.
+
+Found while checking: in Calm, and at phone width, panels collapsed to their headings. A
+panel body scrolls inside a fixed-height grid (Pro and Active on a desktop), but the same
+rule let it shrink to nothing where rows size to their content. That rule now applies only
+to the fixed-height layouts.
 
 ### 5. Sections
 
