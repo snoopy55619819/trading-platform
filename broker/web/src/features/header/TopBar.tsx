@@ -27,7 +27,7 @@ export function TopBar({
   const [settingsOpen, setSettingsOpen] = useState(false);
   return (
     <div className="topbar">
-      <span className="brand">Broker</span>
+      <span className="brand">Trading Platform</span>
       <SymbolSearch symbols={symbols} selected={selected} onSelect={onSelect} />
       {selected && <QuoteHeader symbol={selected} name={security?.name} />}
       {symbolsFailed && symbols.length === 0 && <span className="hint">Could not load the symbol list. Retrying…</span>}

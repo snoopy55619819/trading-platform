@@ -3,7 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Broker</title>
+    <title>Trading Platform</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script>
       // Apply the saved mode and style before the first paint, so a reload never flashes
       // the wrong colours. theme.ts owns these settings once the app has started.
@@ -15,7 +16,7 @@
         var choice = ["light", "dark"].indexOf(saved.modeChoice) >= 0 ? saved.modeChoice : "system";
         var dark = choice === "dark" || (choice === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.mode = dark ? "dark" : "light";
-        document.documentElement.dataset.style = ["pro", "active", "calm"].indexOf(saved.style) >= 0 ? saved.style : "pro";
+        document.documentElement.dataset.style = ["pro", "active", "calm"].indexOf(saved.style) >= 0 ? saved.style : "active"; // DEFAULT_STYLE in theme.ts
       })();
     </script>
   </head>

@@ -56,7 +56,9 @@
 
 /* ---------- styles: shape, density and type ---------- */
 
-/* Pro: the default style. Dense, small, square, monospaced numbers. */
+/* Pro: dense, small, square, monospaced numbers. Also the base every style starts from,
+   so these apply if data-style is ever missing. (The style a first visit gets is Active:
+   DEFAULT_STYLE in theme.ts.) */
 :root,
 :root[data-style="pro"] {
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
