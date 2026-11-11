@@ -11,9 +11,11 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:live": "LIVE=1 vitest run"
   },
   "dependencies": {
+    "@tanstack/react-query": "5.107.1",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
