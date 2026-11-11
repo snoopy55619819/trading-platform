@@ -176,6 +176,12 @@ bug, not a privacy nicety.
   running total it increments.
 - Settled and unsettled holdings are **separate accounts**, not a flag on one row — even though
   v1 settles instantly.
+- The rules above are **enforced by Postgres**, not by application code: a deferred
+  constraint trigger checks every entry's balance at commit, a composite foreign key keeps
+  an account's asset and its lines' asset the same, and journal tables refuse `UPDATE`,
+  `DELETE` and `TRUNCATE`. A mistake is corrected by a new entry.
+- These are the **broker's** books: client cash and client securities are liabilities
+  (credit-normal). Detail and the posting rules: `broker/backend/TODO.md`.
 
 ---
 

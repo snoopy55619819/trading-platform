@@ -250,6 +250,14 @@ short version is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
+**Milestone 5, the broker's ledger: complete.** Double-entry books in Postgres, where the
+rules cannot be bypassed: every entry balances per asset (checked at commit), shares can
+never land in a cash account, and history is append-only. A fill books one entry with
+three balanced pairs; positions and cash are only ever derived by summing lines; a settle
+job moves shares from unsettled to settled; reconciliation checks the books against an
+independent tally of fills. A test posts 1,000 random fills and matches an in-memory tally
+to the cent.
+
 **Milestone 4, simulated participants: complete.** The market is alive. A TypeScript
 simulator, sharing no code with the exchange, logs on over its own FIX 4.4 initiator and
 reads the public feed: market makers quote ten books around a hidden fair value (geometric
@@ -277,5 +285,5 @@ report. Sequence numbers live in the exchange's own Postgres and survive restart
 Conformance-tested against **QuickFIX/Go**, which trades through the book, survives the
 gateway being SIGKILLed, and recovers a missed fill by resend.
 
-Next: **Milestone 5, the broker backend** (`broker/backend`): orders, risk checks and the
-double-entry ledger.
+Next: **Milestone 6, the broker's OMS** (`broker/backend`): orders, pre-trade risk against
+the ledger, and the broker's own FIX initiator to the exchange.
