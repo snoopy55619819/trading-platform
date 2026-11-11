@@ -129,14 +129,22 @@ migration across nine tables.
 
 ## 6. Market data sequencing
 
-Every market data message carries `feed_seq`: a monotonically increasing `uint64`, scoped per
-venue, starting at 1.
+Every sequenced market data message carries two numbers, both `uint64`, both starting at 1,
+both never resetting and never skipping:
 
-- It **never resets** while the venue is up, and never skips.
-- A subscriber that observes a gap has lost data and must recover via snapshot + replay. It must
-  not silently continue.
-- `feed_seq` is assigned by the md-publisher, not the matching engine. The engine's own
-  `arrival_seq` is an internal ordering concern and is not published.
+| | Scope | Used for |
+|---|---|---|
+| `feed_seq` | the venue | ordering messages across symbols; heartbeats carry it |
+| `symbol_seq` | one symbol | **gap detection**, since a subscriber only receives its symbols |
+
+- Each `BookDelta` and `TradePrint` takes the next value of both. `Snapshot` and `Heartbeat`
+  take neither; they carry the latest values already used.
+- A subscriber that sees `symbol_seq` skip has lost data and must recover via a fresh
+  snapshot (`ResyncRequest`). It must not silently continue.
+- Both are assigned by the md-publisher, not the matching engine, and depend only on the
+  journal, so a restart replays them back to where they were.
+
+Why two numbers rather than one: [ADR 0001](adr/0001-per-symbol-feed-sequence.md).
 
 ---
 
