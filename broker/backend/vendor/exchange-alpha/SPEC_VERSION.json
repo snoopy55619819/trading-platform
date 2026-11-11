@@ -1,9 +1,9 @@
 {
   "venue": "ALPHA",
-  "spec_version": "1.0.1",
-  "synced_at": "2026-11-11T17:30:57.517Z",
+  "spec_version": "1.1.0",
+  "synced_at": "2026-11-11T17:59:51.683Z",
   "files": {
     "fix44.xml": "3c6a021b655dae28153c6cc94ee49785649844aa13694c00f0f80605ec30fb13",
-    "listings.json": "66c9beae7a9246c4ae90ecce3314d52dcc5d561f696fd082f449c4fa489fabec"
+    "listings.json": "b24f9f5f8d20dcf6c7b4ebd5fb8b5ac8907ea883e9e515c3eaf083120553b916"
   }
 }

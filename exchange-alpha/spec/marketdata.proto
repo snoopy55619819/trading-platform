@@ -7,9 +7,23 @@ syntax = "proto3";
 // a published venue spec cannot depend on any consumer's type definitions.
 //
 // Broadcast, sequenced, anonymous. Nothing here identifies a participant or an order.
-// Every message carries feed_seq: monotonic per venue, starts at 1, never resets while
-// the venue is up, never skips. A subscriber that sees a gap has LOST DATA and must
-// recover with a Snapshot; it must not silently continue.
+//
+// Two sequence numbers, both starting at 1, never resetting, never skipping:
+//
+//   feed_seq    one counter for the whole venue. Orders messages across symbols.
+//   symbol_seq  one counter per symbol. What a subscriber checks for gaps, because it
+//               only receives the symbols it subscribed to, so its feed_seq jumps
+//               whenever another symbol trades.
+//
+// Each BookDelta and TradePrint takes the next value of both. Snapshot and Heartbeat take
+// neither: they carry the latest values already used, so a Snapshot means "the book as of
+// these sequence numbers" and the next message for that symbol has symbol_seq + 1.
+//
+// A subscriber that sees symbol_seq skip has LOST DATA for that symbol and must recover
+// with a Snapshot (send ResyncRequest); it must not silently continue.
+//
+// Since 1.1.0: symbol_seq. Before it, feed_seq alone could not tell a lost message from a
+// message for a symbol the subscriber had not asked for.
 
 package alpha.v1;
 
@@ -34,7 +48,10 @@ message Snapshot {
   int64 ts_ns = 4;
   repeated PriceLevel bids = 5;   // descending by price
   repeated PriceLevel asks = 6;   // ascending by price
+  // Levels per side in this Snapshot. BookDeltas are sent for every level regardless, so
+  // a subscriber that wants a fixed depth trims its own book.
   int32 depth_limit = 7;
+  uint64 symbol_seq = 8;
 }
 
 // One price level changed. qty == 0 means the level is now empty and should be removed.
@@ -49,6 +66,7 @@ message BookDelta {
   // and survive a mis-sequenced replay; differences do not.
   int64 qty = 7;
   int32 order_count = 8;
+  uint64 symbol_seq = 9;
 }
 
 // A match happened. The anonymous public counterpart to a private execution report.
@@ -63,10 +81,11 @@ message TradePrint {
   // Which side removed liquidity. Public because it drives trade classification;
   // the participants themselves are not.
   Side aggressor_side = 8;
+  uint64 symbol_seq = 9;
 }
 
-// Published on a timer so a subscriber can tell a quiet market from a dead feed, and
-// can detect a gap even when no trading is happening.
+// Published on a timer to every connection, so a subscriber can tell a quiet market from
+// a dead feed. feed_seq is the latest one the venue has used.
 message Heartbeat {
   string venue = 1;
   uint64 feed_seq = 2;
@@ -84,6 +103,9 @@ message FeedMessage {
 
 // ---- subscriber -> exchange ----
 
+// Answered with one Snapshot per listed symbol, then that symbol's BookDeltas and
+// TradePrints. Unknown symbols are ignored. depth_limit 0 means the default (10); the
+// maximum is 50.
 message Subscribe {
   repeated string symbols = 1;
   int32 depth_limit = 2;
@@ -93,10 +115,12 @@ message Unsubscribe {
   repeated string symbols = 1;
 }
 
-// Sent after detecting a feed_seq gap. The exchange answers with a fresh Snapshot per
+// Sent after detecting a symbol_seq gap. The exchange answers with a fresh Snapshot per
 // symbol; it does not replay individual deltas.
 message ResyncRequest {
   repeated string symbols = 1;
+  // Diagnostic only: the exchange logs it against the recent messages it still holds,
+  // to help explain the gap. The answer is a Snapshot either way.
   uint64 last_good_feed_seq = 2;
 }
 

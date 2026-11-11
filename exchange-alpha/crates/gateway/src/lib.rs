@@ -8,6 +8,8 @@
 //! - [`orders`] validates orders and translates between FIX and engine commands and events.
 //! - [`store`] persists FIX session state in the exchange's own database.
 //! - [`listings`] is the published instrument list and fee schedule.
+//!
+//! Market data lives in its own crate, `md-publisher`; the core only hands it public events.
 
 pub mod core;
 pub mod listings;

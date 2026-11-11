@@ -189,10 +189,10 @@ of matching logic. That boundary pays for itself immediately.
 actually come from.
 
 **Owns** — in-memory: current snapshot per symbol, ring buffer of the last N published messages,
-monotonic `feed_seq` per venue.
+monotonic `feed_seq` per venue and `symbol_seq` per symbol (ADR 0001).
 
 **In** `BookDelta` / `Trade` from the engine · **Out** `Snapshot`, `BookDelta`, `Trade`, `Heartbeat`
-over WS — every message stamped with `feed_seq`
+over WS. Every message is stamped with `feed_seq`, and deltas and prints with `symbol_seq`
 
 **Core rule — snapshot + sequenced incrementals.** A subscriber seeing seq jump 41 → 43 *knows* it lost
 42, and recovers by requesting a replay or fresh snapshot. This is why market data is a real protocol
@@ -475,6 +475,6 @@ Each is a self-contained project, in rough value order:
 Σdebits == Σcredits, per journal entry, per asset
 derived positions == independent tally of fills
 no order fills more than its quantity
-market data feed_seq is gapless
+market data feed_seq and symbol_seq are gapless
 journal replay reproduces a byte-identical order book
 ```

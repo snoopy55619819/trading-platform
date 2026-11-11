@@ -74,8 +74,9 @@ These are architectural commitments, not preferences. Breaking them causes rewri
   data, not a migration.
 - **Settled and unsettled are separate ledger accounts** even though v1 auto-settles instantly.
   Adding real T+1 later changes *when* the settle job fires, not the schema.
-- **Market data is sequenced.** Every feed message carries a `feed_seq`; subscribers detect gaps
-  and recover via snapshot + replay.
+- **Market data is sequenced.** Every feed message carries a venue-wide `feed_seq` and a
+  per-symbol `symbol_seq`; subscribers detect gaps on `symbol_seq` and recover via a fresh
+  snapshot (ADR 0001).
 
 ## Two data planes
 

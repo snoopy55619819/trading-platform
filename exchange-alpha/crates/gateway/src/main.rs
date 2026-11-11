@@ -7,6 +7,7 @@
 //! | variable          | default                                                          |
 //! |-------------------|------------------------------------------------------------------|
 //! | `ALPHA_LISTEN`    | `127.0.0.1:9878` (the published order-entry address)             |
+//! | `ALPHA_MD_LISTEN` | `127.0.0.1:9879` (the published market data address)             |
 //! | `DATABASE_URL`    | `postgres://exchange_alpha:exchange_alpha@127.0.0.1:5433/exchange_alpha` |
 //! | `ALPHA_JOURNAL`   | `data/alpha.journal`                                             |
 //! | `ALPHA_COMP_IDS`  | `BROKER,SIM,QFGO1,QFGO2`: the CompIDs allowed to log on          |
@@ -29,6 +30,7 @@ async fn main() -> Result<()> {
         .init();
 
     let listen = env("ALPHA_LISTEN", "127.0.0.1:9878");
+    let md_listen = env("ALPHA_MD_LISTEN", "127.0.0.1:9879");
     let database_url = env(
         "DATABASE_URL",
         "postgres://exchange_alpha:exchange_alpha@127.0.0.1:5433/exchange_alpha",
@@ -46,11 +48,14 @@ async fn main() -> Result<()> {
     let store = PgStore::connect(&database_url).await.context(
         "connecting to the exchange database (is it up? docker compose -f compose.yml up -d)",
     )?;
-    let core = Core::open(&journal, store, comp_ids.clone()).await?;
+    let (core, feed) = Core::open(&journal, store, comp_ids.clone()).await?;
     let listener = TcpListener::bind(&listen)
         .await
         .with_context(|| format!("binding {listen}"))?;
-    let gateway = Gateway::start(listener, core)?;
+    let md_listener = TcpListener::bind(&md_listen)
+        .await
+        .with_context(|| format!("binding {md_listen}"))?;
+    let gateway = Gateway::start(listener, md_listener, core, feed)?;
     info!(?comp_ids, journal = %journal.display(), "Alpha Exchange open");
 
     tokio::select! {

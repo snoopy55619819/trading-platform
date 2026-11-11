@@ -1,6 +1,6 @@
 {
   "$comment": "Instruments listed on Alpha Exchange, and Alpha's fee schedule. Published as part of the venue's public spec: this is what a broker downloads to build its security master. Fictional instruments - nothing here is real market data.",
-  "spec_version": "1.0.1",
+  "spec_version": "1.1.0",
   "venue": {
     "code": "ALPHA",
     "name": "Alpha Exchange",

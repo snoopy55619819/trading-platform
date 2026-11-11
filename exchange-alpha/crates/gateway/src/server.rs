@@ -1,6 +1,9 @@
 //! Sockets. Accepts connections and gives each one a task that only moves bytes: decoded
 //! frames go to the core, and whatever the core sends back is written out. No decisions are
 //! made here.
+//!
+//! Also starts the market data server, so the exchange is one process with two ports: FIX
+//! order entry and the WebSocket feed.
 
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -8,6 +11,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use fix_core::decode;
+use md_publisher::{Feed, MarketData};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
@@ -17,19 +21,33 @@ use tracing::{info, warn};
 use crate::core::{ConnId, Core, CoreEvent, Outgoing};
 use crate::store::SessionStore;
 
+/// How often every market data connection gets a heartbeat.
+pub const MD_HEARTBEAT: Duration = Duration::from_secs(1);
+
 /// A running gateway.
 pub struct Gateway {
+    /// FIX order entry.
     pub addr: SocketAddr,
+    /// The market data feed.
+    pub md_addr: SocketAddr,
+    market_data: MarketData,
     core: JoinHandle<Result<()>>,
     acceptor: JoinHandle<()>,
     ticker: JoinHandle<()>,
 }
 
 impl Gateway {
-    /// Starts serving on `listener`. The core runs on its own task; every connection gets
-    /// one more.
-    pub fn start<S: SessionStore>(listener: TcpListener, core: Core<S>) -> Result<Gateway> {
+    /// Serves FIX on `listener` and `feed` on `md_listener`. The core runs on its own task,
+    /// market data on another, and every connection gets one more.
+    pub fn start<S: SessionStore>(
+        listener: TcpListener,
+        md_listener: TcpListener,
+        mut core: Core<S>,
+        feed: Feed,
+    ) -> Result<Gateway> {
         let addr = listener.local_addr()?;
+        let market_data = MarketData::start(md_listener, feed, MD_HEARTBEAT)?;
+        core.publish_to(market_data.publisher());
         let (events, inbox) = mpsc::channel(4096);
 
         let core = tokio::spawn(core.run(inbox));
@@ -62,6 +80,8 @@ impl Gateway {
         info!(%addr, "gateway listening");
         Ok(Gateway {
             addr,
+            md_addr: market_data.addr,
+            market_data,
             core,
             acceptor,
             ticker,
@@ -73,6 +93,7 @@ impl Gateway {
         let result = self.core.await;
         self.acceptor.abort();
         self.ticker.abort();
+        self.market_data.stop();
         result?
     }
 
@@ -82,6 +103,7 @@ impl Gateway {
         self.acceptor.abort();
         self.ticker.abort();
         self.core.abort();
+        self.market_data.stop();
     }
 }
 

@@ -34,11 +34,12 @@ impl Drop for TempJournal {
 }
 
 pub async fn start_gateway(journal: &TempJournal, store: MemoryStore) -> Gateway {
-    let core = Core::open(&journal.0, store, COMP_IDS.map(String::from))
+    let (core, feed) = Core::open(&journal.0, store, COMP_IDS.map(String::from))
         .await
         .expect("open core");
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
-    Gateway::start(listener, core).unwrap()
+    let md_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    Gateway::start(listener, md_listener, core, feed).unwrap()
 }
 
 pub struct Client {
