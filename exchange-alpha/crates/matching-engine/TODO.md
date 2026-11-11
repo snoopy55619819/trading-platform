@@ -3,7 +3,13 @@
 **The market itself.** Holds every resting order and decides who trades with whom.
 No network, no database, no FIX. Driven by a CLI.
 
-Status: **not started**
+Status: **done**
+
+```
+cargo run -p matching-engine -- crates/matching-engine/scenarios/demo.txt   # walkthrough
+cargo test -p matching-engine                                              # 38 tests
+cargo bench -p matching-engine                                             # latency
+```
 
 ## Inputs / outputs
 
@@ -21,55 +27,60 @@ engine does not know or care — it emits both and lets the layers above route t
 ## Checklist
 
 ### 1. Types and invariants
-- [ ] `PriceCents(i64)` and `Qty(i64)` as newtypes, not bare integers — they must not be
+- [x] `PriceCents(i64)` and `Qty(i64)` as newtypes, not bare integers — they must not be
       mixable. This is where "no floats" becomes structurally enforced rather than a rule.
-- [ ] `Side`, `OrderType` (Limit/Market), `TimeInForce` (Day/GTC/IOC/FOK)
-- [ ] `OrderId(u64)` — monotonic, assigned by the engine, never reused
-- [ ] `RestingOrder { order_id, client_order_id, participant_id, side, price, remaining, tif, arrival_seq }`
-- [ ] No `f64` anywhere in the crate. Grep for it in CI if you want to be sure.
+- [x] `Side`, `OrderType` (Limit/Market), `TimeInForce` (Day/GTC/IOC/FOK)
+- [x] `OrderId(u64)` — monotonic, assigned by the engine, never reused
+- [x] `RestingOrder { order_id, client_order_id, participant_id, side, price, remaining, tif, arrival_seq }`
+- [x] No `f64` anywhere in the crate. Grep for it in CI if you want to be sure.
 
 ### 2. The book
-- [ ] `asks: BTreeMap<PriceCents, VecDeque<RestingOrder>>` — ascending, best = first
-- [ ] `bids: BTreeMap<Reverse<PriceCents>, VecDeque<RestingOrder>>` — so best is also first
-- [ ] `best_bid()`, `best_ask()`, `spread()`
-- [ ] `HashMap<OrderId, (Side, PriceCents)>` so cancel is O(1) instead of scanning
-- [ ] Remove a price level when its queue empties — an empty level must not linger
+- [x] `asks: BTreeMap<PriceCents, VecDeque<RestingOrder>>` — ascending, best = first
+- [x] `bids: BTreeMap<PriceCents, Level>`, read from the high end. (Changed from the
+      `Reverse` key originally planned: one key type on both sides means a price lookup is
+      the same code for bids and asks, and only "which end is best" differs.)
+- [x] `best_bid()`, `best_ask()`, `spread()`
+- [x] `HashMap<OrderId, Location>` so cancel goes straight to the level instead of scanning
+      every book. Removing from within the level is still a scan of that level's queue;
+      fine while levels are short, and an intrusive linked list is the fix if they are not.
+- [x] Remove a price level when its queue empties — an empty level must not linger
 
 ### 3. Matching
-- [ ] Limit order crosses while the opposing best price is acceptable **and** quantity remains
-- [ ] One `Trade` per counterparty — a 100-share order hitting three resting orders
+- [x] Limit order crosses while the opposing best price is acceptable **and** quantity remains
+- [x] One `Trade` per counterparty — a 100-share order hitting three resting orders
       produces three trades, not one
-- [ ] Partial fills: decrement `remaining` on both sides, remove when zero
-- [ ] Market order: walk until filled or the book is exhausted (no price limit)
-- [ ] `IOC`: match what you can, discard the remainder, never rest
-- [ ] `FOK`: check the full quantity is available **before** executing anything, else reject
-- [ ] `Day`/`GTC`: rest the remainder
-- [ ] Self-trade prevention — decide the policy and write it down (cancel resting? cancel
-      incoming? decrement both?). Real venues differ; pick one and be explicit.
+- [x] Partial fills: decrement `remaining` on both sides, remove when zero
+- [x] Market order: walk until filled or the book is exhausted (no price limit)
+- [x] `IOC`: match what you can, discard the remainder, never rest
+- [x] `FOK`: check the full quantity is available **before** executing anything, else reject
+- [x] `Day`/`GTC`: rest the remainder
+- [x] Self-trade prevention. **Policy: cancel the incoming order's remainder**, leave the
+      resting order alone. Trades with other participants ahead of it still happen. FOK's
+      availability check stops at the taker's own order too, so it agrees with matching.
 
 ### 4. Cancel
-- [ ] By `OrderId`, O(1) via the index
-- [ ] Reject unknown ids and already-terminal orders with a reason, never silently
+- [x] By `OrderId`, O(1) via the index
+- [x] Reject unknown ids and already-terminal orders with a reason, never silently
 
 ### 5. Journal
-- [ ] Append every inbound command with a sequence number, **before** applying it
-- [ ] `replay(path) -> Engine` rebuilds from an empty book
-- [ ] Monotonic counters (`OrderId`, trade id) recovered from replay, not restarted —
+- [x] Append every inbound command with a sequence number, **before** applying it
+- [x] `replay(path) -> Engine` rebuilds from an empty book
+- [x] Monotonic counters (`OrderId`, trade id) recovered from replay, not restarted —
       reissuing an id after a restart would be a correctness disaster downstream
 
 ### 6. CLI
-- [ ] Submit orders, cancel, print the book as a depth ladder, print the trade tape
-- [ ] Load a scripted scenario from a file, so tests and demos are reproducible
+- [x] Submit orders, cancel, print the book as a depth ladder, print the trade tape
+- [x] Load a scripted scenario from a file, so tests and demos are reproducible
 
 ### 7. Tests
-- [ ] Price-time priority: same price, earlier order fills first
-- [ ] Walking the book: one order, several counterparties, correct fill sequence
-- [ ] FOK rejects rather than partially filling
-- [ ] IOC leaves nothing resting
-- [ ] **Property:** replaying the journal reproduces a byte-identical book
-- [ ] **Property:** no order ever fills more than its quantity
-- [ ] **Property:** the book never crosses — `best_bid < best_ask` after every command
-- [ ] Benchmark: p50/p99/p99.9 match latency, and orders/sec
+- [x] Price-time priority: same price, earlier order fills first
+- [x] Walking the book: one order, several counterparties, correct fill sequence
+- [x] FOK rejects rather than partially filling
+- [x] IOC leaves nothing resting
+- [x] **Property:** replaying the journal reproduces a byte-identical book
+- [x] **Property:** no order ever fills more than its quantity
+- [x] **Property:** the book never crosses — `best_bid < best_ask` after every command
+- [x] Benchmark: p50/p99/p99.9 match latency, and orders/sec
 
 ## Done when
 
@@ -88,3 +99,27 @@ generated command sequences, and the benchmark prints latency percentiles.
   telling you something about ordering.
 - **Write the journal before applying**, not after. A crash between the two must leave a
   command that will be replayed, not one that was applied and lost.
+
+## What was measured
+
+`cargo bench` on an Apple M5 Pro, 1M commands against a book that grows to about 32,000 resting
+orders. Each figure includes reading the clock (roughly 20 to 40 ns).
+
+| | p50 | p99 | p99.9 | throughput |
+|---|---|---|---|---|
+| Engine alone | 209 ns | 750 ns | 1.3 µs | 4.3M commands/s |
+| Engine + journal | 1.3 µs | 3.3 µs | 8.1 µs | 0.69M commands/s |
+
+The journal costs about 1 µs per command, almost all of it the `write` system call behind
+the per-command flush. That flush survives the process crashing, not the machine losing
+power; surviving power loss needs an fsync, which is far slower, so batching fsyncs
+("group commit") is a decision for the gateway at M2.
+
+## Decisions to revisit later
+
+- **DAY behaves like GTC.** There is no session clock yet, so nothing expires day orders.
+  That arrives with the clock service post-MVP.
+- **No ids in the journal.** Ids are recomputed by replay rather than stored, which is only
+  sound because matching is deterministic. Anything that makes it non-deterministic (a
+  clock read, a random choice, iterating a `HashMap`) breaks recovery. The property tests
+  would catch it.

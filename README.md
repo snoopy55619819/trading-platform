@@ -43,7 +43,7 @@ each of them free to be rewritten in another language.
 
 What we are building through milestone 8. To keep scope manageable the broker runs as one
 backend process and the exchange as one binary. Every box shows the milestone that builds it;
-only `broker-db` exists today.
+the ones tagged BUILT exist today.
 
 ![Current MVP plan: broker backend and exchange binary, connected by FIX for orders and WebSocket for market data](docs/architecture/current-plan.svg)
 
@@ -88,10 +88,9 @@ a correctness bug, so the schema makes it impossible to write.
 
 ## Running it
 
-**What exists today (milestone 0):** the broker's database, and an exchange binary that
-prints a placeholder. `backend`, `market-data`, `web` and `simulator` are scaffolding —
-directories, configs and specs, no code. The first runnable service is the matching engine
-at M1.
+**What exists today (milestone 1):** the matching engine, driven from a CLI, and the
+broker's database. The engine is not on the network yet: that is the FIX gateway at M2.
+`backend`, `market-data`, `web` and `simulator` are still scaffolding.
 
 ### First time
 
@@ -146,10 +145,26 @@ Useful once you are in:
 | `SELECT * FROM broker.securities;` | the seeded instruments |
 | `SELECT * FROM broker.schema_migrations;` | what has been applied, and when |
 
-### Run the exchange
+### Run the matching engine
+
+A walkthrough of every matching rule (price-time priority, walking the book, IOC, FOK,
+self-trade prevention, cancels), with commentary:
 
 ```bash
-cd exchange-alpha && cargo run
+cd exchange-alpha && cargo run -p matching-engine -- crates/matching-engine/scenarios/demo.txt
+```
+
+Or trade interactively. With `--journal`, quit and restart and the book is exactly as you
+left it:
+
+```bash
+cd exchange-alpha && cargo run -p matching-engine -- --journal /tmp/alpha.journal
+```
+
+Tests (including property tests over random order streams) and the latency benchmark:
+
+```bash
+cd exchange-alpha && cargo test -p matching-engine && cargo bench -p matching-engine
 ```
 
 ### Shortcuts from the repo root
@@ -186,10 +201,11 @@ short version is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
-**Milestone 0 — foundations: complete.** Specs defined and linted, security master seeded,
-Postgres running, both toolchains building, spec vendoring with drift detection.
+**Milestone 1, the matching engine: complete.** Price-time priority, limit / market / IOC /
+FOK orders, self-trade prevention, and an append-only journal from which replay rebuilds a
+byte-identical book. 38 tests, including property tests over thousands of random order
+streams. Median match latency is about 0.2 µs (p99 0.75 µs) against a 32,000-order book.
 
-Next: **Milestone 1 — the matching engine** (`exchange-alpha/crates/matching-engine`).
-Order book with price-time priority, limit / market / IOC / FOK, append-only journal.
-Done when replaying the journal reproduces a byte-identical book and the benchmark
-reports p50/p99 match latency.
+Next: **Milestone 2, FIX 4.4** (`exchange-alpha/crates/fix-core` and `gateway`). Puts the
+engine on the network: a FIX session layer, the exchange gateway that validates orders
+before the engine sees them, and conformance tests against QuickFIX.

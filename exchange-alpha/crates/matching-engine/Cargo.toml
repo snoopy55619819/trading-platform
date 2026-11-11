@@ -7,3 +7,23 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# Only for the journal's on-disk format. The matching path itself never serialises.
+serde.workspace = true
+serde_json.workspace = true
+
+# Only benches/latency.rs is a benchmark; without these, `cargo bench` also runs the library's
+# and CLI's unit tests and reports them as "ignored".
+[lib]
+bench = false
+
+[[bin]]
+name = "matching-engine"
+path = "src/main.rs"
+bench = false
+
+[dev-dependencies]
+proptest = "1"
+
+[[bench]]
+name = "latency"
+harness = false

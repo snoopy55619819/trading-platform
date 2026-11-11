@@ -1,0 +1,40 @@
+# Matching engine walkthrough. From exchange-alpha/, run:
+#   cargo run -p matching-engine -- crates/matching-engine/scenarios/demo.txt
+
+# 1. Build a book. alice and bob both offer at 42.10; alice was there first.
+alice sell 100 ACME @ 42.10
+bob   sell 100 ACME @ 42.10
+carol sell 200 ACME @ 42.15
+dave  buy  150 ACME @ 42.00
+book ACME
+
+# 2. Price-time priority. erin buys 150 at up to 42.10: alice fills first because she
+#    arrived first at that price, then bob supplies the last 50.
+erin buy 150 ACME @ 42.10
+book ACME
+
+# 3. Walking the book. A market buy for 120 takes bob's last 50 at 42.10, then moves up a
+#    level and takes 70 from carol at 42.15. Each trade is at the resting order's price.
+frank buy 120 ACME market
+
+# 4. IOC. erin wants 500 at up to 42.15 but only 130 exist; the rest is cancelled, not rested.
+erin buy 500 ACME @ 42.15 ioc
+
+# 5. FOK. frank wants to sell 1000 at 41.00 or better, but only 150 is bid. Fill-or-kill is
+#    all or nothing, so nothing trades.
+frank sell 1000 ACME @ 41.00 fok
+
+# 6. Self-trade prevention. dave's sell would hit his own bid. The incoming order is
+#    cancelled; his resting bid is untouched.
+dave sell 50 ACME @ 42.00
+
+# 7. Cancels. Only the owner can cancel, and someone else's order looks exactly like an
+#    order that does not exist.
+erin cancel 4
+dave cancel 4
+
+# 8. Bad input is rejected by the engine itself.
+frank buy 0 ACME @ 42.00
+
+book ACME
+tape ACME

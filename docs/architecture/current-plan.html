@@ -33,6 +33,7 @@ flows:
   md    | md-publisher -> market-data         | WebSocket     | Snapshot, Delta
   md    | md-publisher -> simulator           | WebSocket     | Snapshot, Delta
   md    | market-data -> web                  | WebSocket + REST | prices, history
+status note: matching-engine and journal BUILT at M1
 omitted on purpose:
   ExecutionReports back to the simulator | same shape as the broker's return path
   every service's own DB migrations      | implementation detail
@@ -128,8 +129,8 @@ omitted on purpose:
   <div>
     <h1>Trading Platform: current plan (MVP)</h1>
     <p class="sub">What we are building through milestone 8, with the merges we made to keep scope
-      manageable: the broker is one backend process, the exchange is one binary. Only the
-      component tagged <strong>BUILT</strong> exists today; every other box carries the milestone that builds it.</p>
+      manageable: the broker is one backend process, the exchange is one binary. Components
+      tagged <strong>BUILT</strong> exist today; every other box carries the milestone that builds it.</p>
   </div>
   <button id="theme" type="button">Toggle theme</button>
 </header>
@@ -259,7 +260,8 @@ omitted on purpose:
     <text class="n-sub" x="790" y="268" text-anchor="middle">validation · M2</text></g>
   <g class="module"><rect x="700" y="420" width="180" height="100" rx="6"/>
     <text class="n-title" x="790" y="466" text-anchor="middle">matching-engine</text>
-    <text class="n-sub" x="790" y="484" text-anchor="middle">RAM · M1</text></g>
+    <text class="n-sub" x="790" y="484" text-anchor="middle">RAM · M1</text>
+    <text class="tag built" x="790" y="503" text-anchor="middle">BUILT</text></g>
   <g class="module"><rect x="700" y="600" width="180" height="45" rx="6"/>
     <text class="n-title" x="790" y="619" text-anchor="middle">md-publisher</text>
     <text class="n-sub" x="790" y="636" text-anchor="middle">sequenced · M3</text></g>
@@ -270,6 +272,7 @@ omitted on purpose:
   <g class="node"><path d="M916,456 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="962" y="488" text-anchor="middle">journal</text>
     <text class="n-sub" x="962" y="503" text-anchor="middle">append · M1</text></g>
+  <text class="tag built" x="962" y="530" text-anchor="middle">BUILT</text>
 
   <g class="node"><rect x="200" y="592" width="180" height="56" rx="8"/>
     <text class="n-title" x="290" y="614" text-anchor="middle">market-data</text>
@@ -319,13 +322,13 @@ omitted on purpose:
   <tbody>
     <tr><td class="n"><span>1</span></td><td><code>web</code></td><td>Static bundle, not a server. Calls <code>backend</code> for orders and positions, <code>market-data</code> for prices, and joins the two itself, so the backend has no market data dependency.</td></tr>
     <tr><td class="n"><span>2</span></td><td><code>backend</code></td><td>One process, four modules: <code>api</code> (auth, no business logic), <code>oms</code> (pre-trade risk and order lifecycle), <code>ledger</code> (double-entry books), <code>fix</code> (session to the exchange). Merged because a buying-power check and the order write must be one transaction. Single instance: a FIX session is a stateful singleton.</td></tr>
-    <tr><td class="n"><span>3</span></td><td><code>broker-db</code></td><td>The only built component. Holds the security master today; orders and the ledger land here at M5-M6.</td></tr>
+    <tr><td class="n"><span>3</span></td><td><code>broker-db</code></td><td>Built. Holds the security master today; orders and the ledger land here at M5-M6.</td></tr>
     <tr><td class="n"><span>4</span></td><td>Order (edge)</td><td>FIX 4.4 over TCP. The broker is the initiator (TypeScript), the exchange the acceptor (Rust): two independent implementations sharing only the dictionary.</td></tr>
     <tr><td class="n"><span>5</span></td><td><code>gateway</code></td><td>The exchange's door. Session sequence numbers, then tick size, lot size, price band and duplicate <code>ClOrdID</code> checks before the engine sees anything.</td></tr>
     <tr><td class="n"><span>6</span></td><td><code>exchange-db</code></td><td>FIX session state, so sequence numbers survive a restart. The exchange's own database, never a schema in the broker's.</td></tr>
     <tr><td class="n"><span>7</span></td><td><code>fix-core</code></td><td>Library, not a server: FIX codec and session state machine. Has never heard of an order book.</td></tr>
-    <tr><td class="n"><span>8</span></td><td><code>matching-engine</code></td><td>The market. Price-time priority over an in-memory book. Feeds both planes, so it straddles the divider.</td></tr>
-    <tr><td class="n"><span>9</span></td><td><code>journal</code></td><td>Append-only log, written before each command is applied. Recovery is replay, and replay must rebuild a byte-identical book.</td></tr>
+    <tr><td class="n"><span>8</span></td><td><code>matching-engine</code></td><td>Built (M1). The market: price-time priority over an in-memory book, about 0.2 µs per match at the median. Feeds both planes, so it straddles the divider.</td></tr>
+    <tr><td class="n"><span>9</span></td><td><code>journal</code></td><td>Built (M1). Append-only log, written before each command is applied. Recovery is replay, which rebuilds a byte-identical book; a torn final write from a crash is dropped safely.</td></tr>
     <tr><td class="n"><span>10</span></td><td>ExecutionReport (edge)</td><td>The private result: account, client order id, fill qty and price, fees. Goes only to the order's owner.</td></tr>
     <tr><td class="n"><span>11</span></td><td><code>md-publisher</code></td><td>Broadcasts book changes to every subscriber. Never learns whose order moved the book.</td></tr>
     <tr><td class="n"><span>12</span></td><td>Feed (edge)</td><td>Snapshot, BookDelta, TradePrint, Heartbeat, each stamped with <code>feed_seq</code>. A gap means lost data: resync from a snapshot.</td></tr>
