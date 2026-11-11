@@ -86,10 +86,15 @@ Two details worth knowing:
 
 ### 2. Scaffold
 
-- [ ] Vite + React + TypeScript in `broker/web`, pinned versions, `pnpm dev`, `build`,
+- [x] Vite + React + TypeScript in `broker/web`, pinned versions, `pnpm dev`, `build`,
       `typecheck`, `test`
-- [ ] `CLAUDE.md`: the no-build-step exception for the browser bundle
-- [ ] Config: the backend and market-data URLs from environment, defaulting to localhost
+- [x] `CLAUDE.md`: the no-build-step exception for the browser bundle
+- [x] Config: the backend and market-data URLs from environment, defaulting to localhost
+
+Done. React 19.3.1, Vite 8.3.7, TypeScript 5.9.3, Vitest 5.1.0, all pinned exactly; the
+dev server is fixed on port 5173 (`strictPort`), the origin the backend allows. A
+placeholder page checks both services are reachable from the browser, which proved the
+config and CORS together; the real app shell replaces it in step 5.
 
 ### 3. Data layer (no UI)
 

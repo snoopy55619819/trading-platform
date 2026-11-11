@@ -55,6 +55,9 @@ version, and let `spec:check` tell you when it goes stale.
   (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`), which is exactly where a deploy bundle
   puts a workspace package. If you ever add a package consumed as a dependency, it must
   be compiled to JavaScript first — which is a good reason not to add one.
+  **The one exception is `broker/web`**: a browser cannot run TypeScript or JSX, and a web
+  client is a built artifact by nature. It is built with Vite into a static bundle. The rule
+  still holds for every Node service.
 - **FIX 4.4** — hand-rolled subset between the broker app (TS initiator) and the exchange gateway
   (Rust acceptor). Two independent implementations sharing only `exchange-alpha/spec/fix44.xml`
   and the broker's vendored copy of it.
