@@ -1,0 +1,29 @@
+/* Depth: a bar behind the row, growing from the right, as wide as the running total. */
+.book-bid,
+.book-ask {
+  background-repeat: no-repeat;
+  background-position: right;
+  background-size: var(--depth) 100%;
+}
+.book-bid {
+  background-image: linear-gradient(var(--up-soft), var(--up-soft));
+}
+.book-ask {
+  background-image: linear-gradient(var(--down-soft), var(--down-soft));
+}
+.book-spread td {
+  border-block: 1px solid var(--border);
+  font-size: var(--fs-xs);
+}
+.book-spread td:first-child {
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-strong);
+}
+.book.stale td,
+.book.stale td.up,
+.book.stale td.down {
+  color: var(--stale);
+}
+.book.stale tr {
+  background-image: none;
+}

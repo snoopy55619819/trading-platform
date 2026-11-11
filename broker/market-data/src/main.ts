@@ -10,6 +10,7 @@
 //     pnpm start
 //
 //   GET  /history?symbol=ACME&interval=1m&from=<ISO>&to=<ISO>   candles, oldest first
+//   GET  /trades?symbol=ACME&limit=50                           latest trades, newest first
 //   GET  /health                                                feed and fanout state
 //   WS   /live                                                  see live/fanout.ts
 //
@@ -23,11 +24,12 @@ import { createPool } from "./db.ts";
 import { Subscriber } from "./feed/subscriber.ts";
 import { Fanout } from "./live/fanout.ts";
 import { INTERVALS, INTERVAL_SECONDS, type Interval, bars, rollup } from "./store/rollup.ts";
-import { type Tick, insertTicks, tickFrom } from "./store/ticks.ts";
+import { type Tick, insertTicks, recentTrades, tickFrom } from "./store/ticks.ts";
 
 const FLUSH_EVERY_MS = 250;
 const ROLLUP_EVERY_MS = 1000;
 const MAX_BARS = 1000;
+const MAX_TRADES = 200;
 
 interface Listings {
   venue: { market_data: { host: string; port: number } };
@@ -90,7 +92,16 @@ async function handle(path: string): Promise<{ status: number; body: object }> {
       }
       return { status: 200, body: { symbol, interval, bars: await bars(pool, symbol, interval, from, to) } };
     }
-    return { status: 404, body: { text: "GET /history, GET /health, or WebSocket /live" } };
+    if (url.pathname === "/trades") {
+      const symbol = url.searchParams.get("symbol") ?? "";
+      const limit = Number(url.searchParams.get("limit") ?? 50);
+      if (!symbols.includes(symbol)) return { status: 400, body: { text: "symbol: one of the listed tickers" } };
+      if (!Number.isInteger(limit) || limit < 1 || limit > MAX_TRADES) {
+        return { status: 400, body: { text: `limit: a whole number from 1 to ${MAX_TRADES}` } };
+      }
+      return { status: 200, body: { symbol, trades: await recentTrades(pool, symbol, limit) } };
+    }
+    return { status: 404, body: { text: "GET /history, GET /trades, GET /health, or WebSocket /live" } };
   } catch (error) {
     console.error(`api: ${path}: ${(error as Error).message}`);
     return { status: 500, body: { text: "internal error" } };

@@ -116,3 +116,35 @@ button {
 .dot.waiting {
   background: var(--warn);
 }
+
+/* A section with nothing to show yet: loading, empty, or failed. */
+.empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.badge {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--warn);
+  font-size: var(--fs-xs);
+  text-transform: none;
+  letter-spacing: 0;
+}
+/* Star or unstar a symbol. */
+.star {
+  border: 0;
+  background: none;
+  padding: 0 var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--fs-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+.star.on {
+  color: var(--warn);
+}
+.star:hover {
+  color: var(--text);
+}

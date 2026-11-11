@@ -48,3 +48,32 @@ export async function insertTicks(db: Db, ticks: Tick[]): Promise<number> {
   );
   return result.rowCount ?? 0;
 }
+
+/** A stored trade, as the web client's time and sales shows it. Same shape as the live feed's. */
+export interface RecentTrade {
+  priceCents: number;
+  qty: number;
+  aggressor: "BUY" | "SELL";
+  ts: string;
+  tradeId: string;
+}
+
+/**
+ * The latest `limit` trades for a symbol, newest first. Seeds time and sales: the live
+ * feed only sends trades from the moment a browser subscribes. Ticks are written every
+ * FLUSH_EVERY_MS, so the very newest may not be here yet; the live feed covers those.
+ */
+export async function recentTrades(db: Db, symbol: string, limit: number): Promise<RecentTrade[]> {
+  const { rows } = await db.query<{ price_cents: string; size: string; aggressor: "BUY" | "SELL"; ts_ns: string; trade_id: string }>(
+    `SELECT price_cents, size, aggressor, ts_ns::text AS ts_ns, trade_id FROM market_data.ticks
+      WHERE symbol = $1 ORDER BY ts DESC, ts_ns DESC, tick_id DESC LIMIT $2`,
+    [symbol, limit],
+  );
+  return rows.map((r) => ({
+    priceCents: Number(r.price_cents),
+    qty: Number(r.size),
+    aggressor: r.aggressor,
+    ts: new Date(Number(BigInt(r.ts_ns) / 1_000_000n)).toISOString(),
+    tradeId: r.trade_id,
+  }));
+}

@@ -4,9 +4,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 
-import { type ConnectionState, type Interval, LiveFeed, fetchHistory } from "../api/marketData.ts";
+import { type ConnectionState, type Interval, LiveFeed, fetchHistory, fetchRecentTrades } from "../api/marketData.ts";
 import { foldTrade } from "./candles.ts";
-import { MarketStore, type SymbolMarket } from "./store.ts";
+import { MarketStore, RECENT_TRADES, type SymbolMarket } from "./store.ts";
+import { mergeTrades } from "./tape.ts";
 
 export const marketStore = new MarketStore();
 
@@ -72,4 +73,24 @@ export function useHistory(symbol: string | undefined, interval: Interval) {
     return since.reduce((bars, trade) => foldTrade(bars, trade, interval), history.data);
   }, [history.data, history.dataUpdatedAt, market.trades, interval]);
   return { bars, isLoading: history.isLoading, error: history.error };
+}
+
+/**
+ * Time and sales for one symbol: the stored trades from before we subscribed, then the live
+ * ones as they print. The stored list is fetched when the symbol changes and every minute,
+ * which also fills anything missed while the feed was down.
+ */
+export function useRecentTrades(symbol: string | undefined) {
+  const stored = useQuery({
+    queryKey: ["trades", symbol],
+    queryFn: () => fetchRecentTrades(symbol!, RECENT_TRADES),
+    enabled: symbol !== undefined,
+    refetchInterval: 60_000,
+  });
+  const market = useMarket(symbol);
+  const trades = useMemo(
+    () => mergeTrades(market.trades, stored.data ?? [], RECENT_TRADES),
+    [market.trades, stored.data],
+  );
+  return { trades, isLoading: stored.isLoading && market.trades.length === 0, error: stored.error };
 }
