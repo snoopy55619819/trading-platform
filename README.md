@@ -21,19 +21,45 @@ Cross-company interfaces work the way they do in the industry: **the exchange pu
 spec, and everyone else implements against it.** Nasdaq doesn't co-own a schema repo with
 Schwab — it publishes a FIX spec and firms build to it.
 
-```
-exchange-alpha/spec/          fix44.xml · marketdata.proto · listings.json   ← published
-        │
-        │  pnpm spec:sync   (a deliberate act, version-stamped)
-        ▼
-broker/vendor/exchange-alpha/ ← the version this broker is currently built for
-```
+The exchange publishes `fix44.xml`, `marketdata.proto` and `listings.json` in
+`exchange-alpha/spec/`. Each consumer copies only the files it uses into its own
+`vendor/exchange-alpha/`, stamped with the spec version:
 
-`pnpm spec:check` fails when the vendored copy falls behind. That isn't a repo problem —
-it's integration work, and handling it is part of what this project is for.
+| Consumer | Vendors |
+|---|---|
+| `broker/backend` | `fix44.xml`, `listings.json` |
+| `broker/market-data` | `marketdata.proto`, `listings.json` |
 
-Inside a company, sharing is fine: `broker/contracts/` is shared by the broker's own
-services because they genuinely are one team's codebase.
+`pnpm spec:sync` updates the copies on purpose; `pnpm spec:check` fails when a copy falls
+behind. A stale copy is not a repo problem: it is integration work, and handling it is part
+of what this project is for.
+
+There are no shared packages, even between the broker's own services. That is what keeps
+each of them free to be rewritten in another language.
+
+## Architecture diagrams
+
+### Current plan (MVP)
+
+What we are building through milestone 8. To keep scope manageable the broker runs as one
+backend process and the exchange as one binary. Every box shows the milestone that builds it;
+only `broker-db` exists today.
+
+![Current MVP plan: broker backend and exchange binary, connected by FIX for orders and WebSocket for market data](docs/architecture/current-plan.svg)
+
+### Ideal end state
+
+Every service split the way the industry splits it, with nothing cut for scope. **SPLIT**
+boxes were modules inside a merged process in the MVP; **dashed** boxes and dotted lines were
+cut from the MVP entirely. Post-trade (clearing, custody, settlement) appears as a third plane.
+
+![Ideal end state: broker, two exchanges, market infrastructure and simulation across order, market data and post-trade planes](docs/architecture/ideal-end-state.svg)
+
+The numbered badges are explained in each diagram's legend: open
+[`current-plan.html`](docs/architecture/current-plan.html) or
+[`ideal-end-state.html`](docs/architecture/ideal-end-state.html) for the full table and a
+light/dark toggle. After editing a diagram, regenerate the images with
+`node docs/architecture/export-svg.mjs`.
 
 ## How it fits together
 
@@ -41,70 +67,10 @@ The single most important structural fact: **this is not one pipeline, it is two
 planes.** The same match reaches you twice, by two different routes, carrying two different
 things — privately as your execution report, publicly as an anonymous print on the tape.
 
-```
-═══════════════════════════════ ORDER PLANE ═══════════════════════════════
-         private · authenticated · request/response · only your data
-
-    BROKER                                        ALPHA EXCHANGE
-    ──────                                        ──────────────
-
-    web  [1]
-     │
-     │  HTTP  auth · orders · positions · symbol list
-     ▼
-   ┌─────────────────────┐
-   │  backend       [2]  │      one process, one transaction
-   │  ─────────────────  │
-   │   api    front door │
-   │   oms    risk +     │
-   │          lifecycle  │
-   │   ledger books      │
-   │   fix    session    │
-   └──────────┬──────────┘
-              │
-              │═══ FIX 4.4 / TCP ══ NewOrderSingle (35=D) ═══▶  gateway  [3]
-              │                                                    │
-              │                                                    ▼
-              │                                             matching-engine  [4]
-              │                                                    │
-              │◀══ FIX 4.4 / TCP ══ ExecutionReport (35=8)  [5] ═══╯
-
-
-════════════════════════════ MARKET DATA PLANE ════════════════════════════
-         public · broadcast · sequenced · anonymous · everyone sees it
-
-                              matching-engine  [4]
-                                      │
-                                      │  BookDelta · Trade
-                                      ▼
-                              md-publisher  [6]
-                                      │
-                                      │  WS  [7]
-                                      │
-                    ┌─────────────────┴───────────────────┐
-                    ▼                                     ▼
-             market-data  [8]                      participants  [9]
-                    │                                     │
-                    │  live prices (WS)                   │  orders
-                    │  chart history (REST)               │
-                    ▼                                     │
-                   web                                    └──▶ ORDER PLANE
-```
+The diagrams above show both planes: blue for orders, orange for market data.
 
 `web` talks to **two** services and joins them itself: positions from `backend`, prices from
 `market-data`. That is what keeps the backend free of any market-data dependency.
-
-| | Component | What it does |
-|---|---|---|
-| **[1]** | `web` | The client. A static bundle, not a server. |
-| **[2]** | **`backend`** | One process, three modules. **api** — front door: auth, sessions, rate limits, no business logic. **oms** — gatekeeper (buying power, symbol valid, price in band, duplicate order id) and lifecycle tracker. **ledger** — double-entry books; positions and cash *derived* by summing journal lines, never incremented. Plus the **fix** session. They share a process because they share a transaction: checking buying power and writing the order is one commit. Single-instance — a FIX session is a stateful singleton and two replicas cannot share a `SenderCompID`. |
-| **[3]** | `gateway` | The exchange's door. Session authentication and sequence numbers, then validation — tick size, lot size, price band, duplicate `ClOrdID` — before the engine sees anything. |
-| **[4]** | `matching-engine` | The market itself. Every resting order, and who trades with whom: best price first, FIFO within a price. No database — RAM plus an append-only journal, recovered by replay. |
-| **[5]** | `ExecutionReport` | The **private** result: `exec_id`, `account_id`, `client_order_id`, `last_qty`, `last_px`, fees. To the order's owner and nobody else. |
-| **[6]** | `md-publisher` | Broadcasts book changes to every subscriber. Never learns whose order moved the book. |
-| **[7]** | The feed | `Snapshot` · `BookDelta` · `TradePrint` · `Heartbeat`, each stamped with `feed_seq`. A gap means you **lost data** — recover with a snapshot, never silently continue. |
-| **[8]** | `market-data` | Live fanout *and* chart history. Its own database, its own vendored spec, no shared code with the backend — so it could be rewritten in Go and nothing else would change. It sits on the anonymous plane, which is why it needs none of the backend's domain types. |
-| **[9]** | `participants` | Other trading firms — a third party, not part of either company. Same public feed, same public gateway. **The simulator gets no backdoor.** |
 
 **Where the boundaries are, and why.** The company boundary is real: two businesses, a
 network between them, FIX as the contract. Inside the broker, `api`/`oms`/`ledger` are *not*
@@ -112,9 +78,9 @@ separate — splitting them would make a buying-power check non-transactional in
 nothing. `market-data` is separate on technical grounds: different workload, different
 database, no transactional coupling.
 
-**`fix-core` is deliberately not on the diagram.** It is a *library*, not a server: the FIX
-codec plus the session state machine. The gateway links it in, and the backend links its own
-initiator against the same published dictionary. It has never heard of an order book.
+**`fix-core` is a library, not a server:** the FIX codec plus the session state machine.
+The gateway links it in, and the backend links its own initiator against the same published
+dictionary. It has never heard of an order book.
 
 **What the two planes must never share:** `TradePrint` has no field for an account or a
 client order id — structurally, not by convention. Leaking one onto the public feed would be
@@ -197,6 +163,26 @@ cd exchange-alpha && cargo run
 
 These are conveniences only. Everything they do you can do from inside the folder itself —
 no deployable depends on the repo root to build, run or deploy.
+
+## Working on it
+
+Each service carries its own **`TODO.md`** — a checklist plus the inputs and outputs it is
+responsible for. Start there rather than from `PLAN.md`, which is the roadmap rather than
+the working document.
+
+| Milestone | Service | Checklist |
+|---|---|---|
+| M1 | matching engine | [`exchange-alpha/crates/matching-engine/TODO.md`](exchange-alpha/crates/matching-engine/TODO.md) |
+| M2 | FIX codec + session | [`exchange-alpha/crates/fix-core/TODO.md`](exchange-alpha/crates/fix-core/TODO.md) |
+| M2 | exchange gateway | [`exchange-alpha/crates/gateway/TODO.md`](exchange-alpha/crates/gateway/TODO.md) |
+| M3 | market data feed | [`exchange-alpha/crates/md-publisher/TODO.md`](exchange-alpha/crates/md-publisher/TODO.md) |
+| M4 | simulated participants | [`participants/simulator/TODO.md`](participants/simulator/TODO.md) |
+| M5–M6 | broker backend | [`broker/backend/TODO.md`](broker/backend/TODO.md) |
+| M7 | broker market data | [`broker/market-data/TODO.md`](broker/market-data/TODO.md) |
+| M8 | client | [`broker/web/TODO.md`](broker/web/TODO.md) |
+
+Conventions that apply everywhere are in [`docs/DECISIONS.md`](docs/DECISIONS.md); the
+short version is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 

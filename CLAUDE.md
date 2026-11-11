@@ -78,8 +78,10 @@ These are architectural commitments, not preferences. Breaking them causes rewri
 
 ## Two data planes
 
-**The canonical architecture diagram lives in [README.md](README.md#how-it-fits-together).**
-Keep it current — it is the first thing anyone reads, and it is the picture to reason from
+**The canonical architecture diagrams live in `docs/architecture/`** (`current-plan.html`,
+`ideal-end-state.html`), embedded in the README as SVGs. Edit the HTML, then regenerate with
+`node docs/architecture/export-svg.mjs`. Keep them current: they are the first thing anyone
+reads, and the picture to reason from
 before changing how services talk to each other.
 
 The rule it encodes: this is not one pipeline, it is two independent planes.
