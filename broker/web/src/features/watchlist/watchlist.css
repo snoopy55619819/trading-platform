@@ -1,0 +1,78 @@
+.watchlist {
+  margin: calc(-1 * var(--panel-pad));
+  padding: 0;
+  list-style: none;
+}
+.watch-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.watch-row:last-child {
+  border-bottom: 0;
+}
+.watch-row.selected {
+  background: var(--surface-2);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.watch-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: calc(var(--row-h) * 1.6);
+  padding: var(--space-2) 0 var(--space-2) var(--panel-pad);
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.watch-main:hover {
+  background: var(--surface-2);
+}
+.watch-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.watch-name .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+}
+.watch-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.watch-price.stale .numbers:first-child {
+  color: var(--stale);
+}
+.watch-change {
+  font-size: var(--fs-xs);
+}
+.spark path {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.spark.up path {
+  stroke: var(--up);
+}
+.spark.down path {
+  stroke: var(--down);
+}
+.spark-base {
+  stroke: var(--border);
+  stroke-dasharray: 2 2;
+}
+/* Narrow panels (Pro's watchlist is two columns wide): no room for the line. */
+@container (max-width: 220px) {
+  .spark {
+    display: none;
+  }
+}

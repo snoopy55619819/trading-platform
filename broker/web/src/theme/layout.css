@@ -106,6 +106,13 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+/* The title gives way to the actions (an interval picker, say): one line, cut short. */
+.panel-head > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 :root[data-style="calm"] .panel-head {
   text-transform: none;
   letter-spacing: 0;
@@ -118,4 +125,6 @@
   flex: 1;
   overflow: auto;
   padding: var(--panel-pad);
+  /* Sections can adapt to their panel's width (@container), not just the window's. */
+  container-type: inline-size;
 }

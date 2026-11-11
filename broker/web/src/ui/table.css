@@ -1,0 +1,26 @@
+/* Tables of numbers: the order book, time and sales, and (later) positions and orders. */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+.data-table th {
+  position: sticky;
+  top: calc(-1 * var(--panel-pad));
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  font-weight: normal;
+  text-align: right;
+  padding: 0 var(--space-2) var(--space-2);
+}
+.data-table td {
+  height: var(--row-h);
+  padding: 0 var(--space-2);
+  text-align: right;
+  white-space: nowrap;
+}
+.data-table th:first-child,
+.data-table td:first-child {
+  text-align: left;
+}
