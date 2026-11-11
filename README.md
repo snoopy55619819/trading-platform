@@ -229,6 +229,17 @@ curl -s -X POST localhost:8080/orders -H "Authorization: Bearer $TOKEN" -d '{"cl
 curl -s localhost:8080/positions -H "Authorization: Bearer $TOKEN"
 ```
 
+### Run the web client
+
+The browser client, built with Vite. With the backend and market-data running:
+
+```bash
+cd broker/web && pnpm install && pnpm dev
+```
+
+It serves on `http://localhost:5173`, the origin the backend allows by default. Point it
+elsewhere at build time with `VITE_BACKEND_URL` and `VITE_MARKET_DATA_URL`.
+
 ### Run the broker's market data
 
 Live prices for browsers and chart history, from the exchange's public feed. Its own
