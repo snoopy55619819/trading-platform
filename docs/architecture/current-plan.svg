@@ -206,7 +206,8 @@
     <text class="n-sub" x="790" y="268" text-anchor="middle">validation · M2</text></g>
   <g class="module"><rect x="700" y="420" width="180" height="100" rx="6"/>
     <text class="n-title" x="790" y="466" text-anchor="middle">matching-engine</text>
-    <text class="n-sub" x="790" y="484" text-anchor="middle">RAM · M1</text></g>
+    <text class="n-sub" x="790" y="484" text-anchor="middle">RAM · M1</text>
+    <text class="tag built" x="790" y="503" text-anchor="middle">BUILT</text></g>
   <g class="module"><rect x="700" y="600" width="180" height="45" rx="6"/>
     <text class="n-title" x="790" y="619" text-anchor="middle">md-publisher</text>
     <text class="n-sub" x="790" y="636" text-anchor="middle">sequenced · M3</text></g>
@@ -217,6 +218,7 @@
   <g class="node"><path d="M916,456 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="962" y="488" text-anchor="middle">journal</text>
     <text class="n-sub" x="962" y="503" text-anchor="middle">append · M1</text></g>
+  <text class="tag built" x="962" y="530" text-anchor="middle">BUILT</text>
 
   <g class="node"><rect x="200" y="592" width="180" height="56" rx="8"/>
     <text class="n-title" x="290" y="614" text-anchor="middle">market-data</text>
