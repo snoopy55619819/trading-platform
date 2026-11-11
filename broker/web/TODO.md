@@ -176,11 +176,21 @@ The layout editor itself, later:
 
 Each one a container and a view, built in the Pro style first.
 
-- [ ] **Sign in / sign up**
-- [ ] **App shell:** top bar, the layout grid, connection status (backend `/status`,
+- [x] **Sign in / sign up**
+- [x] **App shell:** top bar, the layout grid, connection status (backend `/status`,
       market data `/health`, the live socket)
-- [ ] **Symbol search and quote header:** pick a symbol; last price, change on the day,
+- [x] **Symbol search and quote header:** pick a symbol; last price, change on the day,
       bid and ask, volume
+Step 5a done: sign in and sign up (the backend's own message on a refusal); the top bar with
+symbol search (ticker or company name, by keyboard or mouse, remembered for next time), the
+quote (last, change since the previous business day's close, bid, ask, today's volume, greyed
+when the feed cannot vouch for it), and connection status for the broker, its exchange link
+and prices. Sections not yet built say which step brings them. Checked against the full
+stack: a wrong login, a sign-up, the quote updating live, search by name, the exchange and
+market-data killed (both dots red, quote greyed) and restarted (back without a reload), and
+Pro, Active and Calm at desktop and phone width. Vite now pre-bundles React and TanStack
+Query: discovering one mid-session made it re-bundle and briefly load two copies of React.
+
 - [ ] **Watchlist:** starred symbols with last price, change and a sparkline; star and unstar
 - [ ] **Chart:** candles and volume, interval picker (1m, 5m, 1h, 1d), the current candle
       updated by live trades, colours taken from the tokens
