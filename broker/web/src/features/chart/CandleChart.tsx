@@ -4,11 +4,18 @@
 // new one (see updates.ts), anything else replaces the data. Colours come from the theme's
 // tokens and are re-read whenever the mode or style changes. Times are shown in the
 // browser's time zone; the library itself only knows UTC.
+//
+// A legend sits over the top left: the symbol and interval, then the candle under the
+// cursor, or the latest one when the cursor is elsewhere. The crosshair labels the price on
+// the right axis and the time on the bottom one. Wheel, drag and pinch zoom and pan are the
+// library's own and left on; the range buttons only set where the view starts.
 
 import {
   CandlestickSeries,
   type CandlestickData,
   ColorType,
+  CrosshairMode,
+  type MouseEventParams,
   HistogramSeries,
   type HistogramData,
   type IChartApi,
@@ -18,10 +25,12 @@ import {
   type UTCTimestamp,
   createChart,
 } from "lightweight-charts";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import type { Bar } from "../../api/marketData.ts";
+import type { Bar, Interval } from "../../api/marketData.ts";
 import { readTokens, useTheme } from "../../theme/theme.ts";
+import { legendFor } from "./legend.ts";
+import { RIGHT_OFFSET, type Range, frame } from "./range.ts";
 import { chartChange } from "./updates.ts";
 
 const seconds = (bar: Bar) => (Date.parse(bar.t) / 1000) as UTCTimestamp;
@@ -40,11 +49,12 @@ interface Colours {
   up: string;
   down: string;
   font: string;
+  crosshair: string;
 }
 
 function readColours(): Colours {
-  const t = readTokens(["surface", "text-muted", "border", "up", "down", "font"]);
-  return { surface: t.surface, text: t["text-muted"], grid: t.border, up: t.up, down: t.down, font: t.font };
+  const t = readTokens(["surface", "text-muted", "border", "up", "down", "font", "stale"]);
+  return { surface: t.surface, text: t["text-muted"], grid: t.border, up: t.up, down: t.down, font: t.font, crosshair: t.stale };
 }
 
 /** "#0f7b4a" at 40% -> "#0f7b4a66". Tokens are six-digit hex; anything else is left alone. */
@@ -63,13 +73,35 @@ function localTime(time: Time, withDate: boolean): string {
   return withDate ? `${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${hm}` : hm;
 }
 
-export function CandleChart({ bars, viewKey, intraday }: { bars: Bar[]; viewKey: string; intraday: boolean }) {
+export function CandleChart({
+  bars,
+  viewKey,
+  intraday,
+  title,
+  range,
+  interval,
+  frameKey,
+}: {
+  bars: Bar[];
+  /** Symbol and interval: when it changes, the data is replaced rather than updated. */
+  viewKey: string;
+  intraday: boolean;
+  /** The legend's first line, "ACME · 1m". */
+  title: string | undefined;
+  range: Range;
+  interval: Interval;
+  /** When this changes (and is set), the view is framed to `range` at the latest bars. */
+  frameKey: string | undefined;
+}) {
   const host = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi>(undefined);
   const candles = useRef<ISeriesApi<"Candlestick">>(undefined);
   const volumes = useRef<ISeriesApi<"Histogram">>(undefined);
   const drawn = useRef<{ bars: Bar[]; key: string } | undefined>(undefined);
   const colours = useRef<Colours>(undefined);
+  const framed = useRef<string>(undefined);
+  // The bar index under the cursor; undefined when the cursor is off the chart's bars.
+  const [hovered, setHovered] = useState<number>();
   const theme = useTheme();
 
   // Created once per mount; removed on unmount.
@@ -78,8 +110,9 @@ export function CandleChart({ bars, viewKey, intraday }: { bars: Bar[]; viewKey:
       autoSize: true,
       layout: { attributionLogo: false },
       rightPriceScale: { borderVisible: false },
-      timeScale: { borderVisible: false, rightOffset: 4 },
-      crosshair: { mode: 0 },
+      timeScale: { borderVisible: false, rightOffset: RIGHT_OFFSET },
+      // Normal: the crosshair follows the cursor, so the right axis shows the price under it.
+      crosshair: { mode: CrosshairMode.Normal },
     });
     chart.current = api;
     candles.current = api.addSeries(CandlestickSeries, {
@@ -89,11 +122,20 @@ export function CandleChart({ bars, viewKey, intraday }: { bars: Bar[]; viewKey:
     volumes.current = api.addSeries(HistogramSeries, { priceScaleId: "", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
     // Volume along the bottom fifth, under the candles.
     api.priceScale("").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
-    candles.current.priceScale().applyOptions({ scaleMargins: { top: 0.08, bottom: 0.25 } });
+    // Room at the top for the legend.
+    candles.current.priceScale().applyOptions({ scaleMargins: { top: 0.18, bottom: 0.25 } });
+    // Logical indexes match positions in the bars, since both series get every bar.
+    const onMove = (param: MouseEventParams<Time>) => {
+      const index = param.logical === undefined || param.time === undefined ? undefined : Math.round(param.logical);
+      setHovered(index);
+    };
+    api.subscribeCrosshairMove(onMove);
     return () => {
+      api.unsubscribeCrosshairMove(onMove);
       api.remove();
       chart.current = undefined;
       drawn.current = undefined;
+      framed.current = undefined;
     };
   }, []);
 
@@ -118,6 +160,10 @@ export function CandleChart({ bars, viewKey, intraday }: { bars: Bar[]; viewKey:
     chart.current?.applyOptions({
       layout: { background: { type: ColorType.Solid, color: c.surface }, textColor: c.text, fontFamily: c.font },
       grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
+      crosshair: {
+        vertLine: { color: c.crosshair, labelBackgroundColor: c.text },
+        horzLine: { color: c.crosshair, labelBackgroundColor: c.text },
+      },
     });
     candles.current?.applyOptions({ upColor: c.up, downColor: c.down, wickUpColor: c.up, wickDownColor: c.down });
     if (drawn.current) volumes.current?.setData(drawn.current.bars.map((b) => volume(b, c)));
@@ -136,13 +182,49 @@ export function CandleChart({ bars, viewKey, intraday }: { bars: Bar[]; viewKey:
     } else if (change.kind === "reset") {
       candles.current?.setData(bars.map(candle));
       volumes.current?.setData(bars.map((b) => volume(b, c)));
-      // A new symbol or interval starts at the latest bars; a refetch keeps where you scrolled.
-      if (drawn.current?.key !== viewKey && bars.length > 0) {
-        chart.current?.timeScale().setVisibleLogicalRange({ from: Math.max(0, bars.length - 120), to: bars.length + 4 });
-      }
     }
     drawn.current = { bars, key: viewKey };
-  }, [bars, viewKey]);
+    // A new view or range starts at the latest bars; a refetch or a live trade keeps where
+    // you scrolled or zoomed.
+    if (frameKey !== undefined && framed.current !== frameKey) {
+      const logical = frame(bars, range, interval);
+      if (logical) {
+        chart.current?.timeScale().setVisibleLogicalRange(logical);
+        framed.current = frameKey;
+      }
+    }
+  }, [bars, viewKey, frameKey, range, interval]);
 
-  return <div ref={host} className="chart" />;
+  const bar = (hovered !== undefined ? bars[hovered] : undefined) ?? bars.at(-1);
+  const legend = bar ? legendFor(bar) : undefined;
+  return (
+    <>
+      <div ref={host} className="chart" />
+      {title && (
+        <div className="chart-legend numbers" aria-live="off">
+          <span className="chart-legend-title">{title}</span>
+          {legend && (
+            <span className="chart-legend-values">
+              <span>
+                <span className="muted">O</span> {legend.open}
+              </span>
+              <span>
+                <span className="muted">H</span> {legend.high}
+              </span>
+              <span>
+                <span className="muted">L</span> {legend.low}
+              </span>
+              <span>
+                <span className="muted">C</span> {legend.close}
+              </span>
+              <span className={legend.direction === "flat" ? undefined : legend.direction}>{legend.change}</span>
+              <span>
+                <span className="muted">Vol</span> {legend.volume}
+              </span>
+            </span>
+          )}
+        </div>
+      )}
+    </>
+  );
 }
