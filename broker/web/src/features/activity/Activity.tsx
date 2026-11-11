@@ -1,5 +1,6 @@
-// The activity panel: positions, open orders and order history, as tabs. Each tab is its
-// own component, so the layout editor can later give any of them a panel of its own.
+// The activity panel: the account summary (with Add funds), then positions, open orders
+// and order history as tabs. Each part is its own component, so the layout editor can
+// later give any of them a panel of their own.
 //
 // Positions are valued at the live last trade, else the last stored trade, else the
 // previous close (quoteFrom). Order rows expand to show the order's events.
@@ -7,13 +8,15 @@
 import { useState } from "react";
 
 import type { Holding, Order } from "../../api/backend.ts";
-import { formatBps, formatCents, formatSignedDollars, formatDollars } from "../../money.ts";
-import { bucketStart } from "../../market/candles.ts";
-import { useHistory, useMarket } from "../../market/hooks.ts";
+import { formatBps, formatCents, formatDollars, formatSignedDollars } from "../../money.ts";
+import { useLastPrices } from "../../market/hooks.ts";
 import { useCancelOrder, useOrder, useOrders, usePositions } from "../../query/hooks.ts";
 import { Panel } from "../../ui/Shell.tsx";
 import { Segmented } from "../../ui/controls.tsx";
-import { quoteFrom } from "../header/quote.ts";
+import { notify } from "../../ui/toasts.ts";
+import { AccountSummaryView } from "../account/AccountSummary.tsx";
+import { AddFundsDialog } from "../account/AddFundsDialog.tsx";
+import { accountSummary } from "../account/summary.ts";
 import { STATUS_LABEL, eventText, orderPrice, orderTime, positionValue, splitOrders } from "./orders.ts";
 import "./activity.css";
 
@@ -26,6 +29,8 @@ export function Activity({ selected, onSelect }: { selected: string | undefined;
   const orders = useOrders();
   const { open, done } = splitOrders(orders.data ?? [], onlySelected ? selected : undefined);
   const holdings = (positions.data?.holdings ?? []).filter((h) => h.qtySettled + h.qtyUnsettled > 0);
+  const prices = useLastPrices(holdings.map((h) => h.symbol));
+  const [addingFunds, setAddingFunds] = useState(false);
 
   return (
     <Panel
@@ -50,13 +55,21 @@ export function Activity({ selected, onSelect }: { selected: string | undefined;
         ) : undefined
       }
     >
+      {positions.data && (
+        <AccountSummaryView summary={accountSummary(positions.data, prices)} onAddFunds={() => setAddingFunds(true)} />
+      )}
+      <AddFundsDialog open={addingFunds} onClose={() => setAddingFunds(false)} onDone={(cents) => {
+          setAddingFunds(false);
+          notify({ tone: "good", title: `Added ${formatDollars(cents)}`, text: "Ready to trade now." });
+        }}
+      />
       {tab === "positions" ? (
         positions.isLoading ? (
           <p className="empty">Loading…</p>
         ) : positions.error ? (
           <p className="empty">Could not load positions.</p>
         ) : (
-          <Positions holdings={holdings} onSelect={onSelect} />
+          <Positions holdings={holdings} prices={prices} onSelect={onSelect} />
         )
       ) : orders.isLoading ? (
         <p className="empty">Loading…</p>
@@ -69,7 +82,15 @@ export function Activity({ selected, onSelect }: { selected: string | undefined;
   );
 }
 
-function Positions({ holdings, onSelect }: { holdings: Holding[]; onSelect: (symbol: string) => void }) {
+function Positions({
+  holdings,
+  prices,
+  onSelect,
+}: {
+  holdings: Holding[];
+  prices: ReadonlyMap<string, number | undefined>;
+  onSelect: (symbol: string) => void;
+}) {
   if (holdings.length === 0) return <p className="empty">No positions yet. Buy something from the order ticket.</p>;
   return (
     <table className="data-table activity">
@@ -85,17 +106,14 @@ function Positions({ holdings, onSelect }: { holdings: Holding[]; onSelect: (sym
       </thead>
       <tbody>
         {holdings.map((h) => (
-          <PositionRow key={h.symbol} holding={h} onSelect={() => onSelect(h.symbol)} />
+          <PositionRow key={h.symbol} holding={h} price={prices.get(h.symbol)} onSelect={() => onSelect(h.symbol)} />
         ))}
       </tbody>
     </table>
   );
 }
 
-function PositionRow({ holding, onSelect }: { holding: Holding; onSelect: () => void }) {
-  const market = useMarket(holding.symbol);
-  const daily = useHistory(holding.symbol, "1d");
-  const price = quoteFrom(market, daily.bars, bucketStart(Date.now(), "1d")).lastCents;
+function PositionRow({ holding, price, onSelect }: { holding: Holding; price: number | undefined; onSelect: () => void }) {
   const v = positionValue(holding, price);
   const direction = !v.pnlCents ? "" : v.pnlCents > 0 ? "up" : "down";
   return (

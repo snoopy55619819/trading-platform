@@ -15,7 +15,15 @@ import "./book.css";
 
 export function OrderBook({ symbol }: { symbol: string | undefined }) {
   const market = useMarket(symbol);
-  return <BookView book={market.book} onPick={useBookPrice()} />;
+  const pick = useBookPrice();
+  if (!symbol) {
+    return (
+      <Panel title="Order book">
+        <p className="empty">Pick a symbol.</p>
+      </Panel>
+    );
+  }
+  return <BookView book={market.book} onPick={pick} />;
 }
 
 export function BookView({ book, onPick }: { book: BookMessage | undefined; onPick: (priceCents: number) => void }) {

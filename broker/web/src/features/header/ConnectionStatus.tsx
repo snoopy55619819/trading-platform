@@ -12,13 +12,18 @@ export interface Connections {
   prices: Health;
 }
 
-export function ConnectionStatus() {
+/** The state of each connection. Also watched for toasts when one drops. */
+export function useConnections(): Connections {
   const status = useStatus();
   const feed = useFeedState();
   const backend: Health = status.isError ? "bad" : status.data ? "ok" : "waiting";
   const exchange: Health = !status.data ? (status.isError ? "bad" : "waiting") : status.data.connected ? "ok" : "bad";
   const prices: Health = feed === "open" ? "ok" : feed === "connecting" ? "waiting" : "bad";
-  return <ConnectionView connections={{ backend, exchange, prices }} />;
+  return { backend, exchange, prices };
+}
+
+export function ConnectionStatus() {
+  return <ConnectionView connections={useConnections()} />;
 }
 
 const LABELS: Record<keyof Connections, string> = { backend: "Broker", exchange: "Exchange", prices: "Prices" };

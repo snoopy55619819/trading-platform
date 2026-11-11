@@ -12,6 +12,7 @@ import { AuthScreen } from "./features/auth/AuthScreen.tsx";
 import { OrderBook } from "./features/book/OrderBook.tsx";
 import { ChartSection } from "./features/chart/ChartSection.tsx";
 import { TopBar } from "./features/header/TopBar.tsx";
+import { Notifier } from "./features/notifications/Notifier.tsx";
 import { TimeAndSales } from "./features/tape/TimeAndSales.tsx";
 import { OrderTicket } from "./features/ticket/OrderTicket.tsx";
 import { Watchlist } from "./features/watchlist/Watchlist.tsx";
@@ -19,7 +20,9 @@ import { DEFAULT_LAYOUTS, type PanelInstance } from "./layout/layouts.ts";
 import { queryClient, useSignedIn, useSymbols, useWatchlist } from "./query/hooks.ts";
 import { selectSymbol, useSelectedSymbol } from "./selection.ts";
 import { useTheme } from "./theme/theme.ts";
+import { PanelBoundary } from "./ui/PanelBoundary.tsx";
 import { Shell } from "./ui/Shell.tsx";
+import { Toaster } from "./ui/Toaster.tsx";
 
 export function App() {
   return (
@@ -66,10 +69,18 @@ function TradingScreen() {
   // Until one is chosen: the first on the watchlist, else the first listed.
   const selected = useSelectedSymbol(listed, watchlist.data?.[0] ?? listed[0]);
   return (
-    <Shell
-      layout={DEFAULT_LAYOUTS[theme.style]}
-      header={<TopBar symbols={symbols.data ?? []} selected={selected} onSelect={selectSymbol} />}
-      render={(panel) => <Section panel={panel} symbols={symbols.data ?? []} selected={selected} />}
-    />
+    <>
+      <Notifier />
+      <Toaster />
+      <Shell
+        layout={DEFAULT_LAYOUTS[theme.style]}
+        header={<TopBar symbols={symbols.data ?? []} selected={selected} onSelect={selectSymbol} symbolsFailed={symbols.isError} />}
+        render={(panel) => (
+          <PanelBoundary name={panel.type}>
+            <Section panel={panel} symbols={symbols.data ?? []} selected={selected} />
+          </PanelBoundary>
+        )}
+      />
+    </>
   );
 }

@@ -74,9 +74,14 @@ export function useStatus() {
   return useQuery({ queryKey: keys.status, queryFn: backend.status, refetchInterval: SLOW_POLL_MS });
 }
 
-/** What can be traded. Changes rarely: fetched once per session. */
+/** What can be traded. Changes rarely: fetched once per session, retried until it loads. */
 export function useSymbols() {
-  return useQuery({ queryKey: keys.symbols, queryFn: backend.symbols, staleTime: Infinity });
+  return useQuery({
+    queryKey: keys.symbols,
+    queryFn: backend.symbols,
+    staleTime: Infinity,
+    refetchInterval: (query) => (query.state.status === "error" ? SLOW_POLL_MS : false),
+  });
 }
 
 export function useOrders() {
