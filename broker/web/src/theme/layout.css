@@ -1,0 +1,148 @@
+/*
+  The trading screen's layout, per style. Each section sits in a named area; a style
+  decides where each area goes, and Calm leaves some out. Sections never know where they
+  are: moving one is a change here and nowhere else.
+
+  Areas: header, watch (watchlist), chart, book (order book), tape (time and sales),
+  ticket (order ticket), bottom (positions, orders).
+*/
+
+.shell {
+  display: grid;
+  gap: var(--gap);
+  padding: var(--gap);
+  min-height: 100vh;
+  /* Phone width, every style: one column, the things you act on first. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "header"
+    "chart"
+    "ticket"
+    "book"
+    "bottom"
+    "watch"
+    "tape";
+}
+.area {
+  min-width: 0;
+}
+/* Where rows size to their content (phones, and Calm everywhere), the chart has no row
+   height to fill, so it gets one of its own. */
+.area-chart {
+  height: 340px;
+}
+.area-header { grid-area: header; }
+.area-watch { grid-area: watch; }
+.area-chart { grid-area: chart; }
+.area-book { grid-area: book; }
+.area-tape { grid-area: tape; }
+.area-ticket { grid-area: ticket; }
+.area-bottom { grid-area: bottom; }
+
+/* Calm shows one thing at a time: no depth or tape unless asked for. */
+:root[data-style="calm"] .area-book,
+:root[data-style="calm"] .area-tape {
+  display: none;
+}
+:root[data-style="calm"] .shell {
+  grid-template-areas:
+    "header"
+    "chart"
+    "ticket"
+    "bottom"
+    "watch";
+}
+
+@media (min-width: 1024px) {
+  /* Pro and Active fit the window exactly: each area fills its row, and a panel whose
+     content is longer scrolls inside itself instead of stretching the page. */
+  :root:not([data-style="calm"]) .area {
+    min-height: 0;
+  }
+  :root:not([data-style="calm"]) .area-chart {
+    height: auto;
+  }
+  :root:not([data-style="calm"]) .panel-body {
+    min-height: 0;
+  }
+
+  /* Pro: the chart in the middle, everything else around it at once. */
+  :root .shell,
+  :root[data-style="pro"] .shell {
+    height: 100vh;
+    grid-template-columns: 220px minmax(0, 1fr) 300px;
+    grid-template-rows: auto minmax(0, 3fr) auto minmax(0, 2fr);
+    grid-template-areas:
+      "header header header"
+      "watch  chart  book"
+      "watch  chart  ticket"
+      "watch  bottom tape";
+  }
+
+  /* Active: trading first. The ticket and book side by side with the chart. */
+  :root[data-style="active"] .shell {
+    height: 100vh;
+    grid-template-columns: 240px minmax(0, 1fr) 340px;
+    grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr);
+    grid-template-areas:
+      "header header header"
+      "watch  chart  ticket"
+      "watch  chart  book"
+      "bottom bottom tape";
+  }
+
+  /* Calm: a single, centred column with room to breathe. */
+  :root[data-style="calm"] .shell {
+    max-width: 880px;
+    margin: 0 auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-template-areas:
+      "header"
+      "chart"
+      "ticket"
+      "bottom"
+      "watch";
+  }
+  :root[data-style="calm"] .area-chart {
+    height: 420px;
+  }
+}
+
+/* ---------- panel: the card every section sits in ---------- */
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--panel-pad);
+  border-bottom: var(--border-width) solid var(--border);
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-strong);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+:root[data-style="calm"] .panel-head {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--fs-lg);
+  color: var(--text);
+  border-bottom: none;
+  padding-top: var(--panel-pad);
+}
+.panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--panel-pad);
+}
