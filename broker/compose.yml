@@ -35,5 +35,28 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # market-data's own database (milestone 7). A separate server, role and volume: the
+  # backend cannot reach it and it cannot reach the backend's. Headed for a columnar
+  # time-series store, which only this service would have to change for.
+  market-data-postgres:
+    image: postgres:18-alpine
+    container_name: broker-market-data-postgres
+    environment:
+      POSTGRES_USER: market_data
+      POSTGRES_PASSWORD: market_data
+      POSTGRES_DB: market_data
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5434:5432"
+    volumes:
+      - market-data-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market_data -d market_data"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
 volumes:
   broker-pgdata:
+  market-data-pgdata:

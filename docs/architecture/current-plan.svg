@@ -224,10 +224,11 @@
 
   <g class="node"><rect x="200" y="592" width="180" height="56" rx="8"/>
     <text class="n-title" x="290" y="614" text-anchor="middle">market-data</text>
-    <text class="n-sub" x="290" y="632" text-anchor="middle">live + history · M7</text></g>
+    <text class="n-sub" x="290" y="632" text-anchor="middle">live + history · M7 · <tspan class="tag built">BUILT</tspan></text></g>
   <g class="node"><path d="M244,698 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="290" y="730" text-anchor="middle">md-db</text>
     <text class="n-sub" x="290" y="745" text-anchor="middle">own DB · M7</text></g>
+  <text class="tag built" x="344" y="736">BUILT</text>
 
   <g class="node"><rect x="1080" y="594" width="170" height="56" rx="8"/>
     <text class="n-title" x="1165" y="616" text-anchor="middle">simulator</text>

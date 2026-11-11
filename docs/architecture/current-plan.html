@@ -11,8 +11,8 @@ components:
   web            | static SPA                         | process  | broker   | planned M8
   backend        | api + oms + ledger + fix modules   | process  | broker   | BUILT (M5-M6)
   broker-db      | Postgres, broker.securities        | store    | broker   | BUILT (M0)
-  market-data    | live fanout + history              | process  | broker   | planned M7
-  md-db          | market-data's own database         | store    | broker   | planned M7
+  market-data    | live fanout + history              | process  | broker   | BUILT (M7)
+  md-db          | market-data's own database         | store    | broker   | BUILT (M7), port 5434
   exchange-alpha | gateway + engine + md-publisher    | process  | alpha    | BUILT M1-M3 (one binary)
   fix-core       | FIX codec + session state machine  | library  | alpha    | BUILT (M2)
   journal        | append-only command log            | store    | alpha    | BUILT (M1)
@@ -35,7 +35,8 @@ flows:
   md    | market-data -> web                  | WebSocket + REST | prices, history
 status note: matching-engine and journal BUILT at M1; gateway, fix-core, exchange-db BUILT at M2;
   md-publisher BUILT at M3 (WebSocket on 9879, feed_seq + symbol_seq); simulator BUILT at M4;
-  backend BUILT: ledger at M5; oms, fix initiator and api at M6 (all tables in broker-db)
+  backend BUILT: ledger at M5; oms, fix initiator and api at M6 (all tables in broker-db);
+  market-data and md-db BUILT at M7
 omitted on purpose:
   ExecutionReports back to the simulator | same shape as the broker's return path
   every service's own DB migrations      | implementation detail
@@ -280,10 +281,11 @@ omitted on purpose:
 
   <g class="node"><rect x="200" y="592" width="180" height="56" rx="8"/>
     <text class="n-title" x="290" y="614" text-anchor="middle">market-data</text>
-    <text class="n-sub" x="290" y="632" text-anchor="middle">live + history · M7</text></g>
+    <text class="n-sub" x="290" y="632" text-anchor="middle">live + history · M7 · <tspan class="tag built">BUILT</tspan></text></g>
   <g class="node"><path d="M244,698 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="290" y="730" text-anchor="middle">md-db</text>
     <text class="n-sub" x="290" y="745" text-anchor="middle">own DB · M7</text></g>
+  <text class="tag built" x="344" y="736">BUILT</text>
 
   <g class="node"><rect x="1080" y="594" width="170" height="56" rx="8"/>
     <text class="n-title" x="1165" y="616" text-anchor="middle">simulator</text>

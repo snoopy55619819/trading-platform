@@ -41,9 +41,9 @@ version, and let `spec:check` tell you when it goes stale.
   grant on another's, so a cross-service query is impossible rather than merely
   discouraged. Each owns its own migrations and migration tooling; nothing coordinates.
   There is no shared `infra/` directory — infrastructure belongs to whoever owns it.
-  `broker/backend` and Alpha Exchange each have one today (the exchange's holds FIX session
-  state, on port 5433 via `exchange-alpha/compose.yml`). `market-data` gets its own at M7,
-  and may not add a schema to the backend's.
+  `broker/backend` (5432), `broker/market-data` (5434, since M7) and Alpha Exchange (5433,
+  FIX session state, via `exchange-alpha/compose.yml`) each have one. `market-data` may not
+  add a schema to the backend's, nor the backend to market-data's.
   One container each is fine; splitting onto separate hosts later costs only a
   connection string, since nothing else couples to where Postgres lives.
 - **No protobuf inside the broker.** Types that never cross a wire are plain TypeScript
