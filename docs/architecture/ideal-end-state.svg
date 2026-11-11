@@ -1,0 +1,301 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 1060" width="1420" height="1060">
+<style>
+  :root {
+    --bg: #f6f6f4; --surface: #ffffff; --ink: #1d1d1f; --ink-2: #5d6168; --line: #c8cbd0;
+    --node: #ffffff; --node-stroke: #3b3f45;
+    --flow-1: #1f63c4; --flow-2: #b55300; --flow-3: #2c7a4b;
+    --own-1: #edf2fa; --own-1-stroke: #9db3d6;
+    --own-2: #faf2e9; --own-2-stroke: #d7b48d;
+    --own-3: #eef5ef; --own-3-stroke: #9cc3a7;
+    --own-4: #f0f0f0; --own-4-stroke: #b5b5b5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111214; --surface: #1a1c20; --ink: #e9e9eb; --ink-2: #a2a6ad; --line: #3a3e45;
+      --node: #23262b; --node-stroke: #b9bdc4;
+      --flow-1: #6ea8ff; --flow-2: #ffa657; --flow-3: #6fd09a;
+      --own-1: #172235; --own-1-stroke: #3e5a86;
+      --own-2: #2b2015; --own-2-stroke: #7a5a36;
+      --own-3: #16261b; --own-3-stroke: #3f6b4c;
+      --own-4: #222326; --own-4-stroke: #4c4f55;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111214; --surface: #1a1c20; --ink: #e9e9eb; --ink-2: #a2a6ad; --line: #3a3e45;
+    --node: #23262b; --node-stroke: #b9bdc4;
+    --flow-1: #6ea8ff; --flow-2: #ffa657; --flow-3: #6fd09a;
+    --own-1: #172235; --own-1-stroke: #3e5a86;
+    --own-2: #2b2015; --own-2-stroke: #7a5a36;
+    --own-3: #16261b; --own-3-stroke: #3f6b4c;
+    --own-4: #222326; --own-4-stroke: #4c4f55;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1420px; margin: 0 auto; }
+  header { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 32px 0 8px; }
+  .sub { color: var(--ink-2); margin: 0; max-width: 76ch; }
+  #theme { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; flex: none; }
+  .diagram { margin-top: 20px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px; overflow-x: auto; }
+  .diagram svg { display: block; width: 100%; min-width: 1180px; height: auto; }
+
+  svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--ink); }
+  .boundary rect { stroke-width: 1.5; }
+  .own-1 rect { fill: var(--own-1); stroke: var(--own-1-stroke); }
+  .own-2 rect { fill: var(--own-2); stroke: var(--own-2-stroke); }
+  .own-3 rect { fill: var(--own-3); stroke: var(--own-3-stroke); }
+  .own-4 rect { fill: var(--own-4); stroke: var(--own-4-stroke); }
+  .boundary text { font-size: 12px; font-weight: 700; letter-spacing: .06em; fill: var(--ink-2); }
+  .divider { stroke: var(--line); stroke-width: 1; }
+  .band { font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+
+  .node rect, .node path { fill: var(--node); stroke: var(--node-stroke); stroke-width: 1.5; }
+  .n-title { font-size: 14px; font-weight: 600; }
+  .n-sub { font-size: 12px; fill: var(--ink-2); }
+  .tag { font-size: 11px; font-weight: 700; letter-spacing: .06em; fill: var(--ink-2); }
+  .planned rect, .planned path { stroke-dasharray: 6 4; fill-opacity: .45; }
+  .planned text { opacity: .85; }
+
+  .edge { fill: none; stroke-width: 2; }
+  .edge.flow-1 { stroke: var(--flow-1); }
+  .edge.flow-2 { stroke: var(--flow-2); }
+  .edge.flow-3 { stroke: var(--flow-3); }
+  .edge.planned { stroke-dasharray: 2 5; stroke-linecap: round; }
+  .elabel { font-size: 12px; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+  .t-flow-1 { fill: var(--flow-1); } .t-flow-2 { fill: var(--flow-2); } .t-flow-3 { fill: var(--flow-3); }
+  .arrow-1 { fill: var(--flow-1); } .arrow-2 { fill: var(--flow-2); } .arrow-3 { fill: var(--flow-3); }
+  .badge circle { fill: var(--ink); }
+  .badge text { fill: var(--surface); font-size: 11px; font-weight: 700; }
+
+  .key { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 0; padding: 0; list-style: none; }
+  .key li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+  .key svg { width: 44px; height: 26px; flex: none; overflow: visible; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; color: var(--ink-2); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  td.n { width: 3em; }
+  td.n span { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--ink); color: var(--surface); font-size: 11px; font-weight: 700; }
+  td.s { white-space: nowrap; color: var(--ink-2); font-size: 12px; font-weight: 700; letter-spacing: .05em; }
+  code { font-size: .92em; }
+  .notes { color: var(--ink-2); font-size: 14px; }
+
+  .export-bg { fill: var(--surface); }
+</style>
+<defs>
+    <marker id="arr-1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="arrow-1" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="arr-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="arrow-2" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="arr-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="arrow-3" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+<rect class="export-bg" x="0" y="0" width="1420" height="1060" rx="10"/>
+<title id="dtitle">Ideal end state: broker, two venues, market infrastructure and a simulation layer across order, market data and post-trade planes</title>
+
+  <!-- Owner boundaries -->
+  <g class="boundary own-1"><rect x="40" y="30" width="530" height="1010" rx="12"/><text x="56" y="52">BROKER</text></g>
+  <g class="boundary own-2"><rect x="590" y="30" width="310" height="1010" rx="12"/><text x="606" y="52">EXCHANGES</text></g>
+  <g class="boundary own-3"><rect x="920" y="30" width="280" height="1010" rx="12"/><text x="936" y="52">MARKET INFRASTRUCTURE</text></g>
+  <g class="boundary own-4"><rect x="1220" y="30" width="180" height="1010" rx="12"/><text x="1236" y="52">SIMULATION</text></g>
+
+  <!-- Planes -->
+  <line class="divider" x1="30" y1="450" x2="1410" y2="450"/>
+  <line class="divider" x1="30" y1="760" x2="1410" y2="760"/>
+  <text class="band t-flow-1" transform="translate(22 240) rotate(-90)" text-anchor="middle">ORDER PLANE · PRIVATE</text>
+  <text class="band t-flow-2" transform="translate(22 605) rotate(-90)" text-anchor="middle">MARKET DATA · PUBLIC</text>
+  <text class="band t-flow-3" transform="translate(22 900) rotate(-90)" text-anchor="middle">POST-TRADE</text>
+
+  <!-- ===== Edges: order plane ===== -->
+  <path class="edge flow-1" d="M135,141 L135,198" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="143" y="166">HTTPS</text>
+  <text class="elabel t-flow-1" x="143" y="180">orders</text>
+
+  <path class="edge flow-1" d="M200,228 L248,228" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="224" y="245" text-anchor="middle">gRPC</text>
+
+  <path class="edge flow-1 planned" d="M325,256 L325,314" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="333" y="281">gRPC</text>
+  <text class="elabel t-flow-1" x="333" y="295">route order</text>
+
+  <path class="edge flow-1 planned" d="M400,344 L438,344" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="419" y="362" text-anchor="middle">gRPC</text>
+
+  <path class="edge flow-1" d="M550,334 L608,334" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="602" y="284" text-anchor="end">FIX 4.4 / TCP</text>
+  <text class="elabel t-flow-1" x="602" y="298" text-anchor="end">NewOrderSingle</text>
+
+  <path class="edge flow-1" d="M610,358 L552,358" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="580" y="386" text-anchor="middle">ExecutionReport</text>
+  <text class="elabel t-flow-1" x="580" y="400" text-anchor="middle">35=8</text>
+
+  <path class="edge flow-1 planned" d="M495,316 L495,113 L608,113" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="552" y="89" text-anchor="middle">FIX 4.4 / TCP</text>
+  <text class="elabel t-flow-1" x="552" y="103" text-anchor="middle">to Beta</text>
+
+  <path class="edge flow-1" d="M690,372 L690,416" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="698" y="390">internal bus</text>
+  <text class="elabel t-flow-1" x="698" y="404">NewOrder</text>
+
+  <path class="edge flow-1" d="M1310,555 L1310,346 L772,346" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="1060" y="322" text-anchor="middle">FIX 4.4 / TCP</text>
+  <text class="elabel t-flow-1" x="1060" y="336" text-anchor="middle">NewOrderSingle</text>
+
+  <!-- ===== Edges: market data plane ===== -->
+  <path class="edge flow-2" d="M690,482 L690,553" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="698" y="512">internal bus</text>
+  <text class="elabel t-flow-2" x="698" y="526">BookDelta · Trade</text>
+
+  <path class="edge flow-2 planned" d="M770,575 L943,575" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="812" y="594" text-anchor="middle">binary feed</text>
+  <text class="elabel t-flow-2" x="812" y="608" text-anchor="middle">Delta · Trade</text>
+
+  <path class="edge flow-2 planned" d="M890,113 L910,113 L910,541 L943,541" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="918" y="410">binary feed</text>
+  <text class="elabel t-flow-2" x="918" y="424">Delta · Trade</text>
+
+  <path class="edge flow-2 planned" d="M1020,583 L1020,690 L325,690 L325,613" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="680" y="666" text-anchor="middle">WebSocket</text>
+  <text class="elabel t-flow-2" x="680" y="680" text-anchor="middle">NBBO · tape</text>
+
+  <path class="edge flow-2" d="M250,583 L52,583 L52,113 L68,113" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="150" y="560" text-anchor="middle">WebSocket · REST</text>
+  <text class="elabel t-flow-2" x="150" y="574" text-anchor="middle">prices · history</text>
+
+  <path class="edge flow-2 planned" d="M325,555 L325,374" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="333" y="470">gRPC</text>
+  <text class="elabel t-flow-2" x="333" y="484">NBBO</text>
+
+  <path class="edge flow-2 planned" d="M1095,570 L1238,570" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="1167" y="546" text-anchor="middle">WebSocket</text>
+  <text class="elabel t-flow-2" x="1167" y="560" text-anchor="middle">NBBO · tape</text>
+
+  <!-- ===== Edges: post-trade plane ===== -->
+  <path class="edge flow-3" d="M250,245 L225,245 L225,823 L248,823" marker-end="url(#arr-3)"/>
+  <text class="elabel t-flow-3" x="217" y="700" text-anchor="end">event bus</text>
+  <text class="elabel t-flow-3" x="217" y="714" text-anchor="end">Fill</text>
+
+  <path class="edge flow-3 planned" d="M730,316 L730,228 L943,228" marker-end="url(#arr-3)"/>
+  <text class="elabel t-flow-3" x="840" y="206" text-anchor="middle">FIX drop copy</text>
+  <text class="elabel t-flow-3" x="840" y="220" text-anchor="middle">orders · fills</text>
+
+  <path class="edge flow-3 planned" d="M770,460 L860,460 L860,823 L943,823" marker-end="url(#arr-3)"/>
+  <text class="elabel t-flow-3" x="868" y="735">FIXML</text>
+  <text class="elabel t-flow-3" x="868" y="749">trade reports</text>
+
+  <path class="edge flow-3 planned" d="M1000,851 L1000,923" marker-end="url(#arr-3)"/>
+  <text class="elabel t-flow-3" x="1008" y="882">DVP</text>
+  <text class="elabel t-flow-3" x="1008" y="896">net shares</text>
+
+  <path class="edge flow-3 planned" d="M1095,823 L1135,823 L1135,923" marker-end="url(#arr-3)"/>
+  <text class="elabel t-flow-3" x="1143" y="882">DVP</text>
+  <text class="elabel t-flow-3" x="1143" y="896">net cash</text>
+
+  <path class="edge flow-3 planned" d="M1000,981 L1000,1015 L325,1015 L325,853" marker-end="url(#arr-3)"/>
+  <text class="elabel t-flow-3" x="660" y="995" text-anchor="middle">gRPC</text>
+  <text class="elabel t-flow-3" x="660" y="1009" text-anchor="middle">settlement confirm</text>
+
+  <path class="edge flow-3 planned" d="M1310,795 L1310,777 L1060,777 L1060,793" marker-end="url(#arr-3)"/>
+  <text class="elabel t-flow-3" x="1185" y="771" text-anchor="middle">gRPC · EndOfDay</text>
+
+  <!-- ===== Nodes ===== -->
+  <!-- broker -->
+  <g class="node"><rect x="70" y="85" width="130" height="56" rx="8"/>
+    <text class="n-title" x="135" y="110" text-anchor="middle">web</text>
+    <text class="n-sub" x="135" y="128" text-anchor="middle">static SPA</text></g>
+  <g class="node"><rect x="70" y="200" width="130" height="56" rx="8"/>
+    <text class="tag" x="78" y="215">SPLIT</text>
+    <text class="n-title" x="135" y="234" text-anchor="middle">api-gateway</text>
+    <text class="n-sub" x="135" y="249" text-anchor="middle">auth · BFF</text></g>
+  <g class="node"><rect x="250" y="200" width="150" height="56" rx="8"/>
+    <text class="tag" x="258" y="215">SPLIT</text>
+    <text class="n-title" x="325" y="234" text-anchor="middle">oms</text>
+    <text class="n-sub" x="325" y="249" text-anchor="middle">lifecycle · risk</text></g>
+  <g class="node planned"><rect x="250" y="316" width="150" height="56" rx="8"/>
+    <text class="tag" x="258" y="331">POST-MVP</text>
+    <text class="n-title" x="325" y="350" text-anchor="middle">sor</text>
+    <text class="n-sub" x="325" y="365" text-anchor="middle">best-venue routing</text></g>
+  <g class="node"><rect x="440" y="316" width="110" height="56" rx="8"/>
+    <text class="tag" x="448" y="331">SPLIT</text>
+    <text class="n-title" x="495" y="350" text-anchor="middle">fix-engine</text>
+    <text class="n-sub" x="495" y="365" text-anchor="middle">FIX sessions</text></g>
+  <g class="node"><rect x="250" y="555" width="150" height="56" rx="8"/>
+    <text class="n-title" x="325" y="580" text-anchor="middle">market-data</text>
+    <text class="n-sub" x="325" y="598" text-anchor="middle">live + history</text></g>
+  <g class="node"><rect x="250" y="795" width="150" height="56" rx="8"/>
+    <text class="tag" x="258" y="810">SPLIT</text>
+    <text class="n-title" x="325" y="829" text-anchor="middle">ledger</text>
+    <text class="n-sub" x="325" y="844" text-anchor="middle">double-entry</text></g>
+
+  <!-- exchanges -->
+  <g class="node planned"><rect x="610" y="85" width="280" height="56" rx="8"/>
+    <text class="tag" x="618" y="100">POST-MVP</text>
+    <text class="n-title" x="750" y="119" text-anchor="middle">exchange-beta</text>
+    <text class="n-sub" x="750" y="134" text-anchor="middle">same software, own config and fees</text></g>
+  <g class="node"><rect x="610" y="316" width="160" height="56" rx="8"/>
+    <text class="tag" x="618" y="331">SPLIT</text>
+    <text class="n-title" x="690" y="350" text-anchor="middle">gateway</text>
+    <text class="n-sub" x="690" y="365" text-anchor="middle">Alpha · validation</text></g>
+  <g class="node"><rect x="610" y="418" width="160" height="64" rx="8"/>
+    <text class="tag" x="618" y="433">SPLIT</text>
+    <text class="n-title" x="690" y="454" text-anchor="middle">matching-engine</text>
+    <text class="n-sub" x="690" y="471" text-anchor="middle">Alpha · in-memory</text></g>
+  <g class="node"><rect x="610" y="555" width="160" height="56" rx="8"/>
+    <text class="tag" x="618" y="570">SPLIT</text>
+    <text class="n-title" x="690" y="589" text-anchor="middle">md-publisher</text>
+    <text class="n-sub" x="690" y="604" text-anchor="middle">Alpha · sequenced</text></g>
+
+  <!-- market infrastructure -->
+  <g class="node planned"><rect x="945" y="200" width="150" height="56" rx="8"/>
+    <text class="tag" x="953" y="215">POST-MVP</text>
+    <text class="n-title" x="1020" y="234" text-anchor="middle">surveillance</text>
+    <text class="n-sub" x="1020" y="249" text-anchor="middle">regulator</text></g>
+  <g class="node planned"><rect x="945" y="527" width="150" height="56" rx="8"/>
+    <text class="tag" x="953" y="542">POST-MVP</text>
+    <text class="n-title" x="1020" y="561" text-anchor="middle">sip</text>
+    <text class="n-sub" x="1020" y="576" text-anchor="middle">NBBO · tape</text></g>
+  <g class="node planned"><rect x="945" y="795" width="150" height="56" rx="8"/>
+    <text class="tag" x="953" y="810">POST-MVP</text>
+    <text class="n-title" x="1020" y="829" text-anchor="middle">ccp</text>
+    <text class="n-sub" x="1020" y="844" text-anchor="middle">novation · netting</text></g>
+  <g class="node planned"><rect x="940" y="925" width="120" height="56" rx="8"/>
+    <text class="tag" x="948" y="940">POST-MVP</text>
+    <text class="n-title" x="1000" y="959" text-anchor="middle">csd</text>
+    <text class="n-sub" x="1000" y="974" text-anchor="middle">custodian</text></g>
+  <g class="node planned"><rect x="1075" y="925" width="120" height="56" rx="8"/>
+    <text class="tag" x="1083" y="940">POST-MVP</text>
+    <text class="n-title" x="1135" y="959" text-anchor="middle">settlement</text>
+    <text class="n-sub" x="1135" y="974" text-anchor="middle">bank · cash</text></g>
+
+  <!-- simulation -->
+  <g class="node"><rect x="1240" y="555" width="140" height="56" rx="8"/>
+    <text class="n-title" x="1310" y="580" text-anchor="middle">simulator</text>
+    <text class="n-sub" x="1310" y="598" text-anchor="middle">agents</text></g>
+  <g class="node planned"><rect x="1240" y="795" width="140" height="56" rx="8"/>
+    <text class="tag" x="1248" y="810">POST-MVP</text>
+    <text class="n-title" x="1310" y="829" text-anchor="middle">clock</text>
+    <text class="n-sub" x="1310" y="844" text-anchor="middle">virtual time</text></g>
+
+  <!-- Badges -->
+  <g class="badge" transform="translate(200 85)"><circle r="11"/><text y="4" text-anchor="middle">1</text></g>
+  <g class="badge" transform="translate(200 200)"><circle r="11"/><text y="4" text-anchor="middle">2</text></g>
+  <g class="badge" transform="translate(400 200)"><circle r="11"/><text y="4" text-anchor="middle">3</text></g>
+  <g class="badge" transform="translate(400 316)"><circle r="11"/><text y="4" text-anchor="middle">4</text></g>
+  <g class="badge" transform="translate(550 316)"><circle r="11"/><text y="4" text-anchor="middle">5</text></g>
+  <g class="badge" transform="translate(520 393)"><circle r="11"/><text y="4" text-anchor="middle">6</text></g>
+  <g class="badge" transform="translate(890 85)"><circle r="11"/><text y="4" text-anchor="middle">7</text></g>
+  <g class="badge" transform="translate(770 316)"><circle r="11"/><text y="4" text-anchor="middle">8</text></g>
+  <g class="badge" transform="translate(770 418)"><circle r="11"/><text y="4" text-anchor="middle">9</text></g>
+  <g class="badge" transform="translate(770 555)"><circle r="11"/><text y="4" text-anchor="middle">10</text></g>
+  <g class="badge" transform="translate(1095 527)"><circle r="11"/><text y="4" text-anchor="middle">11</text></g>
+  <g class="badge" transform="translate(400 555)"><circle r="11"/><text y="4" text-anchor="middle">12</text></g>
+  <g class="badge" transform="translate(1095 200)"><circle r="11"/><text y="4" text-anchor="middle">13</text></g>
+  <g class="badge" transform="translate(1095 795)"><circle r="11"/><text y="4" text-anchor="middle">14</text></g>
+  <g class="badge" transform="translate(1060 925)"><circle r="11"/><text y="4" text-anchor="middle">15</text></g>
+  <g class="badge" transform="translate(1195 925)"><circle r="11"/><text y="4" text-anchor="middle">16</text></g>
+  <g class="badge" transform="translate(400 795)"><circle r="11"/><text y="4" text-anchor="middle">17</text></g>
+  <g class="badge" transform="translate(1380 555)"><circle r="11"/><text y="4" text-anchor="middle">18</text></g>
+  <g class="badge" transform="translate(1380 795)"><circle r="11"/><text y="4" text-anchor="middle">19</text></g>
+</svg>
