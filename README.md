@@ -229,6 +229,21 @@ curl -s -X POST localhost:8080/orders -H "Authorization: Bearer $TOKEN" -d '{"cl
 curl -s localhost:8080/positions -H "Authorization: Bearer $TOKEN"
 ```
 
+### Run the broker's market data
+
+Live prices for browsers and chart history, from the exchange's public feed. Its own
+database, started by `pnpm db:up` above:
+
+```bash
+pnpm --dir broker/market-data db:migrate && cd broker/market-data && pnpm start
+```
+
+```bash
+curl -s "localhost:8081/history?symbol=ACME&interval=1m"
+```
+
+Browsers subscribe on `ws://localhost:8081/live` with `{"subscribe": ["ACME"]}`.
+
 ### Run the matching engine (no network)
 
 A walkthrough of every matching rule (price-time priority, walking the book, IOC, FOK,
@@ -286,6 +301,14 @@ short version is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
+**Milestone 7, the broker's market data: complete.** Its own service and its own database.
+It follows the exchange's feed with gap detection, stores every trade once, and rolls them
+into 1-minute to 1-day candles (days on the venue's business day) by recomputing buckets,
+so late ticks land correctly and restarts never double a bar. Browsers get live books
+(conflated) and trades over WebSocket, and a slow browser is cut off rather than allowed
+to stall ingest. Tested by replaying a recorded feed against an independent tally and by
+killing it mid-stream.
+
 **Milestone 6, the broker's OMS: complete.** An order now goes end to end: `curl` →
 pre-trade risk in one transaction with the order write → the broker's own TypeScript FIX
 initiator → Alpha Exchange → execution reports → the ledger. Every bad order is refused for
@@ -329,5 +352,6 @@ report. Sequence numbers live in the exchange's own Postgres and survive restart
 Conformance-tested against **QuickFIX/Go**, which trades through the book, survives the
 gateway being SIGKILLed, and recovers a missed fill by resend.
 
-Next: **Milestone 7, the broker's market data service** (`broker/market-data`): subscribe to
-the exchange's feed, fan prices out to browsers, and store ticks and candles for charts.
+Next: **Milestone 8, the web client** (`broker/web`): a minimal page that signs in, shows a
+live book and chart from market-data, holdings and orders from the backend, and places
+orders.
