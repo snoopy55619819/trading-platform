@@ -282,6 +282,7 @@ cd exchange-alpha && cargo test --workspace && cargo bench -p matching-engine
 
 | | |
 |---|---|
+| `pnpm dev` | everything at once: the databases, the exchange, the simulator, the broker's backend and market-data, and the web client on http://localhost:5173. Ctrl-C stops them all (the databases keep running) |
 | `pnpm db:up` / `pnpm db:down` | start / stop Postgres |
 | `pnpm db:reset` | wipe the volume, re-migrate, re-seed |
 | `pnpm spec:check` | fail if any vendored venue spec is stale |
