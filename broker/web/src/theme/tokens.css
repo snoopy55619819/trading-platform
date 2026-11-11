@@ -1,0 +1,194 @@
+/*
+  Design tokens: the only place colours, sizes and spacing are decided. Components use
+  these variables and nothing else, so a mode or style changes every section at once.
+
+  Two independent settings, as attributes on <html>:
+    data-mode   light | dark          colours
+    data-style  pro | active | calm   density, type, shape, layout (and a few colours)
+
+  The styles are inspired by kinds of app, not copied from any one:
+    pro     chart-first and dense: small type, thin borders, square corners
+    active  data-dense, bold green and red, chunky controls
+    calm    spacious and quiet: large type, soft colours, one thing at a time
+*/
+
+/* ---------- colours: light (the default) ---------- */
+:root {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --border: #dde1e7;
+  --text: #121417;
+  --text-muted: #5b6370;
+  --accent: #2357d6;
+  --accent-text: #ffffff;
+  --up: #0f7b4a;
+  --down: #c2312b;
+  --up-soft: #e3f4ec;
+  --down-soft: #fbe7e6;
+  --warn: #9a6200;
+  --stale: #8b929c;
+  --focus: #2357d6;
+  --shadow: 0 1px 2px rgb(16 24 40 / 6%);
+}
+
+/* ---------- colours: dark ---------- */
+:root[data-mode="dark"] {
+  color-scheme: dark;
+  --bg: #0d1015;
+  --surface: #151a21;
+  --surface-2: #1c222b;
+  --border: #2a313c;
+  --text: #e8ebef;
+  --text-muted: #98a1ae;
+  --accent: #5b8cff;
+  --accent-text: #0d1015;
+  --up: #2fbf7c;
+  --down: #f2635b;
+  --up-soft: #12301f;
+  --down-soft: #3a1918;
+  --warn: #e0a43a;
+  --stale: #6b7380;
+  --focus: #7aa2ff;
+  --shadow: none;
+}
+
+/* ---------- styles: shape, density and type ---------- */
+
+/* Pro: the default style. Dense, small, square, monospaced numbers. */
+:root,
+:root[data-style="pro"] {
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-numbers: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 15px;
+  --fs-xl: 20px;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --gap: 6px;
+  --panel-pad: 8px;
+  --row-h: 22px;
+  --control-h: 28px;
+  --radius: 2px;
+  --border-width: 1px;
+  --weight-strong: 600;
+}
+
+/* Active: bigger controls, heavier type, bolder green and red. */
+:root[data-style="active"] {
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-numbers: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 17px;
+  --fs-xl: 24px;
+  --space-1: 3px;
+  --space-2: 6px;
+  --space-3: 10px;
+  --space-4: 14px;
+  --space-5: 20px;
+  --gap: 8px;
+  --panel-pad: 12px;
+  --row-h: 28px;
+  --control-h: 38px;
+  --radius: 8px;
+  --border-width: 1px;
+  --weight-strong: 700;
+}
+:root[data-style="active"] {
+  --up: #00a65a;
+  --down: #e5322d;
+  --accent: #ff6a00;
+  --accent-text: #ffffff;
+}
+:root[data-style="active"][data-mode="dark"] {
+  --bg: #0a0b0d;
+  --surface: #121418;
+  --surface-2: #1a1d23;
+  --up: #1fd37a;
+  --down: #ff4d47;
+  --accent: #ff7a1a;
+  --accent-text: #0a0b0d;
+}
+
+/* Calm: large type, generous space, round corners, softer colours. */
+:root[data-style="calm"] {
+  --font: ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-numbers: ui-rounded, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-xs: 13px;
+  --fs-sm: 15px;
+  --fs-md: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 32px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 14px;
+  --space-4: 20px;
+  --space-5: 28px;
+  --gap: 20px;
+  --panel-pad: 24px;
+  --row-h: 44px;
+  --control-h: 48px;
+  --radius: 18px;
+  --border-width: 0px;
+  --weight-strong: 600;
+}
+:root[data-style="calm"] {
+  --bg: #f6f4ef;
+  --surface: #ffffff;
+  --surface-2: #f1eee7;
+  --accent: #1f6f5c;
+  --up: #1f7a52;
+  --down: #b4472f;
+  --shadow: 0 2px 12px rgb(30 30 20 / 6%);
+}
+:root[data-style="calm"][data-mode="dark"] {
+  --bg: #12130f;
+  --surface: #1b1c17;
+  --surface-2: #24251f;
+  --accent: #6ccfae;
+  --accent-text: #12130f;
+  --up: #6ccf9a;
+  --down: #f08a6e;
+  --shadow: none;
+}
+
+/* ---------- base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.numbers {
+  font-family: var(--font-numbers);
+  font-variant-numeric: tabular-nums;
+}
+.up {
+  color: var(--up);
+}
+.down {
+  color: var(--down);
+}
+.muted {
+  color: var(--text-muted);
+}

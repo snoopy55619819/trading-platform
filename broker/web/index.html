@@ -4,6 +4,20 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Broker</title>
+    <script>
+      // Apply the saved mode and style before the first paint, so a reload never flashes
+      // the wrong colours. theme.ts owns these settings once the app has started.
+      (function () {
+        var saved = {};
+        try {
+          saved = JSON.parse(localStorage.getItem("broker.theme") || "{}");
+        } catch (e) {}
+        var choice = ["light", "dark"].indexOf(saved.modeChoice) >= 0 ? saved.modeChoice : "system";
+        var dark = choice === "dark" || (choice === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.mode = dark ? "dark" : "light";
+        document.documentElement.dataset.style = ["pro", "active", "calm"].indexOf(saved.style) >= 0 ? saved.style : "pro";
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
