@@ -221,12 +221,43 @@ Decisions:
   Pro's narrow watchlist drops the sparkline while Calm's wide one shows it, whatever the
   window size. A panel layout the user resizes later gets this for free.
 
-- [ ] **Order ticket:** buy or sell, market or limit, quantity and price, estimated cost
+- [x] **Order ticket:** buy or sell, market or limit, quantity and price, estimated cost
       against buying power. Tick, lot and band checks as hints only; the server's
       rejection reason shown when it refuses. A fresh `clientOrderId` per submit.
-- [ ] **Positions:** quantity (settled and unsettled), average cost, market value, P&L
-- [ ] **Orders:** working (with cancel) and history (with rejection reasons)
-- [ ] **Order detail:** an order's events, placed through filled
+- [x] **Positions:** quantity (settled and unsettled), average cost, market value, P&L
+- [x] **Orders:** working (with cancel) and history (with rejection reasons)
+- [x] **Order detail:** an order's events, placed through filled
+Step 5c done. The ticket is its own always-visible section: buy or sell, market or limit,
+shares (default 1), a limit price, and time in force under "More" (default Day). It shows
+the estimate (at the ask or bid for a market order, at the limit otherwise) and, for a
+market buy, the larger amount held back at the price band's ceiling. Hints for lot, tick,
+band, buying power and shares available never block sending. Review opens a confirmation
+(the browser's own `<dialog>`); Place order sends it with a new `clientOrderId`, and the
+ticket then follows that order until it finishes ("filled at 42.03", or the server's
+reason). Clicking a level in the order book sets the ticket's limit price. The activity
+panel has Positions, Open orders and History as tabs: positions valued at the live last
+trade, else the last stored trade, else the previous close; orders with cancel, a "this
+symbol only" filter, and rows that expand into the order's events. 12 new unit tests (49
+in all). Checked against the full stack: a market buy filled and showed up as a position
+with its cost and P&L; a limit sell priced from the book rested, was cancelled, and its
+four events showed in history; a sell of more than was held was refused with the server's
+reason. All six style combinations at desktop and phone width, no sideways overflow.
+
+Decisions:
+- **The `positions` panel became `activity`**, with tabs. Pro's bottom strip is too narrow
+  for positions and orders side by side, and each tab is its own component, so the layout
+  editor can still give one a panel of its own.
+- **Active's layout changed** for the full ticket: the ticket and the book share the right
+  column, and time and sales sits under the watchlist. Pro's ticket gained a row.
+- **A confirmation for every order**, by request. One ticket for every style for now; a
+  simpler Calm ticket is step 6's to decide.
+- **The draft is shared UI state** (`ticket/draft.ts`), like the selected symbol, so other
+  sections can fill it in. Not saved: a reload starts a fresh ticket. Changing symbol
+  clears the price.
+- **Estimates leave out fees.** The web does not know the venue's fees, so "held back"
+  shows the price part and says "plus fees" where it matters (buying power).
+- **Order history is the backend's latest 100**, with no paging, until that is not enough.
+
 - [ ] **Account summary:** cash, buying power, reserved, total value, P&L for the day
 - [ ] **Notifications:** a toast on fill, rejection or lost connection
 - [ ] **Add funds**
