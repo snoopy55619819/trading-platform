@@ -135,13 +135,37 @@ impl JournaledEngine {
     /// The events replay produces are discarded: they were already published the first time
     /// round. Downstream consumers that missed them catch up from a snapshot (milestone 3).
     pub fn open(path: impl AsRef<Path>) -> io::Result<Self> {
+        Self::open_observing(path, |_| {})
+    }
+
+    /// Like [`open`](Self::open), but shows every event the replay produces to `observe`.
+    ///
+    /// For callers that keep their own state derived from events (the gateway tracks each
+    /// order's fills so it can write execution reports). Replaying the journal through them
+    /// rebuilds that state exactly as it was, with no separate store to keep in sync.
+    pub fn open_observing(
+        path: impl AsRef<Path>,
+        mut observe: impl FnMut(&Event),
+    ) -> io::Result<Self> {
         let (journal, commands) = Journal::open(path)?;
         let recovered = commands.len();
+        let mut engine = Engine::default();
+        for command in commands {
+            for event in engine.apply(command) {
+                observe(&event);
+            }
+        }
         Ok(Self {
-            engine: Engine::replay(commands),
+            engine,
             journal,
             recovered,
         })
+    }
+
+    /// Sequence number of the last command journaled. Deterministic across restarts, so it
+    /// can name things that must stay unique (the gateway's execution ids use it).
+    pub fn last_seq(&self) -> u64 {
+        self.journal.last_seq()
     }
 
     /// Journals the command, then applies it. If the write fails the command is not applied.
