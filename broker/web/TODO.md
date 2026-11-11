@@ -4,7 +4,7 @@
 data itself, so neither service depends on the other: position P&L is backend positions
 multiplied by market-data prices.
 
-Status: **planned** · depends on: backend (M6), market-data (M7)
+Status: **step 6 next** (steps 1-5 done) · depends on: backend (M6), market-data (M7)
 
 ## Inputs / outputs
 
@@ -131,7 +131,7 @@ Decisions:
 - [x] Tokens for light and dark, and for Pro, Active and Calm
 - [x] The mode and style settings, saved and restored; mode follows the system until chosen
 - [x] A layout per style
-- [ ] Every later section checked in all six combinations, at desktop and phone width
+- [x] Every later section checked in all six combinations, at desktop and phone width
 
 Built: `theme/tokens.css` (colours per mode; type, spacing, shape and a few colours per
 style), `layout/layouts.ts` (each style's default layout as data, and `validateLayout`),
@@ -258,11 +258,39 @@ Decisions:
   shows the price part and says "plus fees" where it matters (buying power).
 - **Order history is the backend's latest 100**, with no paging, until that is not enough.
 
-- [ ] **Account summary:** cash, buying power, reserved, total value, P&L for the day
-- [ ] **Notifications:** a toast on fill, rejection or lost connection
-- [ ] **Add funds**
-- [ ] **Settings:** mode, style, default order quantity
-- [ ] Empty, loading and error states for every section
+- [x] **Account summary:** cash, buying power, reserved, total value, P&L
+- [x] **Notifications:** a toast on fill, rejection or lost connection
+- [x] **Add funds**
+- [x] **Settings:** mode, style, default order quantity
+- [x] Empty, loading and error states for every section
+Step 5d done. The activity panel opens with the account: total value, cash, buying power,
+cash held for working orders, unrealized and realized P&L, and an Add funds button
+(presets or any amount; simulated cash, there at once). Toasts announce fills (partial
+and complete), rejections, expiries, cancellations, a deposit, and any connection lost or
+regained; the first look at the orders is only a baseline. Settings (top bar) holds the
+style, the mode and the ticket's default quantity, all saved in this browser; the theme
+switcher moved there. The empty, loading and error pass added "pick a symbol" to the book
+and tape, a retry for the symbol list (with a note in the top bar while it fails), and an
+error boundary per panel, so one section failing cannot blank the screen. 9 new unit
+tests (58 in all). Checked against the full stack: a deposit and a market buy, each with
+its toast, the summary and positions following; settings applied at once and survived a
+reload; all six combinations at desktop and phone width, dialogs included.
+
+Decisions:
+- **P&L is unrealized and realized, not "for the day".** A day's P&L needs the account's
+  value at the start of the day, which nothing records yet; holdings times the change
+  since the previous close would be wrong for anything bought today. A backend snapshot
+  at the day roll would make it exact, later.
+- **The summary lives at the top of the activity panel**, beside positions, rather than a
+  panel of its own, so every style shows it without a layout change.
+- **Prices for valuation come from one hook** (`useLastPrices`), so the summary and the
+  positions table can never disagree.
+- **A deposit is idempotent per opening of the dialog**: its reference is made when the
+  dialog opens, so a double click or retry posts once.
+- **Connection toasts are on transitions only**, "connecting" is neither up nor down, and
+  nothing is announced on the first look.
+- Found for step 6: on a phone in Calm, the chart's title is cut short by the interval
+  buttons.
 
 ### 6. More styles
 
