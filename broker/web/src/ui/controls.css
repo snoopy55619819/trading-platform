@@ -44,6 +44,10 @@ button {
   cursor: pointer;
   font-size: var(--fs-md);
 }
+/* Calm draws no borders, so a plain button needs a fill to look pressable. */
+:root[data-style="calm"] .button:not(.primary, .buy, .sell) {
+  background: var(--surface-2);
+}
 .button.primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -237,4 +241,27 @@ button {
   font-size: var(--fs-lg);
   line-height: 1;
   cursor: pointer;
+}
+
+/* ---------- stepper ---------- */
+.stepper {
+  display: flex;
+  gap: var(--space-2);
+}
+.stepper-input {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+.stepper-button {
+  min-width: var(--control-h);
+  min-height: var(--control-h);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: var(--fs-lg);
+  cursor: pointer;
+}
+.stepper-button:hover {
+  background: var(--border);
 }

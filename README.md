@@ -314,6 +314,15 @@ short version is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
+**Milestone 8, the web client: complete.** The whole MVP runs in a browser with `pnpm dev`.
+A Vite + React client signs in, and joins the two planes itself: prices, depth, candles and
+time and sales from market-data (live over WebSocket), account, positions and orders from
+the backend. Pick a symbol, star it, watch the book and chart move, place a market or limit
+order from the ticket or by clicking a price in the book, confirm it, and see it fill in
+the blotter with a toast while holdings and P&L update. Three styles (Pro, Active, Calm),
+each in light and dark, share every container and differ only in tokens, layout and a few
+view variants; layouts are data, ready for a drag-and-drop editor.
+
 **Milestone 7, the broker's market data: complete.** Its own service and its own database.
 It follows the exchange's feed with gap detection, stores every trade once, and rolls them
 into 1-minute to 1-day candles (days on the venue's business day) by recomputing buckets,
@@ -365,6 +374,5 @@ report. Sequence numbers live in the exchange's own Postgres and survive restart
 Conformance-tested against **QuickFIX/Go**, which trades through the book, survives the
 gateway being SIGKILLed, and recovers a missed fill by resend.
 
-Next: **Milestone 8, the web client** (`broker/web`): a minimal page that signs in, shows a
-live book and chart from market-data, holdings and orders from the backend, and places
-orders.
+The MVP (milestones 0 to 8) is done. Next: the post-MVP roadmap in `PLAN.md` Part 8, led
+by the post-trade plane (clearing, custody, settlement on a real T+1 clock).

@@ -14,6 +14,7 @@ import { useCancelOrder, useOrder, useOrders, usePositions } from "../../query/h
 import { Panel } from "../../ui/Shell.tsx";
 import { Segmented } from "../../ui/controls.tsx";
 import { notify } from "../../ui/toasts.ts";
+import { useVariants } from "../../theme/variants.ts";
 import { AccountSummaryView } from "../account/AccountSummary.tsx";
 import { AddFundsDialog } from "../account/AddFundsDialog.tsx";
 import { accountSummary } from "../account/summary.ts";
@@ -91,7 +92,17 @@ function Positions({
   prices: ReadonlyMap<string, number | undefined>;
   onSelect: (symbol: string) => void;
 }) {
+  const variants = useVariants();
   if (holdings.length === 0) return <p className="empty">No positions yet. Buy something from the order ticket.</p>;
+  if (variants.positions === "list") {
+    return (
+      <ul className="position-list">
+        {holdings.map((h) => (
+          <PositionItem key={h.symbol} holding={h} price={prices.get(h.symbol)} onSelect={() => onSelect(h.symbol)} />
+        ))}
+      </ul>
+    );
+  }
   return (
     <table className="data-table activity">
       <thead>
@@ -133,6 +144,32 @@ function PositionRow({ holding, price, onSelect }: { holding: Holding; price: nu
         {v.pnlBps !== undefined && <span className="pnl-pct"> {formatBps(v.pnlBps)}</span>}
       </td>
     </tr>
+  );
+}
+
+/** One holding as a line: what it is and how many, then what it is worth and how it is doing. */
+function PositionItem({ holding, price, onSelect }: { holding: Holding; price: number | undefined; onSelect: () => void }) {
+  const v = positionValue(holding, price);
+  const direction = !v.pnlCents ? "" : v.pnlCents > 0 ? "up" : "down";
+  return (
+    <li>
+      <button type="button" className="position-item" onClick={onSelect}>
+        <span className="position-what">
+          <strong>{holding.symbol}</strong>
+          <span className="muted">
+            {v.qty.toLocaleString("en-US")} shares
+            {holding.avgCostCents !== null && ` · avg ${formatCents(holding.avgCostCents)}`}
+          </span>
+        </span>
+        <span className="position-worth">
+          <span className="numbers">{v.marketValueCents === undefined ? "–" : formatDollars(v.marketValueCents)}</span>
+          <span className={`numbers ${direction}`}>
+            {v.pnlCents === undefined ? "" : formatSignedDollars(v.pnlCents)}
+            {v.pnlBps !== undefined && ` (${formatBps(v.pnlBps)})`}
+          </span>
+        </span>
+      </button>
+    </li>
   );
 }
 

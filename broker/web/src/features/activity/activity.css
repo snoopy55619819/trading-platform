@@ -52,3 +52,38 @@
 .area[data-type="activity"] .panel-body {
   overflow: auto;
 }
+
+/* ---------- positions as a list (Calm) ---------- */
+.position-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.position-list li + li {
+  border-top: 1px solid var(--border);
+}
+.position-item {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+.position-what,
+.position-worth {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.position-worth {
+  align-items: flex-end;
+}
+.position-what .muted,
+.position-worth .numbers + .numbers {
+  font-size: var(--fs-sm);
+}

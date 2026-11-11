@@ -4,7 +4,7 @@
 data itself, so neither service depends on the other: position P&L is backend positions
 multiplied by market-data prices.
 
-Status: **step 6 next** (steps 1-5 done) · depends on: backend (M6), market-data (M7)
+Status: **done** (the layout editor is planned for later) · depends on: backend (M6), market-data (M7)
 
 ## Inputs / outputs
 
@@ -294,10 +294,32 @@ Decisions:
 
 ### 6. More styles
 
-- [ ] **Active:** tokens, layout, and any view variants it needs
-- [ ] **Calm:** tokens, layout, and any view variants it needs
+- [x] **Active:** tokens, layout, and any view variants it needs
+- [x] **Calm:** tokens, layout, and any view variants it needs
+
+Done. View variants are a per-style table (`theme/variants.ts`) that a section's view reads;
+containers never do, so every variant shows the same data and does the same things.
+
+| | Pro | Active | Calm |
+|---|---|---|---|
+| Ticket | `form`: every field at once | `quick`: a quantity stepper, then Sell at the bid and Buy at the ask, each opening the confirmation | `simple`: Buy or Sell, a shares stepper, the estimate large, Review; limit price and time in force under "More options" |
+| Positions | `table` | `table` | `list`: one line each, value and P&L, no sideways scrolling on a phone |
+
+Also: the chart's title is just the symbol (the picker already says the interval), which
+fixed it being cut to "ACM..." on a phone in Calm; Calm's plain buttons get a soft fill,
+since Calm draws no borders. 4 new unit tests (62 in all). Checked in the browser: Active's
+stepper and Sell button opening "Sell 2 ACME at market"; Calm's simple ticket and position
+list; all six combinations at phone width with no sideways overflow and no title cut short.
+Found while checking: the Calm button fill first outranked the buy and sell colours, so
+Review showed grey; it now applies to plain buttons only.
 
 ## Done when
 
 Click "Buy 100" in the browser, watch the order fill in the blotter, the book move, and
 holdings update with P&L, in every style and mode, at desktop and phone width.
+
+**Met.** Market buys of 100 and 25 placed from the ticket (in Pro) filled, showed in the
+blotter and as a toast, and updated holdings, cost and P&L live, with the book and tape
+moving. Active and Calm were checked up to the confirmation; every style shares the same
+containers, so only the views differ. All six combinations were checked at desktop and phone
+width.
