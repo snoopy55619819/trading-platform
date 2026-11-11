@@ -12,4 +12,10 @@ export default defineConfig({
     // Fail rather than move to another port: the backend only allows this origin.
     strictPort: true,
   },
+  optimizeDeps: {
+    // Bundled up front rather than discovered on first load: a dependency found mid-session
+    // makes Vite re-bundle and reload, and for a moment the page can hold two copies of
+    // React ("Invalid hook call"). Add runtime libraries here as they are added.
+    include: ["react", "react-dom/client", "@tanstack/react-query"],
+  },
 });
