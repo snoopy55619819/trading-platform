@@ -27,3 +27,11 @@
 .book.stale tr {
   background-image: none;
 }
+.book-bid,
+.book-ask {
+  cursor: pointer;
+}
+.book-bid:hover td,
+.book-ask:hover td {
+  text-decoration: underline dotted;
+}
