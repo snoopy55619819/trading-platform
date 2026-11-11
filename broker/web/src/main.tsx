@@ -6,6 +6,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App.tsx";
+import { startMarketData } from "./market/hooks.ts";
+
+// One live feed for the whole app, opened once. Prices are public: no session needed.
+startMarketData();
 
 const root = document.getElementById("root");
 if (!root) throw new Error("index.html has no #root");

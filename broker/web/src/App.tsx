@@ -1,87 +1,61 @@
-// Step 4's placeholder: the trading screen in the current style and mode, drawn from that
-// style's default layout, with stand-in panels so the layouts and tokens can be checked
-// before any section exists. Replaced by the real sections in step 5.
+// The app: the sign-in screen until there is a session, then the trading screen drawn
+// from the current style's layout. Each panel type maps to its section; sections not built
+// yet say which step brings them.
 
+import { QueryClientProvider } from "@tanstack/react-query";
+
+import { AuthScreen } from "./features/auth/AuthScreen.tsx";
+import { TopBar } from "./features/header/TopBar.tsx";
 import { DEFAULT_LAYOUTS, type PanelInstance, type SectionType } from "./layout/layouts.ts";
-import { ThemeSwitcher } from "./theme/ThemeSwitcher.tsx";
-import { STYLE_NAMES, useTheme } from "./theme/theme.ts";
+import { queryClient, useSignedIn, useSymbols, useWatchlist } from "./query/hooks.ts";
+import { selectSymbol, useSelectedSymbol } from "./selection.ts";
+import { useTheme } from "./theme/theme.ts";
 import { Panel, Shell } from "./ui/Shell.tsx";
 
-function Sample() {
-  // A few rows that show text, numbers, and the up and down colours together.
-  const rows = [
-    ["ACME", "42.15", "+0.42%", "up"],
-    ["CRUX", "286.55", "-1.10%", "down"],
-    ["GRID", "33.12", "+0.05%", "up"],
-  ] as const;
+export function App() {
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "var(--fs-sm)" }}>
-      <tbody>
-        {rows.map(([symbol, price, change, dir]) => (
-          <tr key={symbol} style={{ height: "var(--row-h)" }}>
-            <td>{symbol}</td>
-            <td className="numbers" style={{ textAlign: "right" }}>{price}</td>
-            <td className={`numbers ${dir}`} style={{ textAlign: "right" }}>{change}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <QueryClientProvider client={queryClient}>
+      <Root />
+    </QueryClientProvider>
   );
 }
 
-const TITLES: Record<SectionType, string> = {
-  watchlist: "Watchlist",
-  chart: "ACME · 1m",
-  book: "Order book",
-  tape: "Time and sales",
-  ticket: "Order ticket",
-  positions: "Positions",
+function Root() {
+  return useSignedIn() ? <TradingScreen /> : <AuthScreen />;
+}
+
+const COMING: Record<SectionType, { title: string; step: string }> = {
+  watchlist: { title: "Watchlist", step: "5b" },
+  chart: { title: "Chart", step: "5b" },
+  book: { title: "Order book", step: "5b" },
+  tape: { title: "Time and sales", step: "5b" },
+  ticket: { title: "Order ticket", step: "5c" },
+  positions: { title: "Positions", step: "5c" },
 };
 
-function StandIn({ panel }: { panel: PanelInstance }) {
-  if (panel.type === "chart") {
-    return (
-      <Panel title={TITLES.chart}>
-        <div className="numbers" style={{ fontSize: "var(--fs-xl)", fontWeight: "var(--weight-strong)" }}>
-          42.15 <span className="up" style={{ fontSize: "var(--fs-md)" }}>+0.18 (+0.42%)</span>
-        </div>
-      </Panel>
-    );
-  }
-  if (panel.type === "ticket") {
-    return (
-      <Panel title={TITLES.ticket}>
-        <div style={{ display: "flex", gap: "var(--space-3)" }}>
-          <button type="button" className="button buy" style={{ flex: 1 }}>Buy</button>
-          <button type="button" className="button sell" style={{ flex: 1 }}>Sell</button>
-        </div>
-      </Panel>
-    );
-  }
+function Placeholder({ panel }: { panel: PanelInstance }) {
+  const { title, step } = COMING[panel.type];
   return (
-    <Panel title={TITLES[panel.type]}>
-      <Sample />
+    <Panel title={title}>
+      <p className="muted" style={{ margin: 0 }}>
+        Arrives in step {step}.
+      </p>
     </Panel>
   );
 }
 
-export function App() {
+function TradingScreen() {
   const theme = useTheme();
+  const symbols = useSymbols();
+  const watchlist = useWatchlist();
+  const listed = (symbols.data ?? []).map((s) => s.symbol);
+  // Until one is chosen: the first on the watchlist, else the first listed.
+  const selected = useSelectedSymbol(listed, watchlist.data?.[0] ?? listed[0]);
   return (
     <Shell
       layout={DEFAULT_LAYOUTS[theme.style]}
-      header={
-        <Panel>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap" }}>
-            <strong style={{ fontSize: "var(--fs-lg)" }}>Broker</strong>
-            <span className="muted">
-              {STYLE_NAMES[theme.style]} · {theme.mode}
-            </span>
-            <ThemeSwitcher />
-          </div>
-        </Panel>
-      }
-      render={(panel) => <StandIn panel={panel} />}
+      header={<TopBar symbols={symbols.data ?? []} selected={selected} onSelect={selectSymbol} />}
+      render={(panel) => <Placeholder panel={panel} />}
     />
   );
 }

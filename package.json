@@ -3,6 +3,7 @@
   "private": true,
   "description": "Convenience shortcuts only. Every deployable is self-contained: nothing here is required to build, run or deploy any of them.",
   "scripts": {
+    "dev": "trap 'kill 0' EXIT; pnpm db:up && pnpm exchange:db && { pnpm exchange:run & pnpm simulator start & pnpm backend start & pnpm market-data start & pnpm web dev; }",
     "db:up": "docker compose -f broker/compose.yml up -d --wait",
     "db:down": "docker compose -f broker/compose.yml down",
     "db:reset": "docker compose -f broker/compose.yml down -v && pnpm db:up && pnpm --dir broker/backend db:migrate && pnpm --dir broker/backend db:seed && pnpm --dir broker/market-data db:migrate",
