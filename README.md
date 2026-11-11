@@ -198,6 +198,26 @@ cd exchange-alpha && cargo run
 These are conveniences only. Everything they do you can do from inside the folder itself —
 no deployable depends on the repo root to build, run or deploy.
 
+## Working on it
+
+Each service carries its own **`TODO.md`** — a checklist plus the inputs and outputs it is
+responsible for. Start there rather than from `PLAN.md`, which is the roadmap rather than
+the working document.
+
+| Milestone | Service | Checklist |
+|---|---|---|
+| M1 | matching engine | [`exchange-alpha/crates/matching-engine/TODO.md`](exchange-alpha/crates/matching-engine/TODO.md) |
+| M2 | FIX codec + session | [`exchange-alpha/crates/fix-core/TODO.md`](exchange-alpha/crates/fix-core/TODO.md) |
+| M2 | exchange gateway | [`exchange-alpha/crates/gateway/TODO.md`](exchange-alpha/crates/gateway/TODO.md) |
+| M3 | market data feed | [`exchange-alpha/crates/md-publisher/TODO.md`](exchange-alpha/crates/md-publisher/TODO.md) |
+| M4 | simulated participants | [`participants/simulator/TODO.md`](participants/simulator/TODO.md) |
+| M5–M6 | broker backend | [`broker/backend/TODO.md`](broker/backend/TODO.md) |
+| M7 | broker market data | [`broker/market-data/TODO.md`](broker/market-data/TODO.md) |
+| M8 | client | [`broker/web/TODO.md`](broker/web/TODO.md) |
+
+Conventions that apply everywhere are in [`docs/DECISIONS.md`](docs/DECISIONS.md); the
+short version is in [`CLAUDE.md`](CLAUDE.md).
+
 ## Status
 
 **Milestone 0 — foundations: complete.** Specs defined and linted, security master seeded,
