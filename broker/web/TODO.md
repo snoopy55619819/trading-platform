@@ -313,6 +313,39 @@ list; all six combinations at phone width with no sideways overflow and no title
 Found while checking: the Calm button fill first outranked the buy and sell colours, so
 Review showed grey; it now applies to plain buttons only.
 
+### Chart: more dynamic
+
+Done. A legend over the chart's top left names the symbol and interval ("ACME · 1m") and
+shows the open, high, low, close, volume and change (close against open, green or red) of
+the candle under the cursor, or the latest one when the cursor is elsewhere, so it moves
+with live trades. The crosshair follows the cursor and labels the price on the right axis
+and the time on the bottom one. Under the chart, range buttons (1H, 6H, 1D, 5D, 1M, 1Y,
+All) set how much time it shows, ending at the latest candle; clicking the chosen one again
+goes back to it after zooming or scrolling. Wheel, drag and pinch zoom and pan are the
+library's own and still work. The range is remembered like the interval. 10 new unit tests
+(72 in all). Checked in the browser against synthetic history and trades (the stack was
+down): hovering, every range, interval and range changing each other, wheel zoom kept
+through live trades, a range click resetting it, and all six combinations at phone width
+with no sideways overflow.
+
+Decisions:
+- **Range and interval choose each other** (`chart/range.ts`). market-data returns at most
+  1000 bars, so 1m reaches back under 17 hours, and an hour of daily candles is not one
+  candle. A range fits an interval when it takes between 5 and 1000 candles. Picking a
+  range keeps the interval if it fits, else takes the finest that does (1D on 1m becomes
+  5m); picking an interval keeps the range if it fits, else takes the nearest that does
+  (1m with 1D becomes 6H). "All" fits anything: as far back as 1000 candles reach.
+- **Enough history for the range.** `useHistory` takes a bar count: twice the range, at
+  least 300, at most 1000. Asking for more of the same symbol and interval keeps showing the
+  bars already there until the longer list lands, so the chart never blanks.
+- **Ranges are framed by time, drawn by index.** The chart spaces candles evenly with no
+  gaps for quiet minutes, so a range starts at the first candle inside it, and shows at least
+  10 candles, so a quiet hour is not two giant ones.
+- **The view is framed once per choice.** A new symbol, interval, range or range click
+  frames it; a refetch or a live trade never does, so zooming and scrolling stay put.
+- **Prices in the legend come from cents** (`chart/legend.ts`, `formatCents`); the series
+  stays in dollars for drawing only.
+
 ## Done when
 
 Click "Buy 100" in the browser, watch the order fill in the blotter, the book move, and
