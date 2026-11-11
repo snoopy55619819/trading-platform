@@ -1,0 +1,54 @@
+.activity tr.clickable {
+  cursor: pointer;
+}
+.activity tr.clickable:hover,
+.activity tr.expanded {
+  background: var(--surface-2);
+}
+.activity .unsettled,
+.activity .pnl-pct {
+  font-size: var(--fs-xs);
+}
+.order-detail td {
+  height: auto;
+  white-space: normal;
+  text-align: left;
+  background: var(--surface-2);
+}
+.order-detail-body {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  font-size: var(--fs-sm);
+}
+.order-detail-body p {
+  margin: 0 0 var(--space-2);
+}
+.events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.events li {
+  display: flex;
+  gap: var(--space-3);
+}
+.only-symbol {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-xs);
+  font-weight: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+/* The tabs are the panel's title: they need the room, not truncation. */
+.area[data-type="activity"] .panel-head > span {
+  overflow: visible;
+}
+/* A narrow panel (or a phone): wide tables scroll sideways inside the panel. */
+.area[data-type="activity"] .panel-body {
+  overflow: auto;
+}
