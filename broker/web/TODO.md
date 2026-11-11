@@ -351,11 +351,17 @@ Decisions:
 - **Defaults:** Active is the style a first visit gets (`DEFAULT_STYLE` in `theme/theme.ts`,
   repeated in `index.html`'s pre-paint script). The app is called "Trading Platform".
 - **Active's layout:** time and sales moved under the order book in the right column (ticket
-  5 rows, book 4, tape 3), and the watchlist has the full left column again. On a phone:
+  5 rows, book 4, tape 3); the watchlist runs the full height of the left column, and the
+  activity panel (positions, orders) sits under the chart. On a phone:
   chart, ticket, book, time and sales, then activity and the watchlist.
 - **Favicon:** `public/favicon.svg`, three candles (one down, two rising) on a dark tile,
   kept to a few thick shapes so it stays readable at 16px on light and dark tab bars.
-- **Positions tab:** no count in its name. Open orders keeps its count, since that one is
+- **Starting watchlist:** a new account now starts with every active symbol, up to 10
+  (`DEFAULT_WATCHLIST_SIZE` in the backend's `watchlist.ts`; it was the first 5). Ten are
+  listed today, so the whole market is starred. Accounts that already exist keep their lists.
+- **Positions tab:** no count in its name, and a **Book cost** column: what the shares still
+  held cost, fees included (`costBasisCents`, the figure P&L is measured against). In
+  Calm's list it is on the line under the symbol. Open orders keeps its count, since that one is
   worth noticing.
 
 ## Done when
