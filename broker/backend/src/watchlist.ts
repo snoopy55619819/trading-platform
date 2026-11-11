@@ -4,8 +4,8 @@
 import type { Db } from "./db.ts";
 
 export const MAX_WATCHLIST = 50;
-/** What a new account starts with, so its first screen is not empty. */
-const DEFAULT_SIZE = 5;
+/** How many symbols a new account starts with: every active one, up to this many. */
+export const DEFAULT_WATCHLIST_SIZE = 10;
 
 export async function watchlist(db: Db, accountId: string): Promise<string[]> {
   const { rows } = await db.query<{ symbol: string }>(
@@ -39,12 +39,15 @@ export async function unwatch(db: Db, accountId: string, symbol: string): Promis
   return watchlist(db, accountId);
 }
 
-/** Gives a new account the first few active symbols. */
+/**
+ * Gives a new account the active symbols, in ticker order, up to DEFAULT_WATCHLIST_SIZE:
+ * with ten listed, that is the whole market, and the user unstars what they do not want.
+ */
 export async function seedWatchlist(db: Db, accountId: string): Promise<void> {
   await db.query(
     `INSERT INTO broker.watchlist (account_id, symbol, position)
      SELECT $1, ticker, row_number() OVER (ORDER BY ticker)
      FROM broker.securities WHERE status = 'ACTIVE' ORDER BY ticker LIMIT $2`,
-    [accountId, DEFAULT_SIZE],
+    [accountId, DEFAULT_WATCHLIST_SIZE],
   );
 }
