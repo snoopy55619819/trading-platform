@@ -191,11 +191,36 @@ market-data killed (both dots red, quote greyed) and restarted (back without a r
 Pro, Active and Calm at desktop and phone width. Vite now pre-bundles React and TanStack
 Query: discovering one mid-session made it re-bundle and briefly load two copies of React.
 
-- [ ] **Watchlist:** starred symbols with last price, change and a sparkline; star and unstar
-- [ ] **Chart:** candles and volume, interval picker (1m, 5m, 1h, 1d), the current candle
+- [x] **Watchlist:** starred symbols with last price, change and a sparkline; star and unstar
+- [x] **Chart:** candles and volume, interval picker (1m, 5m, 1h, 1d), the current candle
       updated by live trades, colours taken from the tokens
-- [ ] **Order book:** 10 levels a side, spread, greyed out while stale
-- [ ] **Time and sales:** recent prints for the symbol
+- [x] **Order book:** 10 levels a side, spread, greyed out while stale
+- [x] **Time and sales:** recent prints for the symbol
+Step 5b done. The watchlist shows each starred symbol's last price, change since the
+previous close and a sparkline of today (5m closes, with the previous close as a dashed
+line); click a row to look at it, and star or unstar from the quote in the top bar or the
+row. The chart (lightweight-charts 5.2.1) draws candles with volume underneath, times in
+the browser's zone, colours re-read from the tokens on every mode or style change, and the
+interval is remembered. The book shows ten levels a side with running totals as depth
+bars, the mid and the spread, and keeps the last levels, greyed with a "Stale" badge, when
+the feed cannot vouch for them. Time and sales colours each print by the side that took
+liquidity. 10 new unit tests (37 in all). Checked against the full stack in Pro, Active
+and Calm, light and dark, at desktop and phone width: no sideways overflow anywhere.
+
+Decisions:
+- **The chart is fed changes, not redrawn.** `foldTrade` keeps every untouched bar the
+  same object, so "only the tail changed" is an identity check (`chart/updates.ts`); a live
+  trade becomes `update()` on one or two bars, anything else (a refetch, another symbol or
+  interval) replaces the data. A refetch keeps where you scrolled; a new symbol or
+  interval jumps to the latest bars.
+- **Time and sales needed history.** `/live` only sends trades from the moment a browser
+  subscribes, so a symbol you just picked had an empty tape. market-data gained
+  `GET /trades?symbol=&limit=` (newest first, at most 200), and the web joins it with live
+  prints by trade id (`market/tape.ts`).
+- **Sections adapt to their panel, not the window.** Panel bodies are CSS containers, so
+  Pro's narrow watchlist drops the sparkline while Calm's wide one shows it, whatever the
+  window size. A panel layout the user resizes later gets this for free.
+
 - [ ] **Order ticket:** buy or sell, market or limit, quantity and price, estimated cost
       against buying power. Tick, lot and band checks as hints only; the server's
       rejection reason shown when it refuses. A fresh `clientOrderId` per submit.
