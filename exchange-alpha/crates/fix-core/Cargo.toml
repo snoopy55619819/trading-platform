@@ -7,3 +7,5 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# Reads the published data dictionary (spec/fix44.xml), which is QuickFIX's XML format.
+quick-xml = "0.37"
