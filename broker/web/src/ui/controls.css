@@ -117,6 +117,13 @@ button {
   background: var(--warn);
 }
 
+/* A warning worth reading but not blocking: a ticket hint, a failed load being retried. */
+.hint {
+  margin: 0;
+  color: var(--warn);
+  font-size: var(--fs-sm);
+}
+
 /* A section with nothing to show yet: loading, empty, or failed. */
 .empty {
   margin: 0;
@@ -180,4 +187,54 @@ button {
 }
 .select {
   appearance: auto;
+}
+
+/* ---------- toasts ---------- */
+.toaster {
+  position: fixed;
+  z-index: 50;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(340px, calc(100vw - 2 * var(--space-5)));
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: var(--border-width) solid var(--border);
+  border-left: 4px solid var(--text-muted);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  font-size: var(--fs-sm);
+  pointer-events: auto;
+}
+.toast.good {
+  border-left-color: var(--up);
+}
+.toast.bad {
+  border-left-color: var(--down);
+}
+.toast-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.toast-text span {
+  color: var(--text-muted);
+}
+.toast-close {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-lg);
+  line-height: 1;
+  cursor: pointer;
 }
