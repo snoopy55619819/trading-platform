@@ -4,7 +4,15 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
-import { type ConnectionState, type Interval, LiveFeed, fetchHistory, fetchRecentTrades } from "../api/marketData.ts";
+import {
+  type ConnectionState,
+  DEFAULT_BARS,
+  type Interval,
+  LiveFeed,
+  MAX_BARS,
+  fetchHistory,
+  fetchRecentTrades,
+} from "../api/marketData.ts";
 import { bucketStart, foldTrade } from "./candles.ts";
 import { MarketStore, RECENT_TRADES, type SymbolMarket } from "./store.ts";
 import { mergeTrades } from "./tape.ts";
@@ -54,17 +62,27 @@ export function useMarket(symbol: string | undefined): SymbolMarket {
  * Chart bars: history from market-data, with live trades since that fetch folded into the
  * latest bars. History is refetched every minute, which also corrects anything the live
  * folding could not see (trades beyond the store's recent window).
+ *
+ * `count` is how many bars to ask for (at most MAX_BARS). Asking for more of the same
+ * symbol and interval keeps showing the bars already there until the longer list arrives,
+ * so widening the chart's range does not blank it.
  */
-export function useHistory(symbol: string | undefined, interval: Interval) {
+export function useHistory(symbol: string | undefined, interval: Interval, count = DEFAULT_BARS) {
+  const bars = Math.min(count, MAX_BARS);
   const history = useQuery({
-    queryKey: ["history", symbol, interval],
-    queryFn: () => fetchHistory(symbol!, interval),
+    queryKey: ["history", symbol, interval, bars],
+    queryFn: () => fetchHistory(symbol!, interval, bars),
     enabled: symbol !== undefined,
     refetchInterval: 60_000,
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === symbol && previousQuery?.queryKey[2] === interval ? previous : undefined,
   });
   const market = useMarket(symbol);
-  const bars = useMemo(() => {
+  const folded = useMemo(() => {
     if (!history.data) return undefined;
+    // Placeholder bars were fetched at some earlier time we cannot see, so folding trades
+    // in could count some twice. They show as fetched, briefly, until the real ones land.
+    if (history.isPlaceholderData) return history.data;
     const fetchedAt = history.dataUpdatedAt;
     // Only trades after the fetch: anything earlier may already be in the bars, and
     // counting it twice would be wrong. A trade printed just before the fetch but not yet
@@ -72,8 +90,8 @@ export function useHistory(symbol: string | undefined, interval: Interval) {
     // Trades are newest first; fold them oldest first.
     const since = market.trades.filter((t) => Date.parse(t.ts) > fetchedAt).reverse();
     return since.reduce((bars, trade) => foldTrade(bars, trade, interval), history.data);
-  }, [history.data, history.dataUpdatedAt, market.trades, interval]);
-  return { bars, isLoading: history.isLoading, error: history.error };
+  }, [history.data, history.dataUpdatedAt, history.isPlaceholderData, market.trades, interval]);
+  return { bars: folded, isLoading: history.isLoading, isPlaceholderData: history.isPlaceholderData, error: history.error };
 }
 
 /**
@@ -130,8 +148,9 @@ export function useLastPrices(symbols: readonly string[]): Map<string, number | 
   const markets = useMarkets(symbols);
   const daily = useQueries({
     queries: symbols.map((symbol) => ({
-      queryKey: ["history", symbol, "1d"],
-      queryFn: () => fetchHistory(symbol, "1d"),
+      // The same key as a daily chart's default, so the two share one fetch.
+      queryKey: ["history", symbol, "1d", DEFAULT_BARS],
+      queryFn: () => fetchHistory(symbol, "1d", DEFAULT_BARS),
       refetchInterval: 60_000,
     })),
   });

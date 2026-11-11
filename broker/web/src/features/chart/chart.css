@@ -1,6 +1,12 @@
+/* The chart above its range buttons, filling the panel. */
+.chart-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
 .chart-frame {
   position: relative;
-  height: 100%;
+  flex: 1;
   min-height: 200px;
 }
 .chart {
@@ -14,6 +20,47 @@
   place-items: center;
   margin: 0;
   pointer-events: none;
+}
+/* The legend floats over the chart's top left and never takes the cursor from it. Its
+   right edge stops short of the price axis. */
+.chart-legend {
+  position: absolute;
+  z-index: 1;
+  top: var(--space-2);
+  left: var(--panel-pad);
+  right: calc(var(--panel-pad) + 2 * var(--control-h));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--fs-xs);
+  color: var(--text);
+  pointer-events: none;
+}
+.chart-legend-title {
+  font-family: var(--font);
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-strong);
+}
+.chart-legend-values {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-3);
+}
+.chart-legend-values > span {
+  white-space: nowrap;
+}
+/* Range buttons under the chart. They wrap rather than push the panel wider on a phone. */
+.chart-ranges {
+  display: flex;
+  padding: var(--space-2) var(--panel-pad);
+  border-top: var(--border-width) solid var(--border);
+}
+.chart-ranges .segmented {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+.chart-ranges .segment {
+  padding: 0 var(--space-2);
 }
 /* The chart fills its panel edge to edge; the library does its own padding. */
 .area[data-type="chart"] .panel-body {
