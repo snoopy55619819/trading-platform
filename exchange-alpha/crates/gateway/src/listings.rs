@@ -72,6 +72,11 @@ impl Listings {
         }
     }
 
+    /// Every listed ticker.
+    pub fn tickers(&self) -> impl Iterator<Item = String> + '_ {
+        self.symbols.keys().cloned()
+    }
+
     pub fn symbol(&self, ticker: &str) -> Option<&Symbol> {
         self.symbols.get(ticker)
     }

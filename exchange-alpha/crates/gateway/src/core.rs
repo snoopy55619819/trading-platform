@@ -8,6 +8,10 @@
 //! Sessions are keyed by CompID, not by connection. When a client is disconnected its session
 //! lives on: reports for its orders are still numbered and stored, and when it reconnects the
 //! sequence numbers show the gap and the session layer resends them.
+//!
+//! The core also hands the public part of every command's events to market data. It never
+//! waits for market data: the channel is unbounded, and the feed sequences and fans out on
+//! its own task.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -16,6 +20,7 @@ use anyhow::{Context, Result};
 use fix_core::tags::{msg_type, *};
 use fix_core::{Action, Decoded, Message, Role, Session, SessionConfig, UtcMillis};
 use matching_engine::{Command, JournaledEngine};
+use md_publisher::{Feed, PublicEvent, Publisher};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
@@ -68,20 +73,30 @@ pub struct Core<S: SessionStore> {
     /// Numbers execution ids for orders rejected before reaching the engine (those have no
     /// journal sequence number to derive one from).
     rejections: u64,
+    /// Where public events go. `None` until the gateway starts the market data server.
+    market_data: Option<Publisher>,
 }
 
 impl<S: SessionStore> Core<S> {
-    /// Opens the journal (replaying it to rebuild the book and every order's state) and loads
-    /// the FIX sessions from the store.
+    /// Opens the journal (replaying it to rebuild the book, every order's state and the
+    /// market data feed) and loads the FIX sessions from the store.
+    ///
+    /// Returns the rebuilt feed alongside the core, for the market data server to serve.
+    /// Its sequence numbers carry on from where they were, because they are derived from
+    /// the journal and nothing else.
     pub async fn open(
         journal: &Path,
         mut store: S,
         allowed_comp_ids: impl IntoIterator<Item = String>,
-    ) -> Result<Core<S>> {
+    ) -> Result<(Core<S>, Feed)> {
         let listings = Listings::published();
         let mut orders = OrderTracker::new(&listings);
+        let mut feed = Feed::new(listings.venue.clone(), listings.tickers());
         let engine = JournaledEngine::open_observing(journal, |event| {
             orders.apply(event, &listings);
+            if let Some(public) = PublicEvent::from_event(event) {
+                feed.publish(&public, 0); // not sent anywhere: only the state is wanted
+            }
         })
         .with_context(|| format!("opening journal {}", journal.display()))?;
 
@@ -104,9 +119,10 @@ impl<S: SessionStore> Core<S> {
         info!(
             commands = engine.recovered(),
             open_orders = orders.open_order_count(),
+            feed_seq = feed.feed_seq(),
             "recovered from journal"
         );
-        Ok(Core {
+        let core = Core {
             engine,
             orders,
             listings,
@@ -115,7 +131,14 @@ impl<S: SessionStore> Core<S> {
             sessions,
             connections: HashMap::new(),
             rejections: 0,
-        })
+            market_data: None,
+        };
+        Ok((core, feed))
+    }
+
+    /// Starts sending public events to `publisher`.
+    pub fn publish_to(&mut self, publisher: Publisher) {
+        self.market_data = Some(publisher);
     }
 
     /// Processes events until every sender is gone. Returns an error only for failures that
@@ -274,6 +297,7 @@ impl<S: SessionStore> Core<S> {
     fn submit(&mut self, command: Command) -> Result<Vec<Report>> {
         let events = self.engine.submit(command).context("writing the journal")?;
         let seq = self.engine.last_seq();
+        self.publish(&events);
         let mut reports = Vec::new();
         for event in &events {
             reports.extend(self.orders.apply(event, &self.listings));
@@ -286,6 +310,20 @@ impl<S: SessionStore> Core<S> {
             }
         }
         Ok(reports)
+    }
+
+    /// Sends the public part of `events` to market data, as one batch so the feed sees each
+    /// command's changes together and in journal order.
+    fn publish(&mut self, events: &[matching_engine::Event]) {
+        let Some(market_data) = &self.market_data else {
+            return;
+        };
+        let public: Vec<PublicEvent> = events.iter().filter_map(PublicEvent::from_event).collect();
+        if !public.is_empty() && market_data.send(public).is_err() {
+            // Order entry carries on without a feed; subscribers will see heartbeats stop.
+            warn!("market data has stopped; no longer publishing");
+            self.market_data = None;
+        }
     }
 
     fn number_rejection(&mut self, mut report: Report, now: UtcMillis) -> Report {
