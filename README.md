@@ -193,6 +193,42 @@ Then watch a symbol with `md-watch` as above. `SIM_SPEED=20` runs prices twenty 
 faster than the clock; `SIM_ACTIVITY=0.2` makes a quiet market for a deployed instance.
 Ctrl-C cancels everything the simulator has resting.
 
+### Run the broker
+
+The broker's backend: an HTTP API, the OMS with pre-trade risk, the ledger, and its own FIX
+connection to the exchange. With the exchange running (and ideally the simulator, so
+there is something to trade against):
+
+```bash
+pnpm db:up && pnpm backend db:migrate && pnpm backend db:seed
+```
+
+```bash
+cd broker/backend && pnpm start
+```
+
+Then, with `curl`: sign up, log in, fund the account, buy, and look at the result.
+
+```bash
+curl -s -X POST localhost:8080/users -d '{"email":"ada@example.com","password":"correct horse"}'
+```
+
+```bash
+TOKEN=$(curl -s -X POST localhost:8080/sessions -d '{"email":"ada@example.com","password":"correct horse"}' | jq -r .token)
+```
+
+```bash
+curl -s -X POST localhost:8080/deposits -H "Authorization: Bearer $TOKEN" -d '{"amountCents":5000000}'
+```
+
+```bash
+curl -s -X POST localhost:8080/orders -H "Authorization: Bearer $TOKEN" -d '{"clientOrderId":"first","symbol":"ACME","side":"BUY","orderType":"MARKET","timeInForce":"IOC","qty":100}'
+```
+
+```bash
+curl -s localhost:8080/positions -H "Authorization: Bearer $TOKEN"
+```
+
 ### Run the matching engine (no network)
 
 A walkthrough of every matching rule (price-time priority, walking the book, IOC, FOK,
@@ -250,6 +286,14 @@ short version is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
+**Milestone 6, the broker's OMS: complete.** An order now goes end to end: `curl` →
+pre-trade risk in one transaction with the order write → the broker's own TypeScript FIX
+initiator → Alpha Exchange → execution reports → the ledger. Every bad order is refused for
+its own named reason. The FIX session never resets its numbers: a fill that happened while
+the broker was `kill -9`'d was recovered by resend on restart and booked to the cent.
+Orders are committed before they are sent, and recorded as sent in the same transaction as
+their FIX sequence number, so a crash at any point loses nothing.
+
 **Milestone 5, the broker's ledger: complete.** Double-entry books in Postgres, where the
 rules cannot be bypassed: every entry balances per asset (checked at commit), shares can
 never land in a cash account, and history is append-only. A fill books one entry with
@@ -285,5 +329,5 @@ report. Sequence numbers live in the exchange's own Postgres and survive restart
 Conformance-tested against **QuickFIX/Go**, which trades through the book, survives the
 gateway being SIGKILLed, and recovers a missed fill by resend.
 
-Next: **Milestone 6, the broker's OMS** (`broker/backend`): orders, pre-trade risk against
-the ledger, and the broker's own FIX initiator to the exchange.
+Next: **Milestone 7, the broker's market data service** (`broker/market-data`): subscribe to
+the exchange's feed, fan prices out to browsers, and store ticks and candles for charts.

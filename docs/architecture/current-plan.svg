@@ -105,7 +105,8 @@
   <!-- Process shells (drawn before edges and modules) -->
   <g class="node"><rect x="190" y="180" width="420" height="172" rx="10"/>
     <text class="n-title" x="276" y="202">backend</text>
-    <text class="n-sub" x="276" y="219">one process · one transaction · M5-M6</text></g>
+    <text class="n-sub" x="276" y="219">one process · one transaction · M5-M6</text>
+    <text class="tag built" x="210" y="338">BUILT</text></g>
   <g class="node"><rect x="680" y="180" width="220" height="490" rx="10"/>
     <text class="n-title" x="694" y="202">exchange-alpha</text>
     <text class="n-sub" x="694" y="219">one Rust binary · M1-M3</text></g>
@@ -190,7 +191,6 @@
   <g class="module"><rect x="350" y="298" width="100" height="42" rx="6"/>
     <text class="n-title" x="400" y="316" text-anchor="middle">ledger</text>
     <text class="n-sub" x="400" y="332" text-anchor="middle">double-entry</text></g>
-  <text class="tag built" x="458" y="324">BUILT</text>
 
   <g class="node"><path d="M354,394 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="400" y="426" text-anchor="middle">broker-db</text>
