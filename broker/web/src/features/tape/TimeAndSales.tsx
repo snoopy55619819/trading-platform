@@ -8,6 +8,13 @@ import { Panel } from "../../ui/Shell.tsx";
 
 export function TimeAndSales({ symbol }: { symbol: string | undefined }) {
   const { trades, isLoading, error } = useRecentTrades(symbol);
+  if (!symbol) {
+    return (
+      <Panel title="Time and sales">
+        <p className="empty">Pick a symbol.</p>
+      </Panel>
+    );
+  }
   return <TapeView trades={trades} isLoading={isLoading} failed={error !== null && trades.length === 0} />;
 }
 

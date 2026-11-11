@@ -1,13 +1,14 @@
 // React's view of market data: one live feed and one store for the whole app, and hooks
 // that read them. Components never touch the WebSocket.
 
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 
 import { type ConnectionState, type Interval, LiveFeed, fetchHistory, fetchRecentTrades } from "../api/marketData.ts";
-import { foldTrade } from "./candles.ts";
+import { bucketStart, foldTrade } from "./candles.ts";
 import { MarketStore, RECENT_TRADES, type SymbolMarket } from "./store.ts";
 import { mergeTrades } from "./tape.ts";
+import { quoteFrom } from "../features/header/quote.ts";
 
 export const marketStore = new MarketStore();
 
@@ -93,4 +94,47 @@ export function useRecentTrades(symbol: string | undefined) {
     [market.trades, stored.data],
   );
   return { trades, isLoading: stored.isLoading && market.trades.length === 0, error: stored.error };
+}
+
+/** Live data for several symbols at once (the same store, one subscription each). */
+export function useMarkets(symbols: readonly string[]): SymbolMarket[] {
+  const key = symbols.join(",");
+  // Effects key on `key`, not the array: a new array with the same symbols changes nothing.
+  useEffect(() => {
+    const releases = symbols.map((s) => marketStore.want(s));
+    return () => releases.forEach((release) => release());
+  }, [key]);
+  const cache = useRef<SymbolMarket[]>([]);
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      const offs = symbols.map((s) => marketStore.subscribe(s, listener));
+      return () => offs.forEach((off) => off());
+    },
+    [key],
+  );
+  return useSyncExternalStore(subscribe, () => {
+    // The same array until one of the symbols changes, as useSyncExternalStore requires.
+    const next = symbols.map((s) => marketStore.get(s));
+    const previous = cache.current;
+    if (previous.length === next.length && previous.every((m, i) => m === next[i])) return previous;
+    cache.current = next;
+    return next;
+  });
+}
+
+/**
+ * The price each symbol is valued at: the live last trade, else the last stored trade (its
+ * daily bar's close), else the previous close. The same rule as the quote in the top bar.
+ */
+export function useLastPrices(symbols: readonly string[]): Map<string, number | undefined> {
+  const markets = useMarkets(symbols);
+  const daily = useQueries({
+    queries: symbols.map((symbol) => ({
+      queryKey: ["history", symbol, "1d"],
+      queryFn: () => fetchHistory(symbol, "1d"),
+      refetchInterval: 60_000,
+    })),
+  });
+  const todayStart = bucketStart(Date.now(), "1d");
+  return new Map(symbols.map((symbol, i) => [symbol, quoteFrom(markets[i]!, daily[i]?.data, todayStart).lastCents]));
 }
