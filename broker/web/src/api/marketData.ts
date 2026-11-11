@@ -47,8 +47,10 @@ export type LiveMessage = BookMessage | TradeMessage;
 
 /** The most bars the service returns at once; ask for a wider interval to see further back. */
 export const MAX_BARS = 1000;
+/** How many bars a chart asks for unless it needs more. */
+export const DEFAULT_BARS = 300;
 
-export async function fetchHistory(symbol: string, interval: Interval, bars = 300, now = Date.now()): Promise<Bar[]> {
+export async function fetchHistory(symbol: string, interval: Interval, bars = DEFAULT_BARS, now = Date.now()): Promise<Bar[]> {
   const span = Math.min(bars, MAX_BARS) * INTERVAL_SECONDS[interval] * 1000;
   // Up to the end of the current bucket, so the bar still forming is included.
   const to = new Date(now + INTERVAL_SECONDS[interval] * 1000);
