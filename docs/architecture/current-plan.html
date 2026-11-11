@@ -33,7 +33,7 @@ flows:
   md    | md-publisher -> market-data         | WebSocket     | Snapshot, Delta
   md    | md-publisher -> simulator           | WebSocket     | Snapshot, Delta
   md    | market-data -> web                  | WebSocket + REST | prices, history
-status note: matching-engine and journal BUILT at M1
+status note: matching-engine and journal BUILT at M1; gateway, fix-core, exchange-db BUILT at M2
 omitted on purpose:
   ExecutionReports back to the simulator | same shape as the broker's return path
   every service's own DB migrations      | implementation detail
@@ -253,11 +253,11 @@ omitted on purpose:
   <g class="node lib"><rect x="790" y="82" width="130" height="56" rx="6"/><rect x="785" y="88" width="130" height="56" rx="6"/>
     <text class="tag" x="795" y="104">LIB</text>
     <text class="n-title" x="850" y="122" text-anchor="middle">fix-core</text>
-    <text class="n-sub" x="850" y="137" text-anchor="middle">codec · M2</text></g>
+    <text class="n-sub" x="850" y="137" text-anchor="middle">codec · M2 · <tspan class="tag built">BUILT</tspan></text></g>
 
   <g class="module"><rect x="700" y="232" width="180" height="45" rx="6"/>
     <text class="n-title" x="790" y="252" text-anchor="middle">gateway</text>
-    <text class="n-sub" x="790" y="268" text-anchor="middle">validation · M2</text></g>
+    <text class="n-sub" x="790" y="268" text-anchor="middle">validation · M2 · <tspan class="tag built">BUILT</tspan></text></g>
   <g class="module"><rect x="700" y="420" width="180" height="100" rx="6"/>
     <text class="n-title" x="790" y="466" text-anchor="middle">matching-engine</text>
     <text class="n-sub" x="790" y="484" text-anchor="middle">RAM · M1</text>
@@ -269,6 +269,7 @@ omitted on purpose:
   <g class="node"><path d="M916,330 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="962" y="362" text-anchor="middle">exchange-db</text>
     <text class="n-sub" x="962" y="377" text-anchor="middle">Postgres · M2</text></g>
+  <text class="tag built" x="962" y="408" text-anchor="middle">BUILT</text>
   <g class="node"><path d="M916,456 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="962" y="488" text-anchor="middle">journal</text>
     <text class="n-sub" x="962" y="503" text-anchor="middle">append · M1</text></g>
@@ -324,9 +325,9 @@ omitted on purpose:
     <tr><td class="n"><span>2</span></td><td><code>backend</code></td><td>One process, four modules: <code>api</code> (auth, no business logic), <code>oms</code> (pre-trade risk and order lifecycle), <code>ledger</code> (double-entry books), <code>fix</code> (session to the exchange). Merged because a buying-power check and the order write must be one transaction. Single instance: a FIX session is a stateful singleton.</td></tr>
     <tr><td class="n"><span>3</span></td><td><code>broker-db</code></td><td>Built. Holds the security master today; orders and the ledger land here at M5-M6.</td></tr>
     <tr><td class="n"><span>4</span></td><td>Order (edge)</td><td>FIX 4.4 over TCP. The broker is the initiator (TypeScript), the exchange the acceptor (Rust): two independent implementations sharing only the dictionary.</td></tr>
-    <tr><td class="n"><span>5</span></td><td><code>gateway</code></td><td>The exchange's door. Session sequence numbers, then tick size, lot size, price band and duplicate <code>ClOrdID</code> checks before the engine sees anything.</td></tr>
-    <tr><td class="n"><span>6</span></td><td><code>exchange-db</code></td><td>FIX session state, so sequence numbers survive a restart. The exchange's own database, never a schema in the broker's.</td></tr>
-    <tr><td class="n"><span>7</span></td><td><code>fix-core</code></td><td>Library, not a server: FIX codec and session state machine. Has never heard of an order book.</td></tr>
+    <tr><td class="n"><span>5</span></td><td><code>gateway</code></td><td>Built (M2). The exchange's door. Session sequence numbers, then tick size, lot size, price band and duplicate <code>ClOrdID</code> checks before the engine sees anything. Conformance-tested against QuickFIX/Go, including a SIGKILL and recovery by resend.</td></tr>
+    <tr><td class="n"><span>6</span></td><td><code>exchange-db</code></td><td>Built (M2). FIX session state, so sequence numbers survive a restart. The exchange's own database, never a schema in the broker's.</td></tr>
+    <tr><td class="n"><span>7</span></td><td><code>fix-core</code></td><td>Built (M2). Library, not a server: FIX codec, data dictionary and session state machine. Has never heard of an order book.</td></tr>
     <tr><td class="n"><span>8</span></td><td><code>matching-engine</code></td><td>Built (M1). The market: price-time priority over an in-memory book, about 0.2 µs per match at the median. Feeds both planes, so it straddles the divider.</td></tr>
     <tr><td class="n"><span>9</span></td><td><code>journal</code></td><td>Built (M1). Append-only log, written before each command is applied. Recovery is replay, which rebuilds a byte-identical book; a torn final write from a crash is dropped safely.</td></tr>
     <tr><td class="n"><span>10</span></td><td>ExecutionReport (edge)</td><td>The private result: account, client order id, fill qty and price, fees. Goes only to the order's owner.</td></tr>

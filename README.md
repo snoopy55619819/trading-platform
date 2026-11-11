@@ -88,9 +88,11 @@ a correctness bug, so the schema makes it impossible to write.
 
 ## Running it
 
-**What exists today (milestone 1):** the matching engine, driven from a CLI, and the
-broker's database. The engine is not on the network yet: that is the FIX gateway at M2.
-`backend`, `market-data`, `web` and `simulator` are still scaffolding.
+**What exists today (milestone 2):** Alpha Exchange is on the network. Its FIX 4.4 gateway
+accepts orders from any FIX client, matches them, and survives being killed. The broker's
+database exists too. `backend`, `market-data`, `web` and `simulator` are still scaffolding,
+so for now you talk to the exchange with a FIX client of your own, or the QuickFIX
+conformance client.
 
 ### First time
 
@@ -145,7 +147,30 @@ Useful once you are in:
 | `SELECT * FROM broker.securities;` | the seeded instruments |
 | `SELECT * FROM broker.schema_migrations;` | what has been applied, and when |
 
-### Run the matching engine
+### Run the exchange
+
+Alpha Exchange has its own database (port 5433), separate from the broker's:
+
+```bash
+docker compose -f exchange-alpha/compose.yml up -d --wait
+```
+
+```bash
+cd exchange-alpha && cargo run -p gateway
+```
+
+It listens for FIX 4.4 on `127.0.0.1:9878` and journals to `exchange-alpha/data/`. CompIDs
+allowed to log on: `BROKER`, `SIM`, `QFGO1`, `QFGO2` (set `ALPHA_COMP_IDS` to change).
+
+**Conformance against QuickFIX**, an independent FIX engine loading the same published
+spec. Two sessions trade, then the gateway is killed with `kill -9` and restarted, and a fill
+that happened while a client was away must reach it by resend:
+
+```bash
+cd exchange-alpha && ./conformance/run.sh
+```
+
+### Run the matching engine (no network)
 
 A walkthrough of every matching rule (price-time priority, walking the book, IOC, FOK,
 self-trade prevention, cancels), with commentary:
@@ -161,10 +186,10 @@ left it:
 cd exchange-alpha && cargo run -p matching-engine -- --journal /tmp/alpha.journal
 ```
 
-Tests (including property tests over random order streams) and the latency benchmark:
+Tests for the whole exchange (matching, FIX, gateway) and the matching latency benchmark:
 
 ```bash
-cd exchange-alpha && cargo test -p matching-engine && cargo bench -p matching-engine
+cd exchange-alpha && cargo test --workspace && cargo bench -p matching-engine
 ```
 
 ### Shortcuts from the repo root
@@ -201,11 +226,13 @@ short version is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
-**Milestone 1, the matching engine: complete.** Price-time priority, limit / market / IOC /
-FOK orders, self-trade prevention, and an append-only journal from which replay rebuilds a
-byte-identical book. 38 tests, including property tests over thousands of random order
-streams. Median match latency is about 0.2 µs (p99 0.75 µs) against a 32,000-order book.
+**Milestone 2, FIX 4.4: complete.** Alpha Exchange speaks FIX over TCP. `fix-core` is a
+hand-written codec, data dictionary and session state machine (logon, heartbeats, sequence
+numbers, gap detection, resend); the `gateway` validates every order against the venue's
+rules before the engine sees it and sends each side of a trade only its own execution
+report. Sequence numbers live in the exchange's own Postgres and survive restarts.
+Conformance-tested against **QuickFIX/Go**, which trades through the book, survives the
+gateway being SIGKILLed, and recovers a missed fill by resend. 92 tests across the exchange.
 
-Next: **Milestone 2, FIX 4.4** (`exchange-alpha/crates/fix-core` and `gateway`). Puts the
-engine on the network: a FIX session layer, the exchange gateway that validates orders
-before the engine sees them, and conformance tests against QuickFIX.
+Next: **Milestone 3, market data** (`exchange-alpha/crates/md-publisher`). The public plane:
+a sequenced feed of book changes and trades, with snapshots for gap recovery.
