@@ -210,7 +210,7 @@
     <text class="tag built" x="790" y="503" text-anchor="middle">BUILT</text></g>
   <g class="module"><rect x="700" y="600" width="180" height="45" rx="6"/>
     <text class="n-title" x="790" y="619" text-anchor="middle">md-publisher</text>
-    <text class="n-sub" x="790" y="636" text-anchor="middle">sequenced · M3</text></g>
+    <text class="n-sub" x="790" y="636" text-anchor="middle">sequenced · M3 · <tspan class="tag built">BUILT</tspan></text></g>
 
   <g class="node"><path d="M916,330 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="962" y="362" text-anchor="middle">exchange-db</text>

@@ -159,8 +159,17 @@ docker compose -f exchange-alpha/compose.yml up -d --wait
 cd exchange-alpha && cargo run -p gateway
 ```
 
-It listens for FIX 4.4 on `127.0.0.1:9878` and journals to `exchange-alpha/data/`. CompIDs
-allowed to log on: `BROKER`, `SIM`, `QFGO1`, `QFGO2` (set `ALPHA_COMP_IDS` to change).
+It listens for FIX 4.4 on `127.0.0.1:9878`, publishes market data over WebSocket on
+`127.0.0.1:9879`, and journals to `exchange-alpha/data/`. CompIDs allowed to log on:
+`BROKER`, `SIM`, `QFGO1`, `QFGO2` (set `ALPHA_COMP_IDS` to change).
+
+**Watch the feed**: a live depth ladder for one symbol, rebuilt from the public feed alone.
+Kill it and start it again and it carries on from a snapshot with no gap. `--log` prints
+each message with its sequence numbers instead:
+
+```bash
+cd exchange-alpha && cargo run -p md-publisher --bin md-watch -- ACME
+```
 
 **Conformance against QuickFIX**, an independent FIX engine loading the same published
 spec. Two sessions trade, then the gateway is killed with `kill -9` and restarted, and a fill
@@ -186,7 +195,8 @@ left it:
 cd exchange-alpha && cargo run -p matching-engine -- --journal /tmp/alpha.journal
 ```
 
-Tests for the whole exchange (matching, FIX, gateway) and the matching latency benchmark:
+Tests for the whole exchange (matching, FIX, gateway, market data) and the matching latency
+benchmark:
 
 ```bash
 cd exchange-alpha && cargo test --workspace && cargo bench -p matching-engine
@@ -226,13 +236,23 @@ short version is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Status
 
+**Milestone 3, market data: complete.** The public plane. Every book change and trade goes
+out over WebSocket as protobuf, per the published `marketdata.proto`, with no field that
+could identify a participant. Each message carries a venue-wide `feed_seq` and a
+per-symbol `symbol_seq` (ADR 0001); a subscriber that sees a gap asks for a fresh
+snapshot. Slow subscribers are disconnected rather than allowed to stall the feed. The
+feed is rebuilt from the journal on restart, so its sequence numbers survive a `kill -9`.
+A property test drives random order flow through the real engine and checks that a
+subscriber joining at any point rebuilds the engine's exact book from the feed alone. 106
+tests across the exchange.
+
 **Milestone 2, FIX 4.4: complete.** Alpha Exchange speaks FIX over TCP. `fix-core` is a
 hand-written codec, data dictionary and session state machine (logon, heartbeats, sequence
 numbers, gap detection, resend); the `gateway` validates every order against the venue's
 rules before the engine sees it and sends each side of a trade only its own execution
 report. Sequence numbers live in the exchange's own Postgres and survive restarts.
 Conformance-tested against **QuickFIX/Go**, which trades through the book, survives the
-gateway being SIGKILLed, and recovers a missed fill by resend. 92 tests across the exchange.
+gateway being SIGKILLed, and recovers a missed fill by resend.
 
-Next: **Milestone 3, market data** (`exchange-alpha/crates/md-publisher`). The public plane:
-a sequenced feed of book changes and trades, with snapshots for gap recovery.
+Next: **Milestone 4, simulated participants** (`participants/simulator`): synthetic trading
+firms that watch this feed and trade over the same public FIX session anyone else uses.

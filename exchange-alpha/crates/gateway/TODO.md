@@ -3,11 +3,11 @@
 **The exchange's door, and the binary you run.** The only crate that has heard of both
 FIX and order books — which is precisely why the other three haven't.
 
-Status: **done** · 11 tests, plus QuickFIX conformance
+Status: **done** · 14 tests (3 of them market data, added in M3), plus QuickFIX conformance
 
 ```
 docker compose -f compose.yml up -d --wait     # the exchange's own database
-cargo run -p gateway                           # listens on 127.0.0.1:9878
+cargo run -p gateway                           # FIX on 127.0.0.1:9878, market data on :9879
 ./conformance/run.sh                           # QuickFIX trades, crash, recovery
 ```
 
@@ -93,6 +93,10 @@ engine events, so replaying the journal rebuilds it exactly. Nothing extra to pe
   to the order. (The published spec has no `OrigClOrdID` on `ExecutionReport`.)
 - **Authentication is a CompID allowlist** (`ALPHA_COMP_IDS`). The spec's Logon has no
   username or password fields.
+- **One process, two ports** (M3). `Gateway::start` also starts md-publisher's WebSocket
+  server. After each command the core sends the public part of its events down an unbounded
+  channel, so order entry never waits on market data. `Core::open` replays the journal
+  through the feed too and returns it, so feed sequence numbers survive a crash.
 
 ## Known gaps
 
