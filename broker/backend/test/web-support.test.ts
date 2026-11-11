@@ -11,7 +11,7 @@ import type { Side } from "../src/domain/index.ts";
 import { ulid } from "../src/ids.ts";
 import { averageCost, costs, holdings, openAccount, postFill } from "../src/ledger/index.ts";
 import { Oms } from "../src/oms/service.ts";
-import { seedWatchlist, unwatch, watch, watchlist } from "../src/watchlist.ts";
+import { DEFAULT_WATCHLIST_SIZE, seedWatchlist, unwatch, watch, watchlist } from "../src/watchlist.ts";
 
 const pool = createPool();
 after(() => pool.end());
@@ -86,18 +86,26 @@ test("cost basis from booked fills agrees with the ledger's quantities, in booki
 
 // ---- watchlist ----
 
-test("a watchlist starts with defaults, keeps its order, and refuses what is not listed", () =>
+test("a watchlist starts with the active symbols up to the default size, keeps its order, and refuses what is not listed", () =>
   rolledBack(async (db) => {
     const account = await openAccount(db, "test");
     await seedWatchlist(db, account);
-    assert.deepEqual(await watchlist(db, account), ["ACME", "BLTZ", "CRUX", "DYNE", "ECHO"]);
-    assert.deepEqual(await unwatch(db, account, "BLTZ"), ["ACME", "CRUX", "DYNE", "ECHO"]);
-    const added = await watch(db, account, "BLTZ");
-    assert.deepEqual(added.ok && added.symbols, ["ACME", "CRUX", "DYNE", "ECHO", "BLTZ"], "added at the end");
-    const twice = await watch(db, account, "BLTZ");
-    assert.deepEqual(twice.ok && twice.symbols.length, 5, "adding it again changes nothing");
+    const { rows } = await db.query<{ ticker: string }>(
+      "SELECT ticker FROM broker.securities WHERE status = 'ACTIVE' ORDER BY ticker",
+    );
+    const all = rows.map((r) => r.ticker).slice(0, DEFAULT_WATCHLIST_SIZE);
+    assert.ok(all.length > 5, "the seeded market has more than a handful of symbols");
+    assert.deepEqual(await watchlist(db, account), all, "the active symbols in ticker order, up to the default size");
+
+    const second = all[1]!;
+    const without = all.filter((t) => t !== second);
+    assert.deepEqual(await unwatch(db, account, second), without);
+    const added = await watch(db, account, second);
+    assert.deepEqual(added.ok && added.symbols, [...without, second], "added at the end");
+    const twice = await watch(db, account, second);
+    assert.deepEqual(twice.ok && twice.symbols.length, all.length, "adding it again changes nothing");
     assert.deepEqual(await watch(db, account, "NOPE"), { ok: false, reason: "UNKNOWN_SYMBOL" });
-    assert.deepEqual(await unwatch(db, account, "NOPE"), ["ACME", "CRUX", "DYNE", "ECHO", "BLTZ"]);
+    assert.deepEqual(await unwatch(db, account, "NOPE"), [...without, second]);
   }));
 
 // ---- status and CORS, over a real HTTP server ----

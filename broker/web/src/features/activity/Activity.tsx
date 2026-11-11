@@ -110,6 +110,7 @@ function Positions({
           <th>Symbol</th>
           <th>Shares</th>
           <th>Avg cost</th>
+          <th title="What the shares held cost, fees included">Book cost</th>
           <th>Price</th>
           <th>Value</th>
           <th>P&amp;L</th>
@@ -137,6 +138,7 @@ function PositionRow({ holding, price, onSelect }: { holding: Holding; price: nu
         {holding.qtyUnsettled > 0 && <span className="muted unsettled"> ({holding.qtyUnsettled.toLocaleString("en-US")} unsettled)</span>}
       </td>
       <td className="numbers">{holding.avgCostCents === null ? "–" : formatCents(holding.avgCostCents)}</td>
+      <td className="numbers">{formatDollars(holding.costBasisCents)}</td>
       <td className="numbers">{price === undefined ? "–" : formatCents(price)}</td>
       <td className="numbers">{v.marketValueCents === undefined ? "–" : formatDollars(v.marketValueCents)}</td>
       <td className={`numbers ${direction}`}>
@@ -159,6 +161,7 @@ function PositionItem({ holding, price, onSelect }: { holding: Holding; price: n
           <span className="muted">
             {v.qty.toLocaleString("en-US")} shares
             {holding.avgCostCents !== null && ` · avg ${formatCents(holding.avgCostCents)}`}
+            {` · cost ${formatDollars(holding.costBasisCents)}`}
           </span>
         </span>
         <span className="position-worth">
