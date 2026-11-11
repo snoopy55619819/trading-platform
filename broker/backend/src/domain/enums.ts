@@ -85,6 +85,9 @@ export const RejectReason = {
   PRICE_OUT_OF_BAND: "PRICE_OUT_OF_BAND",
   INSUFFICIENT_BUYING_POWER: "INSUFFICIENT_BUYING_POWER",
   POSITION_LIMIT_EXCEEDED: "POSITION_LIMIT_EXCEEDED",
+  /** A sell for more shares than the account holds, less what its working sells already commit. */
+  INSUFFICIENT_POSITION: "INSUFFICIENT_POSITION",
+  ORDER_VALUE_LIMIT_EXCEEDED: "ORDER_VALUE_LIMIT_EXCEEDED",
   DUPLICATE_CLIENT_ORDER_ID: "DUPLICATE_CLIENT_ORDER_ID",
   RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
   UNKNOWN_ACCOUNT: "UNKNOWN_ACCOUNT",
@@ -92,6 +95,8 @@ export const RejectReason = {
   TOO_LATE_TO_CANCEL: "TOO_LATE_TO_CANCEL",
   MALFORMED_REQUEST: "MALFORMED_REQUEST",
   VENUE_UNAVAILABLE: "VENUE_UNAVAILABLE",
+  /** The exchange refused it after our checks passed. Its own reason is in the reject text. */
+  EXCHANGE_REJECTED: "EXCHANGE_REJECTED",
 } as const;
 export type RejectReason = (typeof RejectReason)[keyof typeof RejectReason];
 
