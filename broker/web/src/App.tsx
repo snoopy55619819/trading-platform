@@ -1,10 +1,11 @@
-// Step 4's placeholder: the trading screen's frame in the current style and mode, with
-// stand-in panels, so the layouts and tokens can be checked before any section exists.
-// Replaced by the real sections in step 5.
+// Step 4's placeholder: the trading screen in the current style and mode, drawn from that
+// style's default layout, with stand-in panels so the layouts and tokens can be checked
+// before any section exists. Replaced by the real sections in step 5.
 
-import { Panel, Shell } from "./ui/Shell.tsx";
+import { DEFAULT_LAYOUTS, type PanelInstance, type SectionType } from "./layout/layouts.ts";
 import { ThemeSwitcher } from "./theme/ThemeSwitcher.tsx";
 import { STYLE_NAMES, useTheme } from "./theme/theme.ts";
+import { Panel, Shell } from "./ui/Shell.tsx";
 
 function Sample() {
   // A few rows that show text, numbers, and the up and down colours together.
@@ -28,42 +29,59 @@ function Sample() {
   );
 }
 
+const TITLES: Record<SectionType, string> = {
+  watchlist: "Watchlist",
+  chart: "ACME · 1m",
+  book: "Order book",
+  tape: "Time and sales",
+  ticket: "Order ticket",
+  positions: "Positions",
+};
+
+function StandIn({ panel }: { panel: PanelInstance }) {
+  if (panel.type === "chart") {
+    return (
+      <Panel title={TITLES.chart}>
+        <div className="numbers" style={{ fontSize: "var(--fs-xl)", fontWeight: "var(--weight-strong)" }}>
+          42.15 <span className="up" style={{ fontSize: "var(--fs-md)" }}>+0.18 (+0.42%)</span>
+        </div>
+      </Panel>
+    );
+  }
+  if (panel.type === "ticket") {
+    return (
+      <Panel title={TITLES.ticket}>
+        <div style={{ display: "flex", gap: "var(--space-3)" }}>
+          <button type="button" className="button buy" style={{ flex: 1 }}>Buy</button>
+          <button type="button" className="button sell" style={{ flex: 1 }}>Sell</button>
+        </div>
+      </Panel>
+    );
+  }
+  return (
+    <Panel title={TITLES[panel.type]}>
+      <Sample />
+    </Panel>
+  );
+}
+
 export function App() {
   const theme = useTheme();
   return (
     <Shell
-      areas={{
-        header: (
-          <Panel>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap" }}>
-              <strong style={{ fontSize: "var(--fs-lg)" }}>Broker</strong>
-              <span className="muted">
-                {STYLE_NAMES[theme.style]} · {theme.mode}
-              </span>
-              <ThemeSwitcher />
-            </div>
-          </Panel>
-        ),
-        watch: <Panel title="Watchlist"><Sample /></Panel>,
-        chart: (
-          <Panel title="ACME · 1m">
-            <div className="numbers" style={{ fontSize: "var(--fs-xl)", fontWeight: "var(--weight-strong)" }}>
-              42.15 <span className="up" style={{ fontSize: "var(--fs-md)" }}>+0.18 (+0.42%)</span>
-            </div>
-          </Panel>
-        ),
-        book: <Panel title="Order book"><Sample /></Panel>,
-        tape: <Panel title="Time and sales"><Sample /></Panel>,
-        ticket: (
-          <Panel title="Order ticket">
-            <div style={{ display: "flex", gap: "var(--space-3)" }}>
-              <button type="button" className="button buy" style={{ flex: 1 }}>Buy</button>
-              <button type="button" className="button sell" style={{ flex: 1 }}>Sell</button>
-            </div>
-          </Panel>
-        ),
-        bottom: <Panel title="Positions"><Sample /></Panel>,
-      }}
+      layout={DEFAULT_LAYOUTS[theme.style]}
+      header={
+        <Panel>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3)", flexWrap: "wrap" }}>
+            <strong style={{ fontSize: "var(--fs-lg)" }}>Broker</strong>
+            <span className="muted">
+              {STYLE_NAMES[theme.style]} · {theme.mode}
+            </span>
+            <ThemeSwitcher />
+          </div>
+        </Panel>
+      }
+      render={(panel) => <StandIn panel={panel} />}
     />
   );
 }

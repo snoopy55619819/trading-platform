@@ -1,111 +1,84 @@
 /*
-  The trading screen's layout, per style. Each section sits in a named area; a style
-  decides where each area goes, and Calm leaves some out. Sections never know where they
-  are: moving one is a change here and nowhere else.
+  How a layout is drawn. Where each panel goes is data (layout/layouts.ts); Shell hands it
+  over as CSS variables on each panel, and these rules turn them into grid positions:
 
-  Areas: header, watch (watchlist), chart, book (order book), tape (time and sales),
-  ticket (order ticket), bottom (positions, orders).
+    --col     its columns on the desktop grid, "x+1 / span w"
+    --row     its rows, "y+1 / span h"
+    --min-h   in a flow layout, the least height it gets
+    --order   its place in the phone column
+
+  Two fits:
+    screen  the grid fills the window; rows are equal shares of the height, and a panel
+            taller than its cells scrolls inside itself (Pro, Active)
+    flow    rows size to their content and the page scrolls (Calm)
 */
 
 .shell {
-  display: grid;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   gap: var(--gap);
   padding: var(--gap);
-  min-height: 100vh;
-  /* Phone width, every style: one column, the things you act on first. */
+}
+.shell.fit-flow {
+  max-width: var(--max-width, none);
+  margin: 0 auto;
+}
+
+/* Phone width, every layout: one column, in the layout's phone order. */
+.grid {
+  display: grid;
+  gap: var(--gap);
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "header"
-    "chart"
-    "ticket"
-    "book"
-    "bottom"
-    "watch"
-    "tape";
 }
 .area {
   min-width: 0;
+  order: var(--order);
 }
-/* Where rows size to their content (phones, and Calm everywhere), the chart has no row
-   height to fill, so it gets one of its own. */
-.area-chart {
-  height: 340px;
-}
-.area-header { grid-area: header; }
-.area-watch { grid-area: watch; }
-.area-chart { grid-area: chart; }
-.area-book { grid-area: book; }
-.area-tape { grid-area: tape; }
-.area-ticket { grid-area: ticket; }
-.area-bottom { grid-area: bottom; }
-
-/* Calm shows one thing at a time: no depth or tape unless asked for. */
-:root[data-style="calm"] .area-book,
-:root[data-style="calm"] .area-tape {
+.area.hide-on-phone {
   display: none;
 }
-:root[data-style="calm"] .shell {
-  grid-template-areas:
-    "header"
-    "chart"
-    "ticket"
-    "bottom"
-    "watch";
+.area[data-type="chart"] {
+  height: 340px;
 }
 
 @media (min-width: 1024px) {
-  /* Pro and Active fit the window exactly: each area fills its row, and a panel whose
-     content is longer scrolls inside itself instead of stretching the page. */
-  :root:not([data-style="calm"]) .area {
+  .grid {
+    grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  }
+  .area,
+  .area.hide-on-phone {
+    display: block;
+    order: 0;
+    grid-column: var(--col);
+    grid-row: var(--row);
+  }
+
+  /* screen: exactly the window, each row an equal share. */
+  .shell.fit-screen {
+    height: 100vh;
+  }
+  .fit-screen .grid {
+    flex: 1;
+    min-height: 0;
+    grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+  }
+  .fit-screen .area {
     min-height: 0;
   }
-  :root:not([data-style="calm"]) .area-chart {
+  .fit-screen .area[data-type="chart"] {
     height: auto;
   }
-  :root:not([data-style="calm"]) .panel-body {
+  .fit-screen .panel-body {
     min-height: 0;
   }
 
-  /* Pro: the chart in the middle, everything else around it at once. */
-  :root .shell,
-  :root[data-style="pro"] .shell {
-    height: 100vh;
-    grid-template-columns: 220px minmax(0, 1fr) 300px;
-    grid-template-rows: auto minmax(0, 3fr) auto minmax(0, 2fr);
-    grid-template-areas:
-      "header header header"
-      "watch  chart  book"
-      "watch  chart  ticket"
-      "watch  bottom tape";
+  /* flow: as tall as the content, never shorter than the layout asks. */
+  .fit-flow .area {
+    min-height: var(--min-h);
   }
-
-  /* Active: trading first. The ticket and book side by side with the chart. */
-  :root[data-style="active"] .shell {
-    height: 100vh;
-    grid-template-columns: 240px minmax(0, 1fr) 340px;
-    grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr);
-    grid-template-areas:
-      "header header header"
-      "watch  chart  ticket"
-      "watch  chart  book"
-      "bottom bottom tape";
-  }
-
-  /* Calm: a single, centred column with room to breathe. */
-  :root[data-style="calm"] .shell {
-    max-width: 880px;
-    margin: 0 auto;
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
-    grid-template-areas:
-      "header"
-      "chart"
-      "ticket"
-      "bottom"
-      "watch";
-  }
-  :root[data-style="calm"] .area-chart {
-    height: 420px;
+  .fit-flow .area[data-type="chart"] {
+    height: var(--min-h);
   }
 }
 
