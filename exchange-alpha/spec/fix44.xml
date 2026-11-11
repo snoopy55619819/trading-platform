@@ -11,7 +11,7 @@
   Scope: the session layer in full, plus four application messages. Anything not listed
   here is out of scope and must be rejected, not ignored.
 -->
-<fix major="4" minor="4" servicepack="0">
+<fix type="FIX" major="4" minor="4" servicepack="0">
 
   <header>
     <field name="BeginString" required="Y"/>

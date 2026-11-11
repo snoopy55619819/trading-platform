@@ -1,0 +1,31 @@
+# Alpha Exchange's own database: FIX session state for the gateway. Owned by the exchange
+# and nobody else; the broker has its own on port 5432.
+#
+#   docker compose -f exchange-alpha/compose.yml up -d --wait
+#
+# `name` is pinned so this is the same Compose project wherever it is run from.
+name: exchange-alpha
+
+services:
+  exchange-postgres:
+    image: postgres:18-alpine
+    container_name: exchange-alpha-postgres
+    environment:
+      POSTGRES_USER: exchange_alpha
+      POSTGRES_PASSWORD: exchange_alpha
+      POSTGRES_DB: exchange_alpha
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5433:5432"
+    volumes:
+      # Postgres 18+ expects the mount one level above the data directory.
+      - exchange-alpha-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange_alpha -d exchange_alpha"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  exchange-alpha-pgdata:

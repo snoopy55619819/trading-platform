@@ -31,3 +31,9 @@ journals/
 
 # Logs
 *.log
+
+# QuickFIX/Go sequence-number store from conformance runs
+.store/
+
+# Default gateway journal directory (exchange-alpha/data/)
+exchange-alpha/data/

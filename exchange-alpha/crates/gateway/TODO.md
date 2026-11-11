@@ -3,7 +3,13 @@
 **The exchange's door, and the binary you run.** The only crate that has heard of both
 FIX and order books — which is precisely why the other three haven't.
 
-Status: **not started** · depends on: `fix-core`, `matching-engine`
+Status: **done** · 11 tests, plus QuickFIX conformance
+
+```
+docker compose -f compose.yml up -d --wait     # the exchange's own database
+cargo run -p gateway                           # listens on 127.0.0.1:9878
+./conformance/run.sh                           # QuickFIX trades, crash, recovery
+```
 
 ## Inputs / outputs
 
@@ -17,40 +23,91 @@ Status: **not started** · depends on: `fix-core`, `matching-engine`
 ## Checklist
 
 ### 1. Server
-- [ ] TCP listener, one task per connection
-- [ ] Session lifecycle: logon → active → logout/disconnect
-- [ ] Map `SenderCompID` to a participant id — this is who the engine credits the order to
-- [ ] Reject a second concurrent session for the same CompID
+- [x] TCP listener, one task per connection
+- [x] Session lifecycle: logon → active → logout/disconnect
+- [x] Map `SenderCompID` to a participant id — this is who the engine credits the order to
+- [x] Reject a second concurrent session for the same CompID
 
 ### 2. Validation, before the engine sees anything
-- [ ] Symbol exists and is `ACTIVE` (read from `spec/listings.json` at boot — no database)
-- [ ] `price_cents % tick_size_cents == 0`
-- [ ] `qty % lot_size == 0` and `qty > 0`
-- [ ] Price within `reference_price_cents ± price_band_pct`
-- [ ] `Price` present for Limit, absent for Market
-- [ ] Duplicate `ClOrdID` for this session and business date
-- [ ] Each rejection maps to a specific `OrdRejReason` — never a bare "rejected"
+- [x] Symbol exists and is `ACTIVE` (read from `spec/listings.json` at boot — no database)
+- [x] `price_cents % tick_size_cents == 0`
+- [x] `qty % lot_size == 0` and `qty > 0`
+- [x] Price within `reference_price_cents ± price_band_pct`
+- [x] `Price` present for Limit, absent for Market
+- [x] Duplicate `ClOrdID` for this session and business date
+- [x] Each rejection maps to a specific `OrdRejReason` — never a bare "rejected"
 
 ### 3. Translation
-- [ ] `NewOrderSingle(D)` → engine `NewOrder`
-- [ ] `OrderCancelRequest(F)` → engine `Cancel`
-- [ ] Engine `Trade`/`Accepted`/`Rejected` → `ExecutionReport(8)` with the right `ExecType`
+- [x] `NewOrderSingle(D)` → engine `NewOrder`
+- [x] `OrderCancelRequest(F)` → engine `Cancel`
+- [x] Engine `Trade`/`Accepted`/`Rejected` → `ExecutionReport(8)` with the right `ExecType`
       and `OrdStatus`, running `CumQty`/`LeavesQty`/`AvgPx`
-- [ ] `LastLiquidityInd(851)` set correctly — the fee schedule depends on maker vs taker
-- [ ] Cancel rejections → `OrderCancelReject(9)`, not a session-level reject
-- [ ] **An execution report goes only to the session that owns the order.** Getting this
+- [x] `LastLiquidityInd(851)` set correctly — the fee schedule depends on maker vs taker
+- [x] Cancel rejections → `OrderCancelReject(9)`, not a session-level reject
+- [x] **An execution report goes only to the session that owns the order.** Getting this
       wrong leaks one participant's activity to another.
 
 ### 4. Persistence
-- [ ] Own database and migrations: `fix_sessions` (seq numbers), `fix_outbound_store`
-- [ ] Sequence numbers survive a restart
+- [x] Own database and migrations: `fix_sessions` (seq numbers), `fix_outbound_store`
+- [x] Sequence numbers survive a restart
 
 ### 5. Tests
-- [ ] Each validation rule rejects with the right reason
-- [ ] Two sessions trade against each other; each sees only its own reports
-- [ ] Kill the gateway mid-session; on restart the client's resend recovers cleanly
+- [x] Each validation rule rejects with the right reason
+- [x] Two sessions trade against each other; each sees only its own reports
+- [x] Kill the gateway mid-session; on restart the client's resend recovers cleanly
 
 ## Done when
 
 A QuickFIX client and the broker's TypeScript initiator can both log on, trade against
 each other through the book, and recover from a mid-session kill.
+
+**Met for QuickFIX** (`conformance/run.sh`, QuickFIX/Go loading `spec/fix44.xml`): two
+sessions trade, cancel and are rejected; the gateway is killed with SIGKILL and restarted;
+the book survives; a fill that happened while a client was away reaches it by resend with
+`PossDupFlag=Y`. The broker's TypeScript initiator is built in M6 (`broker/backend/TODO.md`);
+this test is how it will be checked.
+
+## Design
+
+One task (`core.rs`) owns the engine, the order tracker and every FIX session. Connection
+tasks only move bytes. Matching therefore stays single-threaded and deterministic however
+many clients connect, with no locks.
+
+Sessions are keyed by CompID, not connection. A disconnected client's session lives on:
+reports for its orders are numbered and stored, and the gap shows up when it logs back on.
+
+Order state for execution reports (`CumQty`, `LeavesQty`, `AvgPx`) is derived purely from
+engine events, so replaying the journal rebuilds it exactly. Nothing extra to persist.
+
+## Decisions
+
+- **Participant = `CompID/Account`.** Self-trade prevention applies per account, so two clients
+  of the same broker may trade with each other; cancels must come from the same session and
+  account.
+- **`ExecID` = `{journal seq}-{n}`.** Replay reproduces the journal sequence, so ids stay
+  unique across restarts with nothing extra stored. Rejections that never reach the engine
+  use `R{time}-{n}`.
+- **Fees on every fill:** `Commission(12)` with `CommType=3` (absolute), maker rebate negative,
+  rounded half away from zero in integer cents.
+- **A canceled order's report carries the cancel request's `ClOrdID`**, and `OrderID` ties it
+  to the order. (The published spec has no `OrigClOrdID` on `ExecutionReport`.)
+- **Authentication is a CompID allowlist** (`ALPHA_COMP_IDS`). The spec's Logon has no
+  username or password fields.
+
+## Known gaps
+
+- **Crash window.** A command is journaled, then the reports it produces are stored for
+  resend. A crash between the two loses those reports: the trade happened, the client is
+  never told. The fix is to regenerate reports from the journal on recovery, or to keep FIX
+  state in the same journal. Worth doing before anything depends on it.
+- **Rejected `ClOrdID`s are forgotten on restart.** Accepted orders are rebuilt from the
+  journal; orders rejected before the engine, and cancel requests, are not journaled.
+- **No business date.** Duplicate `ClOrdID` checks span the process's life, not a trading day,
+  until the clock service exists.
+- **Slow clients are unbounded.** A connection's outbound queue has no limit.
+
+## Found by conformance testing
+
+QuickFIX refused to load the published spec at all: its root element lacked `type="FIX"`.
+Our own parser never cared, which is exactly the class of bug only an independent
+implementation catches. Fixed in spec 1.0.1; the broker re-synced its vendored copy.

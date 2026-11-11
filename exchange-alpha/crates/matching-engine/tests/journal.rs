@@ -163,3 +163,29 @@ fn rejected_commands_are_journaled_too() {
     );
     assert_eq!(recovered.engine(), live.engine());
 }
+
+#[test]
+fn opening_can_observe_the_replayed_events() {
+    let journal = TempJournal::new();
+    {
+        let mut live = JournaledEngine::open(&journal.0).unwrap();
+        live.submit(sell("alice", 100, 4210)).unwrap();
+        live.submit(sell("bob", 50, 4211)).unwrap();
+        assert_eq!(live.last_seq(), 2);
+    }
+
+    let mut accepted = Vec::new();
+    let recovered = JournaledEngine::open_observing(&journal.0, |event| {
+        if let Event::Accepted { participant, .. } = event {
+            accepted.push(participant.clone());
+        }
+    })
+    .unwrap();
+
+    assert_eq!(accepted, ["alice", "bob"]);
+    assert_eq!(
+        recovered.last_seq(),
+        2,
+        "sequence numbering resumes, not restarts"
+    );
+}
