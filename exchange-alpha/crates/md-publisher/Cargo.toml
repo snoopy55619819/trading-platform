@@ -6,4 +6,26 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+[[bin]]
+# A terminal subscriber: renders one symbol's live depth ladder. The exchange's reference
+# client for its own feed, used to check the feed by eye.
+name = "md-watch"
+path = "src/bin/md-watch.rs"
+
 [dependencies]
+matching-engine.workspace = true
+anyhow = "1"
+bytes = "1"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+prost = "0.14"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
+tokio-tungstenite = "0.30"
+tracing = "0.1"
+
+[build-dependencies]
+prost-build = "0.14"
+# A protobuf compiler written in Rust, so building needs no protoc installed.
+protox = "0.10"
+
+[dev-dependencies]
+proptest = "1"
