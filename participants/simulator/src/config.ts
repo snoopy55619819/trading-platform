@@ -6,22 +6,22 @@ import type { Listing, Profile } from "./market/fair-value.ts";
 
 /**
  * How each listed company behaves. Invented to match the names: a utility barely moves, a
- * biotech jumps on news. A ticker the venue lists but this table does not know gets the
+ * biotech jumps on news. How often each has news is the newswire's business, not ours. A ticker the venue lists but this table does not know gets the
  * default.
  */
 const PROFILES: Record<string, Profile> = {
-  ACME: { dailyVol: 0.025, jumpsPerDay: 2, jumpSize: 1.5 }, // industrial
-  BLTZ: { dailyVol: 0.03, jumpsPerDay: 2, jumpSize: 1.5 }, // logistics
-  CRUX: { dailyVol: 0.045, jumpsPerDay: 3, jumpSize: 2 }, // semiconductors
-  DYNE: { dailyVol: 0.035, jumpsPerDay: 3, jumpSize: 1.5 }, // energy
-  ECHO: { dailyVol: 0.025, jumpsPerDay: 2, jumpSize: 1.5 }, // telecoms
-  FLUX: { dailyVol: 0.035, jumpsPerDay: 2, jumpSize: 1.5 }, // materials
-  GRID: { dailyVol: 0.012, jumpsPerDay: 1, jumpSize: 1.5 }, // utility: the quiet one
-  HELX: { dailyVol: 0.07, jumpsPerDay: 4, jumpSize: 2.5 }, // biotech: the wild one
-  IONX: { dailyVol: 0.03, jumpsPerDay: 2, jumpSize: 1.5 }, // chemicals
-  JOLT: { dailyVol: 0.018, jumpsPerDay: 1, jumpSize: 1.5 }, // consumer staples
+  ACME: { dailyVol: 0.025, jumpSize: 1.5 }, // industrial
+  BLTZ: { dailyVol: 0.03, jumpSize: 1.5 }, // logistics
+  CRUX: { dailyVol: 0.045, jumpSize: 2 }, // semiconductors
+  DYNE: { dailyVol: 0.035, jumpSize: 1.5 }, // energy
+  ECHO: { dailyVol: 0.025, jumpSize: 1.5 }, // telecoms
+  FLUX: { dailyVol: 0.035, jumpSize: 1.5 }, // materials
+  GRID: { dailyVol: 0.012, jumpSize: 1.5 }, // utility: the quiet one
+  HELX: { dailyVol: 0.07, jumpSize: 2.5 }, // biotech: the wild one
+  IONX: { dailyVol: 0.03, jumpSize: 1.5 }, // chemicals
+  JOLT: { dailyVol: 0.018, jumpSize: 1.5 }, // consumer staples
 };
-const DEFAULT_PROFILE: Profile = { dailyVol: 0.03, jumpsPerDay: 2, jumpSize: 1.5 };
+const DEFAULT_PROFILE: Profile = { dailyVol: 0.03, jumpSize: 1.5 };
 
 export function profileFor(ticker: string): Profile {
   return PROFILES[ticker] ?? DEFAULT_PROFILE;
@@ -50,6 +50,8 @@ export interface Config {
   fixHost: string;
   fixPort: number;
   feedUrl: string;
+  /** The newswire's WebSocket; empty to trade without news. */
+  newsUrl: string;
   compId: string;
   listings: Listing[];
   /** Seeds the random number generator; the same seed replays the same price paths. */
@@ -80,9 +82,16 @@ function number(name: string, fallback: number): number {
   return value;
 }
 
+interface PublishedNewswire {
+  live: { host: string; port: number; path: string };
+}
+
 export function loadConfig(): Config {
   const path = new URL("../vendor/exchange-alpha/listings.json", import.meta.url);
   const published = JSON.parse(readFileSync(path, "utf8")) as PublishedListings;
+  const wire = (
+    JSON.parse(readFileSync(new URL("../vendor/newswire/newswire.json", import.meta.url), "utf8")) as PublishedNewswire
+  ).live;
   const { order_entry: fix, market_data: feed } = published.venue;
   return {
     venue: published.venue.code,
@@ -90,6 +99,7 @@ export function loadConfig(): Config {
     fixHost: env("SIM_FIX_HOST", fix.host),
     fixPort: number("SIM_FIX_PORT", fix.port),
     feedUrl: env("SIM_FEED_URL", `ws://${feed.host}:${feed.port}`),
+    newsUrl: env("SIM_NEWS_URL", `ws://${wire.host}:${wire.port}${wire.path}`),
     compId: env("SIM_COMP_ID", "SIM"),
     listings: published.symbols
       .filter((s) => s.status === "ACTIVE")

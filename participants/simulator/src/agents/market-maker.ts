@@ -9,8 +9,11 @@
 //              past 1.5x the limit that side goes
 //   pulling    on a jump in fair value, cancel everything and wait: quotes at the old price
 //              are free money for whoever trades against them first
+//   news       after a headline the symbol is "hot" (market/news.ts): fair value moves
+//              faster, so the spread widens by itself, and it shows smaller sizes
 
 import { type FairValue, type Listing, toTick, withinBand } from "../market/fair-value.ts";
+import { quoteSizeMultiplier } from "../market/news.ts";
 import type { Order, Side } from "../orders.ts";
 import { type Agent, type Context, lotFor } from "./context.ts";
 
@@ -117,7 +120,7 @@ export class MarketMaker implements Agent {
       volPerSec: this.fair.volPerSec(this.context.activity),
       inventory: positions.get(this.name, this.symbol).qty,
       maxInventory: this.maxInventory,
-      lot: this.lot,
+      lot: Math.max(1, Math.round(this.lot * quoteSizeMultiplier(this.fair.heat))),
       listing: this.fair.listing,
     };
 
