@@ -11,6 +11,7 @@ export function Dialog({
   actions,
   onClose,
   busy = false,
+  wide = false,
 }: {
   open: boolean;
   title: string;
@@ -20,6 +21,8 @@ export function Dialog({
   onClose: () => void;
   /** While true, Escape does nothing (a request is in flight). */
   busy?: boolean;
+  /** Room for a diagram: about twice the usual width. */
+  wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -32,7 +35,7 @@ export function Dialog({
   return (
     <dialog
       ref={ref}
-      className="dialog"
+      className={wide ? "dialog wide" : "dialog"}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault(); // closed by the parent's state, not by the browser

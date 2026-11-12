@@ -170,6 +170,9 @@ button {
   color: var(--text);
   box-shadow: 0 16px 48px rgb(0 0 0 / 25%);
 }
+.dialog.wide {
+  width: min(760px, calc(100vw - 32px));
+}
 .dialog::backdrop {
   background: rgb(0 0 0 / 45%);
 }

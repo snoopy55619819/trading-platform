@@ -1,0 +1,111 @@
+/* The "How it works?" guide (ADR 0007). Tokens only, so every style and mode is covered. */
+
+.guide {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.guide-tabs {
+  flex-wrap: wrap;
+  align-self: flex-start;
+}
+.guide-summary {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+/* ---------- the diagram ---------- */
+.flow {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--bg);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font);
+}
+.flow-box rect {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+.flow-box.current rect {
+  fill: var(--surface-2);
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.flow-box.later {
+  opacity: 0.4;
+}
+.flow-box text {
+  text-anchor: middle;
+  fill: var(--text);
+}
+.flow-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.flow-sub {
+  font-size: 11px;
+  fill: var(--text-muted) !important;
+}
+
+.flow-arrow line {
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+}
+.flow-head {
+  fill: var(--text-muted);
+}
+.flow-head-lit {
+  fill: var(--accent);
+}
+/* Arrows whose step is still to come: faint, dashed and with no head, so they read as "not yet". */
+.flow-arrow.later line {
+  opacity: 0.35;
+  stroke-dasharray: 4 4;
+  marker-end: none;
+}
+.flow-arrow.lit line {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.flow-dot {
+  fill: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-dot {
+    display: none;
+  }
+}
+
+/* ---------- the step under it ---------- */
+.guide-step {
+  min-height: 7.5em; /* the longest step's text, so the buttons below do not jump */
+}
+.guide-count {
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.guide-title {
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--fs-lg);
+}
+.guide-text {
+  margin: 0;
+  line-height: 1.5;
+}
+.guide-controls {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+.guide-live {
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+}

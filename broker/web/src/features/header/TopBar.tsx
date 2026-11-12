@@ -1,10 +1,12 @@
-// The top bar: symbol search and quote, connection status, settings, sign out.
+// The top bar: symbol search and quote, connection status, the "How it works?" guide,
+// settings, sign out.
 // Fixed chrome, outside the panel layout.
 
 import { useState } from "react";
 
 import type { Security } from "../../api/backend.ts";
 import { signOut } from "../../query/hooks.ts";
+import { HowItWorks } from "../guide/HowItWorks.tsx";
 import { SettingsDialog } from "../settings/SettingsDialog.tsx";
 import { ConnectionStatus } from "./ConnectionStatus.tsx";
 import { QuoteHeader } from "./QuoteHeader.tsx";
@@ -25,6 +27,7 @@ export function TopBar({
 }) {
   const security = symbols.find((s) => s.symbol === selected);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   return (
     <div className="topbar">
       <span className="brand">Trading Platform</span>
@@ -33,6 +36,10 @@ export function TopBar({
       {symbolsFailed && symbols.length === 0 && <span className="hint">Could not load the symbol list. Retrying…</span>}
       <div className="topbar-end">
         <ConnectionStatus />
+        <button type="button" className="button" onClick={() => setGuideOpen(true)}>
+          How it works?
+        </button>
+        <HowItWorks open={guideOpen} onClose={() => setGuideOpen(false)} symbol={selected} />
         <button type="button" className="button" onClick={() => setSettingsOpen(true)}>
           Settings
         </button>
