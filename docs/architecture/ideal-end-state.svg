@@ -93,7 +93,7 @@
     <marker id="arr-3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="arrow-3" d="M0,0 L10,5 L0,10 z"/></marker>
   </defs>
 <rect class="export-bg" x="0" y="0" width="1420" height="1060" rx="10"/>
-<title id="dtitle">Ideal end state: broker, two venues, market infrastructure and a simulation layer across order, market data and post-trade planes</title>
+<title id="dtitle">Long-term goal: broker, two venues, market infrastructure and a simulation layer across order, market data and post-trade planes</title>
 
   <!-- Owner boundaries -->
   <g class="boundary own-1"><rect x="40" y="30" width="530" height="1010" rx="12"/><text x="56" y="52">BROKER</text></g>
