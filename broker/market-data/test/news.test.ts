@@ -38,6 +38,7 @@ function headline(symbol: string, minute: number, tone: Headline["tone"] = "POSI
     ts: new Date(Date.UTC(2099, 0, 1, 12, minute)).toISOString(),
     symbol,
     headline: `${symbol} story ${n}`,
+    body: `The story about ${symbol}, number ${n}.`,
     category: tone === "NEUTRAL" ? "CONFERENCE" : "EARNINGS_BEAT",
     tone,
     severity: "MINOR",
@@ -56,6 +57,9 @@ test("a headline is checked against the newswire's spec", () => {
   assert.match(String(checkHeadline({ ...good, tone: "HAPPY" }, ["ACME"])), /tone/);
   assert.match(String(checkHeadline({ ...good, severity: "HUGE" }, ["ACME"])), /severity/);
   assert.match(String(checkHeadline({ ...good, headline: "" }, ["ACME"])), /headline/);
+  assert.match(String(checkHeadline({ ...good, body: 42 }, ["ACME"])), /body/);
+  const { body: _, ...withoutBody } = good;
+  assert.deepEqual(checkHeadline(withoutBody, ["ACME"]), withoutBody, "a 1.0.0 headline, with no body, is fine");
   assert.match(String(checkHeadline("text", ["ACME"])), /object/);
 });
 
@@ -68,9 +72,14 @@ test("stored once, served newest first, for one symbol or all", () =>
     assert.equal(await insertHeadline(db, a), false, "the same id again");
     await insertHeadline(db, b);
     await insertHeadline(db, c);
-    assert.deepEqual(await recentNews(db, "ACME", 10), [c, a]);
+    assert.deepEqual(await recentNews(db, "ACME", 2), [c, a], "ours sort after anything real: they are in 2099");
     assert.deepEqual((await recentNews(db, undefined, 2)).map((h) => h.id), [c.id, b.id]);
     assert.equal(await newestHeadlineTs(db), c.ts);
+
+    // One without a story (a 1.0.0 newswire) comes back without a body field at all.
+    const { body: _, ...d } = headline("ACME", 4);
+    await insertHeadline(db, d);
+    assert.deepEqual((await recentNews(db, "ACME", 1))[0], d);
   }));
 
 test("every browser gets news, whatever symbols it watches", async () => {
