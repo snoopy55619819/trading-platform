@@ -4,6 +4,10 @@
 //   client -> {"subscribe": ["ACME", "CRUX"]}   or   {"unsubscribe": ["ACME"]}
 //   server -> {"type": "book",  "symbol", "live", "bids": [{priceCents, qty, orders}], "asks": [...]}
 //             {"type": "trade", "symbol", "priceCents", "qty", "aggressor", "ts", "tradeId"}
+//             {"type": "news",  "id", "ts", "symbol", "headline", "category", "tone", "severity"}
+//
+// News goes to every connected browser, whatever it subscribed to: there are only a few
+// stories an hour, and a news panel shows every symbol's.
 //
 // Books are CONFLATED: at most one per symbol every BOOK_INTERVAL_MS, always the latest. A
 // browser needs the current state, not every intermediate one. Trades are sent as they
@@ -19,6 +23,7 @@ import type { Server } from "node:http";
 import { type WebSocket, WebSocketServer } from "ws";
 
 import type { Mirror } from "../feed/mirror.ts";
+import type { Headline } from "../store/news.ts";
 import type { Tick } from "../store/ticks.ts";
 
 const BOOK_INTERVAL_MS = 100;
@@ -63,6 +68,12 @@ export class Fanout {
     for (const [socket, symbols] of this.subscribers) {
       if (symbols.has(tick.symbol)) this.send(socket, message);
     }
+  }
+
+  /** A newly stored headline, to every browser. */
+  news(headline: Headline): void {
+    const message = JSON.stringify({ type: "news", ...headline });
+    for (const socket of this.subscribers.keys()) this.send(socket, message);
   }
 
   close(): void {
