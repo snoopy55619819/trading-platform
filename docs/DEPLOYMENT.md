@@ -191,7 +191,11 @@ deploys.
    connects to the server and holds no AWS credentials.** Instead the server's deploy agent
    ([`hosting/deploy-agent.sh`](../hosting/deploy-agent.sh), every minute) notices `live`
    moved, checks out that version and runs `docker compose pull && docker compose up -d`
-   for each company: the exchange and the newswire first, then the simulator, then the broker. Only containers whose image changed restart, and
+   for each company: the exchange and the newswire first, then the simulator, then the broker.
+   The deploying is done by the copy of the agent that ships with the release: after the
+   checkout, the agent hands over to the new copy. (Until that was added, each release was
+   deployed by the previous release's agent, so `v0.5.0` started without the newswire that
+   its own agent listed; it was started by running the agent again.) Only containers whose image changed restart, and
    the backend and market-data apply pending migrations as they start. The workflow then
    waits until https://tradeplatform.dev/version.txt reports the new version.
 5. **What a restart does.** A gateway restart loads the day's snapshot and journal in
