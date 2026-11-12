@@ -8,7 +8,7 @@
 // panel and a placement. Nothing here knows about dragging yet; it only has to be the
 // right shape for it.
 
-export const SECTION_TYPES = ["watchlist", "chart", "book", "tape", "ticket", "activity"] as const;
+export const SECTION_TYPES = ["watchlist", "chart", "book", "tape", "ticket", "activity", "news"] as const;
 export type SectionType = (typeof SECTION_TYPES)[number];
 
 /** One panel on screen. Its id is unique within a layout; its type says what it shows. */
@@ -55,69 +55,74 @@ const at = (id: string, x: number, y: number, w: number, h: number): Placement =
 
 /** The defaults for each style. A user's own layout, when saved, replaces one of these. */
 export const DEFAULT_LAYOUTS = {
-  // Chart in the middle, everything else around it at once.
+  // Chart in the middle, everything else around it at once. News under the watchlist.
   pro: {
     fit: "screen",
     columns: COLUMNS,
     rows: 12,
     panels: SECTION_TYPES.map(panel),
     desktop: [
-      at("watchlist", 0, 0, 2, 12),
+      at("watchlist", 0, 0, 2, 8),
+      at("news", 0, 8, 2, 4),
       at("chart", 2, 0, 7, 8),
       at("activity", 2, 8, 7, 4),
       at("book", 9, 0, 3, 4),
       at("ticket", 9, 4, 3, 5),
       at("tape", 9, 9, 3, 3),
     ],
-    phone: ["chart", "ticket", "book", "activity", "watchlist", "tape"],
+    phone: ["chart", "ticket", "book", "activity", "watchlist", "news", "tape"],
   },
-  // Trading first: the ticket and book beside the chart.
+  // Trading first: the ticket and book beside the chart. News under the watchlist.
   active: {
     fit: "screen",
     columns: COLUMNS,
     rows: 12,
     panels: SECTION_TYPES.map(panel),
     desktop: [
-      at("watchlist", 0, 0, 2, 12),
+      at("watchlist", 0, 0, 2, 8),
+      at("news", 0, 8, 2, 4),
       at("chart", 2, 0, 7, 8),
       at("activity", 2, 8, 7, 4),
       at("ticket", 9, 0, 3, 5),
       at("book", 9, 5, 3, 4),
       at("tape", 9, 9, 3, 3),
     ],
-    phone: ["chart", "ticket", "book", "tape", "activity", "watchlist"],
+    phone: ["chart", "ticket", "book", "tape", "activity", "news", "watchlist"],
   },
   // Everything at once, tightly: depth and the tape full height beside the chart, so they
-  // show many rows, with the ticket under them.
+  // show many rows, with the ticket under them. News under the watchlist.
   terminal: {
     fit: "screen",
     columns: COLUMNS,
     rows: 12,
     panels: SECTION_TYPES.map(panel),
     desktop: [
-      at("watchlist", 0, 0, 2, 12),
+      at("watchlist", 0, 0, 2, 6),
+      at("news", 0, 6, 2, 6),
       at("chart", 2, 0, 6, 7),
       at("activity", 2, 7, 6, 5),
       at("book", 8, 0, 2, 7),
       at("tape", 10, 0, 2, 7),
       at("ticket", 8, 7, 4, 5),
     ],
-    phone: ["chart", "ticket", "book", "tape", "activity", "watchlist"],
+    phone: ["chart", "ticket", "book", "tape", "activity", "news", "watchlist"],
   },
-  // One thing at a time: a single centred column, no depth or tape.
+  // One thing at a time: a single centred column, no depth or tape. News after the
+  // account, before the watchlist.
   calm: {
     fit: "flow",
     columns: COLUMNS,
     rows: 0,
     maxWidthPx: 880,
-    panels: (["chart", "ticket", "activity", "watchlist"] as const).map(panel),
+    panels: (["chart", "ticket", "activity", "news", "watchlist"] as const).map(panel),
     desktop: [
       at("chart", 0, 0, 12, 10),
       at("ticket", 0, 1, 12, 0),
       at("activity", 0, 2, 12, 0),
-      at("watchlist", 0, 3, 12, 0),
+      at("news", 0, 3, 12, 0),
+      at("watchlist", 0, 4, 12, 0),
     ],
-    phone: ["chart", "ticket", "activity", "watchlist"],
+    phone: ["chart", "ticket", "activity", "news", "watchlist"],
   },
 } as const satisfies Record<string, Layout>;
 

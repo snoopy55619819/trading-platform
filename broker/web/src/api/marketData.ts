@@ -1,5 +1,5 @@
-// broker market-data: chart history over HTTP, live books and trades over WebSocket.
-// Public data, so no session is involved.
+// broker market-data: chart history and news over HTTP, live books, trades and news over
+// WebSocket. Public data, so no session is involved.
 
 import { config } from "../config.ts";
 
@@ -43,7 +43,22 @@ export interface TradeMessage {
   tradeId: string;
 }
 
-export type LiveMessage = BookMessage | TradeMessage;
+/** A newswire headline, as market-data stores and pushes it (ADR 0006). */
+export interface NewsMessage {
+  type: "news";
+  id: string;
+  ts: string;
+  symbol: string;
+  headline: string;
+  /** The story under the headline; absent for headlines published without one. */
+  body?: string;
+  category: string;
+  tone: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
+  severity: "MINOR" | "MAJOR";
+}
+
+/** What /live sends. Every browser gets every headline, whatever it subscribed to. */
+export type LiveMessage = BookMessage | TradeMessage | NewsMessage;
 
 /** The most bars the service returns at once; ask for a wider interval to see further back. */
 export const MAX_BARS = 1000;
@@ -69,6 +84,16 @@ export async function fetchRecentTrades(symbol: string, limit = 50): Promise<Tra
   const body = (await response.json()) as { trades?: Omit<TradeMessage, "type" | "symbol">[]; text?: string };
   if (!response.ok || !body.trades) throw new Error(body.text ?? `trades: HTTP ${response.status}`);
   return body.trades.map((t) => ({ ...t, type: "trade", symbol }));
+}
+
+/** The latest headlines, newest first: for one symbol, or for every symbol. */
+export async function fetchNews(symbol: string | undefined, limit = 50): Promise<NewsMessage[]> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (symbol) query.set("symbol", symbol);
+  const response = await fetch(`${config.marketDataUrl}/news?${query}`);
+  const body = (await response.json()) as { news?: Omit<NewsMessage, "type">[]; text?: string };
+  if (!response.ok || !body.news) throw new Error(body.text ?? `news: HTTP ${response.status}`);
+  return body.news.map((n) => ({ ...n, type: "news" }));
 }
 
 export type ConnectionState = "connecting" | "open" | "closed";

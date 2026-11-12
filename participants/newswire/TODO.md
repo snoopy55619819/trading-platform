@@ -5,9 +5,9 @@ publishes them. The simulator trades on them, and the broker stores them and sho
 the web app. Why it is a separate participant, and why news moves prices, is in
 [ADR 0006](../../docs/adr/0006-news-from-a-newswire-participant.md).
 
-Stages 1 to 4b are done: the newswire publishes headlines with short stories, the simulator
-trades on them, and the broker's market-data stores and serves them. The web app does not
-show them yet. Each stage below is one PR.
+Stages 1 to 5 are done: the newswire publishes headlines with short stories, the simulator
+trades on them, the broker's market-data stores and serves them, and the web app shows them
+in a News panel and on the chart. Only deploying it is left. Each stage below is one PR.
 
 ## The flow
 
@@ -185,18 +185,18 @@ Each stage is one PR, with its tests and docs.
    - `GET /news` and the live push;
    - tests against Postgres.
    (PR #45)
-4b. [x] **Story bodies** (added after stage 4: a headline alone left the News panel nothing
+4b. [x] **Story bodies** (PR #46) (added after stage 4: a headline alone left the News panel nothing
    to open):
    - a story for each wording in `src/catalogue.ts`, with invented, consistent figures;
    - spec 1.1.0: an optional `body`, re-synced into the simulator and market-data;
    - market-data: a nullable `body` column (migration `0003_news_body`), in `/news` and the
      live push; a headline without one comes back without the field;
    - the simulator only types the field; it trades on headlines.
-5. [ ] **The web app:**
+5. [x] **The web app:**
    - the News panel in every style, with a headline opening its story;
-   - chart markers;
+   - chart markers, and the headline in the chart's legend;
    - tests for any new pure logic;
-   - screenshots.
+   - screenshots (`docs/images/news-*.png`). Details in `broker/web/TODO.md`.
 6. [ ] **Deploy:**
    - a Dockerfile, and `participants/newswire/deploy/compose.yml` on the `trading` network
      (its port is not published to the internet);

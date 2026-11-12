@@ -394,6 +394,29 @@ they read in every style and mode.
 - **Type anywhere to search:** typing a letter anywhere on the page, outside another field
   or a dialog and without Ctrl, Cmd or Alt, moves focus to the symbol box, and the letter goes
   in. Which presses count is a pure function (`startsSearch` in `features/header/search.ts`).
+- **News** (ADR 0006, stage 5 of `participants/newswire/TODO.md`):
+  - **A News panel** in every style, under the watchlist in Pro, Active and Terminal, and
+    after the account in Calm. It shows the newswire's latest headlines, for the selected
+    symbol or every symbol (remembered with the other settings; every symbol by default,
+    since one company's news can be an hour apart). The choice is labelled with the
+    selected ticker, so it fits a narrow panel.
+  - Each row: the time, the ticker (click it to select that symbol), a green ▲ for good
+    news, a red ▼ for bad and a grey dot for neutral. A major story's headline is bold.
+    Clicking a headline opens its story in place; one without a story (stored before
+    stories existed) is plain text.
+  - It shows the latest 10 and "Show more" adds 20, so it stays short in Calm, whose layout
+    grows with its content.
+  - Data: `GET /news` when the choice changes and every minute, joined with headlines
+    pushed on `/live` (a `NewsStore` beside the market store; the feed routes `news`
+    messages to it). Joining and placing are pure (`market/news.ts`).
+  - **On the chart:** a dot above each candle where one of the symbol's headlines landed,
+    in the tone of its newest moving story, drawn with the same series markers as the high
+    and low. Hovering that candle puts the headline in the legend ("+2 more" when several
+    landed on it).
+  - Checked against the real stack with `NEWS_RATE=40`: headlines arrived live, stories
+    opened, a ticker click selected its symbol, the dots sat on the right candles, and the
+    hovered candle's headline showed in the legend, in Active dark, Calm light, Terminal and
+    Pro light at phone width (no sideways scroll).
 
 ## Done when
 

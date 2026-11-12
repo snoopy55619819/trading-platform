@@ -7,7 +7,7 @@
 import { useState } from "react";
 
 import { INTERVALS, type Interval } from "../../api/marketData.ts";
-import { useHistory } from "../../market/hooks.ts";
+import { useHistory, useNews } from "../../market/hooks.ts";
 import { Segmented } from "../../ui/controls.tsx";
 import { Panel } from "../../ui/Shell.tsx";
 import { CandleChart } from "./CandleChart.tsx";
@@ -53,6 +53,8 @@ export function ChartSection({ symbol }: { symbol: string | undefined }) {
   const { interval, range } = view;
   const count = barsToFetch(range, interval);
   const history = useHistory(symbol, interval, count);
+  // The symbol's latest headlines, for the dots on the chart: about ten days' worth.
+  const news = useNews(symbol, 200);
 
   const update = (next: View) => {
     setView(next);
@@ -89,6 +91,7 @@ export function ChartSection({ symbol }: { symbol: string | undefined }) {
             // Framed again for a new view, a new range or a range click, and once more when
             // a longer history replaces the placeholder (the frame may reach further back).
             frameKey={history.isPlaceholderData ? undefined : `${viewKey}/${count}/${range}/${view.clicks}`}
+            news={symbol ? news.news : []}
           />
           {message && <p className="empty chart-message">{message}</p>}
         </div>

@@ -50,7 +50,7 @@ describe.skipIf(!live)("against the running services", () => {
     expect(Array.isArray(bars)).toBe(true);
 
     const store = new MarketStore();
-    const feed = new LiveFeed({ url: "ws://localhost:8081/live", onMessage: (m) => store.apply(m) });
+    const feed = new LiveFeed({ url: "ws://localhost:8081/live", onMessage: (m) => m.type !== "news" && store.apply(m) });
     store.attach(feed);
     store.want("ACME");
     feed.start();

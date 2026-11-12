@@ -41,7 +41,8 @@ by published protocols, the way real market infrastructure is.
 - **Crash safety:** a broker killed mid-trade loses no orders and books no fill twice.
 - **Simulated market:** market makers and traders keep prices moving, connecting over the
   same FIX session as any other client.
-- **Trading app:** React App with live prices, charts, order book, order confirmations, and positions with P&L, in four styles with light and dark modes.
+- **Trading app:** React App with live prices, charts, order book, order confirmations, positions with P&L, and news, in four styles with light and dark modes.
+- **News that moves the market:** a newswire invents headlines about the listed companies; the simulated traders react to them, and the app shows each story and marks it on the chart (ADR 0006).
 
 One set of components, four styles, each in light and dark (Terminal is dark only):
 
