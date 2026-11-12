@@ -1,0 +1,23 @@
+# The broker's one public address. SITE_ADDRESS is the hostname in production
+# (tradeplatform.dev: Caddy gets and renews its certificate itself) and `:80` locally.
+
+{$SITE_ADDRESS}
+
+encode zstd gzip
+
+# The backend's API, with the /api prefix removed: /api/orders reaches it as /orders.
+handle_path /api/* {
+	reverse_proxy backend:8080
+}
+
+# market-data's history and its live WebSocket, with the /md prefix removed.
+handle_path /md/* {
+	reverse_proxy market-data:8081
+}
+
+# The web client. Anything that is not a file is the app itself.
+handle {
+	root * /srv
+	try_files {path} /index.html
+	file_server
+}

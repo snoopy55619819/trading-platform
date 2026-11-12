@@ -24,6 +24,12 @@ way M8 was.
       (`?before=<orderId>`) and "load more" in History when 100 is not enough.
 - [ ] **"Synthetic, no real money" banner.** A small, always-visible note in the web app so
       nobody visiting a public instance mistakes it for a real broker.
+- [ ] **"Try it" button.** One click on the sign-in page creates a throwaway account with
+      funds already in it, so a visitor can place an order in seconds without signing up.
+      Throwaway accounts would need cleaning up, and fit with the public-instance limits.
+- [ ] **QuickFIX conformance in CI.** Run `exchange-alpha/conformance/run.sh` in the `ci`
+      workflow as well as the unit tests. It needs Go and the exchange's database, and takes
+      longer, so it could run on merges to `main` only.
 - [ ] **Limits for a public instance.** Rate limits on sign-up and sign-in, and a cap on
       "Add funds" (per deposit and per account), since anyone can open an account.
 - [ ] **Phone views for Pro and Active tables.** On a phone their positions and orders

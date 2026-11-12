@@ -1,22 +1,34 @@
 # Deploying the trading platform
 
-The plan for running the platform publicly as a live demo: what gets deployed, where, and
-how a change gets from `main` to the server. **Not built yet.** Why one server with Docker
+The plan for running the platform publicly as a live demo, at **`tradeplatform.dev`**: what
+gets deployed, where, and how a change gets from `main` to the server. **In progress:** the
+images and compose files are built and run locally (stage 1); CI, the AWS setup and
+deploys come next. Why one server with Docker
 Compose rather than two servers, Kubernetes or managed services is in
 [ADR 0003](adr/0003-one-server-with-docker-compose.md). Running it locally is in
 [RUNNING.md](RUNNING.md).
 
 ## The layout
 
-One AWS EC2 server, a `t4g.small` (2 vCPU, 2 GB of memory, ARM), running Docker Compose.
-Only [Caddy](https://caddyserver.com/) is reachable from the internet. It gets HTTPS
-certificates by itself and routes each subdomain:
+One AWS EC2 server, a `t4g.small` (2 vCPU, 2 GB of memory, ARM) running Amazon Linux 2023,
+in `us-east-1` (the cheapest region), running Docker Compose. Only
+[Caddy](https://caddyserver.com/) is reachable from the internet. It gets an HTTPS
+certificate by itself and routes by path on **one hostname**:
 
 ```
-app.<domain>  ->  the web client's files
-api.<domain>  ->  backend :8080
-md.<domain>   ->  market-data :8081 (including WebSocket)
+https://tradeplatform.dev/        ->  the web client's files
+https://tradeplatform.dev/api/... ->  backend :8080       (Caddy strips /api)
+https://tradeplatform.dev/md/...  ->  market-data :8081   (Caddy strips /md; includes the WebSocket)
 ```
+
+One hostname means one DNS record and one certificate, and because the web client and both
+APIs share an origin, browsers make no cross-origin (CORS) checks. The web client is built
+with path-only URLs (`/api`, `/md`), so the same image works on any hostname, locally too.
+
+**The domain** is registered at Cloudflare, which also serves its DNS: one `A` record
+pointing at the server's Elastic IP, set to "DNS only" (not proxied) so Caddy gets and
+renews its own Let's Encrypt certificate. `.dev` names only work over HTTPS, which Caddy
+provides.
 
 ```mermaid
 flowchart LR
@@ -52,9 +64,9 @@ changes to deploy it.
 |---|---|
 | gateway | `DATABASE_URL`, `ALPHA_DATA_DIR`, `ALPHA_LISTEN` and `ALPHA_MD_LISTEN` (`0.0.0.0:…` inside its container), `ALPHA_COMP_IDS` |
 | simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_ACTIVITY=0.2` for a quieter market |
-| backend | `DATABASE_URL`, `FIX_HOST=gateway`, `FIX_PORT=9878`, `BROKER_WEB_ORIGIN=https://app.<domain>` |
+| backend | `DATABASE_URL`, `FIX_HOST=gateway`, `FIX_PORT=9878`, `BROKER_WEB_ORIGIN=https://tradeplatform.dev` |
 | market-data | `MD_DATABASE_URL`, `MD_FEED_URL=ws://gateway:9879` |
-| web (at build time) | `VITE_BACKEND_URL=https://api.<domain>`, `VITE_MARKET_DATA_URL=https://md.<domain>` |
+| web (at build time) | `VITE_BACKEND_URL=/api`, `VITE_MARKET_DATA_URL=/md`: paths, so the image works on any hostname |
 
 **Health checks**, so compose starts things in order:
 - Postgres: `pg_isready`;
@@ -62,10 +74,11 @@ changes to deploy it.
 - backend: `GET /status`;
 - market-data: `GET /health`.
 
-**Memory** is estimated, not measured: about 1 to 1.3 GB in use (three small Postgres
-instances, three Node services, the gateway and Caddy). The server gets a 2 GB swap file as
-a safety net. Measure once it runs; if it is tight, a `t4g.medium` (4 GB) adds about $12 a
-month.
+**Memory**, measured with the whole stack running locally in Docker: about 350 MB at start
+(backend 80 MB, market-data and the simulator about 58 MB each, three Postgres about 40 MB
+each, Caddy 30 MB, the gateway 4 MB). It grows as the databases warm their caches, but a
+2 GB server has plenty of room, with a 2 GB swap file as a safety net. Measure again after a
+few days live.
 
 ## AWS services and cost
 
@@ -77,19 +90,20 @@ Estimated for us-east-1 (N. Virginia), November 2026. Prices change; check the t
 | EC2 `t4g.small` | 1 | runs everything | ~$12.30 |
 | EBS gp3, 30 GB | 1 volume | the server's disk: databases, day files, images | ~$2.40 |
 | Public IPv4 (Elastic IP) | 1 | a fixed address for DNS; AWS charges for every public IPv4 | ~$3.65 |
-| Route 53 hosted zone | 1 | DNS for `app.`, `api.` and `md.` | $0.50 |
-| Route 53 domain (`.com`) | 1 | the domain name, about $15 a year | ~$1.25 |
 | S3 | 1 bucket | nightly database dumps and the exchange's old day files | < $1 |
 | CloudWatch | a disk-usage metric, its alarm, a billing alarm | warnings before the disk or the bill gets out of hand | ~$0.30 |
 | Systems Manager | | shell access and deploys without SSH | $0 |
 | Data transfer out | | the first 100 GB a month is free; a demo uses far less | $0 |
-| **Total** | | | **≈ $21** |
+| **Total** | | | **≈ $19** |
 
-Not needed: a load balancer (Caddy routes), certificates from ACM (Caddy uses Let's
-Encrypt for free) and ECR (images live in the GitHub Container Registry).
+Plus the domain, paid to Cloudflare at about $12 a year, whose DNS is free.
 
-**Ways to pay less:** a 1-year Savings Plan takes about 30 to 40% off EC2, new accounts get
-sign-up credits for the first months, and an existing domain removes the domain line.
+Not needed: Route 53 (Cloudflare serves the DNS), a load balancer (Caddy routes),
+certificates from ACM (Caddy uses Let's Encrypt for free) and ECR (images live in the
+GitHub Container Registry).
+
+**Ways to pay less:** a 1-year Savings Plan takes about 30 to 40% off EC2, and new accounts
+get sign-up credits for the first months.
 
 **Alternatives.**
 
@@ -106,32 +120,71 @@ Five Dockerfiles, each in its own folder. There is still no shared build.
 
 - **Exchange** (`exchange-alpha/Dockerfile`): a two-stage build. Compile with the Rust image,
   then copy the binary into a small Debian slim image.
-- **Backend, market-data, simulator:** `node:26-slim` plus `pnpm install --prod`. No build
-  step: Node runs `.ts` directly, as it does locally. market-data and the simulator run
-  `proto:gen` while the image is built.
+- **Backend, market-data, simulator:** `node:26.8.1-slim` plus `pnpm install --prod`. No
+  build step: Node runs `.ts` directly, as it does locally. market-data and the simulator
+  generate the feed's types from the vendored proto in a first stage. The backend and
+  market-data apply pending migrations each time they start; the backend's security master
+  seed stays a deliberate, manual step.
 - **Web** (`broker/web/Dockerfile`): build with `vite build` in one stage, then copy the files
   into a Caddy image along with the broker's `Caddyfile`. That one container is the broker's
-  front door for all three subdomains.
+  front door: the site, `/api` and `/md`.
 
 Images go to the GitHub Container Registry (free for public repositories), tagged with the
 git commit they were built from, and built for `linux/arm64` on GitHub's ARM runners, since
 the server is ARM.
 
+## Trying the production stack locally
+
+The same images and compose files run on a laptop, with plain HTTP on port 8000. Nothing
+else is published, so it runs alongside `pnpm dev`.
+
+1. Create each company's settings from its example, with real passwords
+   (`openssl rand -hex 24`): `exchange-alpha/deploy/.env` and `broker/deploy/.env`. For
+   the broker, locally: `SITE_ADDRESS=:80`, `SITE_ORIGIN=http://localhost:8000`,
+   `HTTP_PORT=8000`, `HTTPS_PORT=8443`.
+2. Make the shared network once, then start each company:
+
+   ```bash
+   docker network create trading
+   docker compose -f exchange-alpha/deploy/compose.yml up -d --build --wait
+   docker compose -f participants/simulator/deploy/compose.yml up -d --build
+   docker compose -f broker/deploy/compose.yml up -d --build --wait
+   ```
+
+3. Seed the security master, once:
+
+   ```bash
+   docker compose -f broker/deploy/compose.yml run --rm --no-deps backend node scripts/seed-securities.mjs
+   ```
+
+4. Open http://localhost:8000. Stop with `docker compose -f <file> down` for each; add `-v`
+   to delete that company's data too.
+
+On the server it is the same, with the production `.env` values and the images pulled from
+the registry instead of built.
+
 ## From merge to running
 
-1. **Check every PR.** GitHub Actions runs each deployable's tests and typechecks. The Rust
-   tests need nothing else; the backend's and market-data's tests need Postgres, which runs
-   as a service container in the job.
-2. **Build on merge to `main`.** Build the five images and push them, tagged with the commit.
-3. **Deploy.** GitHub Actions signs in to AWS with short-lived credentials (OpenID Connect,
+Merging and deploying are separate, so a busy day of merges does not mean a busy day of
+deploys.
+
+1. **Every PR, and every merge to `main`: `ci`.** GitHub Actions runs each deployable's tests
+   and typechecks. The Rust tests need nothing else; the backend's and market-data's tests
+   need Postgres, which runs as a service container in the job. Nothing is deployed.
+2. **Deploy when you choose: `deploy`.** Push a version tag (`git tag v0.3.0 && git push
+   origin v0.3.0`), or press "Run workflow" on the `deploy` workflow in GitHub and pick a tag
+   or branch. The tag names exactly what is live.
+3. **Build.** The five images are built for that commit and pushed, tagged with the version.
+4. **Roll out.** GitHub Actions signs in to AWS with short-lived credentials (OpenID Connect,
    no stored keys) and, through Systems Manager, runs on the server: `db:migrate` for the
    backend and market-data as one-off containers, then `docker compose pull && docker
    compose up -d` for each company. Only containers whose image changed restart. The seed
    (instruments) runs once, on the first deploy.
-4. **What a restart does.** A gateway restart loads the day's snapshot and journal in
+5. **What a restart does.** A gateway restart loads the day's snapshot and journal in
    seconds; the broker reconnects and recovers anything it missed by resend, and the
    simulator cancels and re-quotes. A backend restart signs everyone out.
-5. **Roll back** by deploying the previous commit's tag.
+6. **Roll back** by running `deploy` again with the previous tag. Its images are already
+   built, so nothing is rebuilt.
 
 ## Secrets and access
 
@@ -155,7 +208,8 @@ the server is ARM.
 - **Disk alarm:** a CloudWatch alarm when the disk passes 80%. market-data's `ticks` grow
   about 13 MB a day and are kept on purpose; how to move old ones rather than delete them is
   in [BACKLOG.md](BACKLOG.md).
-- **Uptime:** a free checker (UptimeRobot or Better Stack) on `app.`, `api.` and `md.`.
+- **Uptime:** a free checker (UptimeRobot or Better Stack) on the site, `/api/status` and
+  `/md/health`.
 - **Server:** automatic security updates.
 - **Spend:** a CloudWatch billing alarm, set up before anything else.
 
@@ -186,10 +240,10 @@ In the repo:
 
 | | |
 |---|---|
-| Five Dockerfiles | exchange, backend, market-data, simulator, web (with Caddy) |
-| Three compose files and a `Caddyfile` | `exchange-alpha/deploy/`, `participants/simulator/deploy/`, `broker/deploy/` |
-| GitHub Actions: `ci` | tests and typechecks on every PR |
-| GitHub Actions: `deploy` | images and the server on merge to `main` |
+| Five Dockerfiles | done (stage 1): exchange, backend, market-data, simulator, web (with Caddy) |
+| Three compose files and a `Caddyfile` | done (stage 1): `exchange-alpha/deploy/`, `participants/simulator/deploy/`, `broker/deploy/`, `broker/web/Caddyfile` |
+| GitHub Actions: `ci` | tests and typechecks on every PR and merge |
+| GitHub Actions: `deploy` | images and the server, on a version tag or the "Run workflow" button |
 | Nightly scripts | database dumps, and archiving the exchange's day files |
 
 In AWS, once:
@@ -198,7 +252,7 @@ In AWS, once:
 |---|---|
 | Account | a billing alarm first; an admin user, not the root account |
 | IAM | a role for GitHub Actions (OpenID Connect); an instance role for the server (Systems Manager, S3) |
-| Server | a `t4g.small` with Docker, a 2 GB swap file and automatic updates; a security group allowing 443 and 80 |
+| Server | a `t4g.small` on Amazon Linux 2023 in `us-east-1`, with Docker, a 2 GB swap file and automatic updates; a security group allowing 443 and 80 |
 | S3 | a bucket for backups and archived day files, with lifecycle rules |
-| DNS | a domain in Route 53: `app.`, `api.` and `md.` to the server's Elastic IP |
+| DNS | in Cloudflare: an `A` record for `tradeplatform.dev` to the server's Elastic IP, "DNS only" |
 | Monitoring | a disk alarm and an uptime checker |
