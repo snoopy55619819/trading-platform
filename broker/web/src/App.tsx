@@ -12,6 +12,7 @@ import { AuthScreen } from "./features/auth/AuthScreen.tsx";
 import { OrderBook } from "./features/book/OrderBook.tsx";
 import { ChartSection } from "./features/chart/ChartSection.tsx";
 import { TopBar } from "./features/header/TopBar.tsx";
+import { NewsPanel } from "./features/news/NewsPanel.tsx";
 import { Notifier } from "./features/notifications/Notifier.tsx";
 import { TimeAndSales } from "./features/tape/TimeAndSales.tsx";
 import { OrderTicket } from "./features/ticket/OrderTicket.tsx";
@@ -58,6 +59,8 @@ function Section({
       return <OrderTicket symbol={selected} security={symbols.find((s) => s.symbol === selected)} />;
     case "activity":
       return <Activity selected={selected} onSelect={selectSymbol} />;
+    case "news":
+      return <NewsPanel symbol={selected} onSelect={selectSymbol} />;
   }
 }
 
