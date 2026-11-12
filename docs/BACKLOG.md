@@ -22,6 +22,10 @@ way M8 was.
       venue endpoint) and include the worst case in the estimate and buying-power hint.
 - [ ] **Order history paging.** The backend returns the latest 100 orders. Add a cursor
       (`?before=<orderId>`) and "load more" in History when 100 is not enough.
+- [ ] **"Synthetic, no real money" banner.** A small, always-visible note in the web app so
+      nobody visiting a public instance mistakes it for a real broker.
+- [ ] **Limits for a public instance.** Rate limits on sign-up and sign-in, and a cap on
+      "Add funds" (per deposit and per account), since anyone can open an account.
 - [ ] **Phone views for Pro and Active tables.** On a phone their positions and orders
       tables scroll sideways inside the panel; Calm's list variant could become the phone
       view for every style.

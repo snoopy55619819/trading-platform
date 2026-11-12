@@ -25,7 +25,7 @@ Three constraints drive every decision:
 | Contracts | **Fully defined up front** in milestone 0 |
 | Database | **Postgres only** for v1 (ClickHouse migration is a later milestone) |
 | Holdings | **Double-entry ledger from day one** — positions are *derived*, never incremented |
-| Deployment | docker-compose locally; per-service deploys later |
+| Deployment | docker-compose locally; one server with Docker Compose in production, two servers split by company next (ADR 0003, `DEPLOYMENT.md`) |
 | UI | Last MVP milestone; everything before it is driven by CLI/curl |
 
 ---
