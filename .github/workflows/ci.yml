@@ -1,0 +1,157 @@
+# Checks every pull request and every merge to main. Deploys nothing: that is the deploy
+# workflow, run on a version tag (docs/DEPLOYMENT.md).
+#
+# One job per deployable, matching how the repo is organised: each installs and tests on
+# its own, and nothing is shared between them. Postgres runs beside the jobs whose tests
+# need it, as it does locally.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same branch makes the older run pointless.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: 12.3.4
+  BUF_VERSION: 1.72.0
+  RUST_VERSION: "1.98"
+
+jobs:
+  exchange:
+    name: exchange-alpha (Rust)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: exchange-alpha
+    steps:
+      - uses: actions/checkout@v5
+      - run: rustup toolchain install $RUST_VERSION --profile minimal --component clippy,rustfmt && rustup default $RUST_VERSION
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: exchange-alpha
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --locked
+
+  backend:
+    name: broker/backend
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: broker/backend
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: broker
+          POSTGRES_PASSWORD: broker
+          POSTGRES_DB: broker
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U broker -d broker" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://broker:broker@127.0.0.1:5432/broker
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --global pnpm@$PNPM_VERSION
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm spec:check
+      - run: pnpm typecheck
+      - run: pnpm db:migrate && pnpm db:seed
+      - run: pnpm test
+
+  market-data:
+    name: broker/market-data
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: broker/market-data
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: market_data
+          POSTGRES_PASSWORD: market_data
+          POSTGRES_DB: market_data
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports: ["5434:5432"]
+        options: --health-cmd "pg_isready -U market_data -d market_data" --health-interval 5s --health-retries 10
+    env:
+      MD_DATABASE_URL: postgres://market_data:market_data@127.0.0.1:5434/market_data
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --global pnpm@$PNPM_VERSION
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm spec:check
+      - run: pnpm dlx @bufbuild/buf@$BUF_VERSION generate
+      - run: pnpm typecheck
+      - run: pnpm db:migrate
+      - run: pnpm test
+
+  simulator:
+    name: participants/simulator
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: participants/simulator
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --global pnpm@$PNPM_VERSION
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm spec:check
+      - run: pnpm dlx @bufbuild/buf@$BUF_VERSION generate
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  web:
+    name: broker/web
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: broker/web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --global pnpm@$PNPM_VERSION
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      # Type-checks too; the same build the image runs.
+      - run: pnpm build
+
+  # The production images still build. Built for the runner's own architecture and thrown
+  # away: the deploy workflow builds the ones that ship, for ARM.
+  images:
+    name: images
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        context:
+          - exchange-alpha
+          - broker/backend
+          - broker/market-data
+          - broker/web
+          - participants/simulator
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build ${{ matrix.context }}

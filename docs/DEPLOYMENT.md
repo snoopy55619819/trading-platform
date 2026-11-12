@@ -2,8 +2,8 @@
 
 The plan for running the platform publicly as a live demo, at **`tradeplatform.dev`**: what
 gets deployed, where, and how a change gets from `main` to the server. **In progress:** the
-images and compose files are built and run locally (stage 1); CI, the AWS setup and
-deploys come next. Why one server with Docker
+images and compose files are built and run locally (stage 1), and every PR and merge is
+checked by CI (stage 2); the AWS setup and deploys come next. Why one server with Docker
 Compose rather than two servers, Kubernetes or managed services is in
 [ADR 0003](adr/0003-one-server-with-docker-compose.md). Running it locally is in
 [RUNNING.md](RUNNING.md).
@@ -242,7 +242,7 @@ In the repo:
 |---|---|
 | Five Dockerfiles | done (stage 1): exchange, backend, market-data, simulator, web (with Caddy) |
 | Three compose files and a `Caddyfile` | done (stage 1): `exchange-alpha/deploy/`, `participants/simulator/deploy/`, `broker/deploy/`, `broker/web/Caddyfile` |
-| GitHub Actions: `ci` | tests and typechecks on every PR and merge |
+| GitHub Actions: `ci` | done (stage 2): `.github/workflows/ci.yml` |
 | GitHub Actions: `deploy` | images and the server, on a version tag or the "Run workflow" button |
 | Nightly scripts | database dumps, and archiving the exchange's day files |
 
