@@ -1,7 +1,7 @@
 // The two display settings, in Settings and on the sign-in screen.
 
 import { Segmented } from "../ui/controls.tsx";
-import { MODES, type ModeChoice, STYLES, STYLE_NAMES, type Style, themeStore, useTheme } from "./theme.ts";
+import { FIXED_MODES, MODES, type ModeChoice, STYLES, STYLE_NAMES, type Style, themeStore, useTheme } from "./theme.ts";
 
 const MODE_NAMES: Record<ModeChoice, string> = { system: "System", light: "Light", dark: "Dark" };
 
@@ -15,12 +15,19 @@ export function ThemeSwitcher() {
         value={theme.style}
         onChange={(style) => themeStore.setStyle(style)}
       />
-      <Segmented<ModeChoice>
-        label="Mode"
-        options={MODES.map((m) => ({ value: m, label: MODE_NAMES[m] }))}
-        value={theme.modeChoice}
-        onChange={(mode) => themeStore.setModeChoice(mode)}
-      />
+      {FIXED_MODES[theme.style] ? (
+        // The choice is kept for the other styles; this one only has one mode.
+        <p className="muted" style={{ margin: 0, alignSelf: "center" }}>
+          {STYLE_NAMES[theme.style]} is always {FIXED_MODES[theme.style]}.
+        </p>
+      ) : (
+        <Segmented<ModeChoice>
+          label="Mode"
+          options={MODES.map((m) => ({ value: m, label: MODE_NAMES[m] }))}
+          value={theme.modeChoice}
+          onChange={(mode) => themeStore.setModeChoice(mode)}
+        />
+      )}
     </div>
   );
 }

@@ -9,7 +9,7 @@
 
   Two fits:
     screen  the grid fills the window; rows are equal shares of the height, and a panel
-            taller than its cells scrolls inside itself (Pro, Active)
+            taller than its cells scrolls inside itself (Pro, Active, Terminal)
     flow    rows size to their content and the page scrolls (Calm)
 */
 
@@ -120,6 +120,14 @@
   color: var(--text);
   border-bottom: none;
   padding-top: var(--panel-pad);
+}
+/* Terminal: a solid amber title bar on each panel. */
+:root[data-style="terminal"] .panel-head {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-bottom: none;
+  padding-top: var(--space-1);
+  padding-bottom: var(--space-1);
 }
 .panel-body {
   flex: 1;

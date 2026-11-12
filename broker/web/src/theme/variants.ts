@@ -6,7 +6,7 @@ import { type Style, useTheme } from "./theme.ts";
 
 export interface Variants {
   /**
-   * form    every field at once (Pro)
+   * form    every field at once (Pro, Terminal)
    * quick   a quantity stepper, then Buy-at-the-ask and Sell-at-the-bid buttons (Active)
    * simple  side, shares and the estimate; limit price and time in force under More (Calm)
    */
@@ -19,6 +19,7 @@ export const VARIANTS: Record<Style, Variants> = {
   pro: { ticket: "form", positions: "table" },
   active: { ticket: "quick", positions: "table" },
   calm: { ticket: "simple", positions: "list" },
+  terminal: { ticket: "form", positions: "table" },
 };
 
 export function useVariants(): Variants {

@@ -1,6 +1,7 @@
-// The two display settings: mode (light or dark) and style (Pro, Active, Calm). Saved in
-// localStorage; mode follows the operating system until the user picks one. Applied as
-// attributes on <html>, which is all tokens.css needs.
+// The two display settings: mode (light or dark) and style (Pro, Active, Calm, Terminal).
+// Saved in localStorage; mode follows the operating system until the user picks one, except
+// for a style that only has one mode (Terminal is always dark). Applied as attributes on
+// <html>, which is all tokens.css needs.
 //
 // index.html applies the saved settings before anything renders, so a reload never flashes
 // the wrong colours; this module takes over once the app starts.
@@ -11,9 +12,11 @@ export const MODES = ["system", "light", "dark"] as const;
 export type ModeChoice = (typeof MODES)[number];
 export type Mode = "light" | "dark";
 
-export const STYLES = ["pro", "active", "calm"] as const;
+export const STYLES = ["pro", "active", "calm", "terminal"] as const;
 export type Style = (typeof STYLES)[number];
-export const STYLE_NAMES: Record<Style, string> = { pro: "Pro", active: "Active", calm: "Calm" };
+export const STYLE_NAMES: Record<Style, string> = { pro: "Pro", active: "Active", calm: "Calm", terminal: "Terminal" };
+/** Styles drawn in one mode only, whatever the mode setting says. index.html repeats this. */
+export const FIXED_MODES: Partial<Record<Style, Mode>> = { terminal: "dark" };
 /** What a first visit looks like. index.html's pre-paint script repeats it: keep the two the same. */
 export const DEFAULT_STYLE: Style = "active";
 
@@ -41,7 +44,10 @@ export function parseSaved(text: string | null | undefined): { modeChoice: ModeC
   };
 }
 
-export function resolveMode(choice: ModeChoice, systemDark: boolean): Mode {
+/** The mode shown: the style's own if it has one, else the choice, else the system's. */
+export function resolveMode(choice: ModeChoice, systemDark: boolean, style: Style): Mode {
+  const fixed = FIXED_MODES[style];
+  if (fixed) return fixed;
   if (choice === "system") return systemDark ? "dark" : "light";
   return choice;
 }
@@ -61,7 +67,7 @@ class ThemeStore {
 
   constructor() {
     const saved = parseSaved(typeof localStorage === "undefined" ? null : readSaved());
-    this.theme = { ...saved, mode: resolveMode(saved.modeChoice, this.media?.matches ?? false) };
+    this.theme = { ...saved, mode: resolveMode(saved.modeChoice, this.media?.matches ?? false, saved.style) };
     // Follow the system while the user has not chosen.
     this.media?.addEventListener("change", () => this.update({}));
     this.apply();
@@ -85,7 +91,7 @@ class ThemeStore {
   private update(change: Partial<Pick<Theme, "modeChoice" | "style">>): void {
     const modeChoice = change.modeChoice ?? this.theme.modeChoice;
     const style = change.style ?? this.theme.style;
-    this.theme = { modeChoice, style, mode: resolveMode(modeChoice, this.media?.matches ?? false) };
+    this.theme = { modeChoice, style, mode: resolveMode(modeChoice, this.media?.matches ?? false, style) };
     try {
       localStorage.setItem(KEY, JSON.stringify({ modeChoice, style }));
     } catch {

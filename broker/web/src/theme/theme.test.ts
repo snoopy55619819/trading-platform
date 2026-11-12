@@ -11,9 +11,16 @@ describe("theme settings", () => {
   });
 
   test("the mode follows the system until one is chosen", () => {
-    expect(resolveMode("system", true)).toBe("dark");
-    expect(resolveMode("system", false)).toBe("light");
-    expect(resolveMode("light", true)).toBe("light");
-    expect(resolveMode("dark", false)).toBe("dark");
+    expect(resolveMode("system", true, "pro")).toBe("dark");
+    expect(resolveMode("system", false, "pro")).toBe("light");
+    expect(resolveMode("light", true, "pro")).toBe("light");
+    expect(resolveMode("dark", false, "pro")).toBe("dark");
+  });
+
+  test("Terminal is always dark, and keeps the choice for when another style is picked", () => {
+    expect(parseSaved(JSON.stringify({ modeChoice: "light", style: "terminal" }))).toEqual({ modeChoice: "light", style: "terminal" });
+    for (const choice of ["system", "light", "dark"] as const) {
+      expect(resolveMode(choice, false, "terminal")).toBe("dark");
+    }
   });
 });
