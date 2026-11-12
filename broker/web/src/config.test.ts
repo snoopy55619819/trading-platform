@@ -19,4 +19,11 @@ describe("config", () => {
     expect(config.backendUrl).toBe("https://api.example.com");
     expect(config.liveUrl).toBe("wss://md.example.com/live");
   });
+
+  test("takes paths as on the page's own host, as the deployed image is built", () => {
+    const config = configFrom({ VITE_BACKEND_URL: "/api", VITE_MARKET_DATA_URL: "/md/" }, "https://tradeplatform.dev");
+    expect(config.backendUrl).toBe("/api");
+    expect(config.marketDataUrl).toBe("/md");
+    expect(config.liveUrl).toBe("wss://tradeplatform.dev/md/live");
+  });
 });
