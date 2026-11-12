@@ -117,10 +117,10 @@ async function server() {
   return { base, close: () => api.close() };
 }
 
-test("status says whether the exchange connection is up", async () => {
+test("status says whether the exchange connection is up, and when it was last heard from", async () => {
   const { base, close } = await server();
   const response = await fetch(`${base}/status`);
-  assert.deepEqual(await response.json(), { venue: "ALPHA", connected: false });
+  assert.deepEqual(await response.json(), { venue: "ALPHA", connected: false, lastHeardAt: null });
   close();
 });
 

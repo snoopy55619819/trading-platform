@@ -52,6 +52,17 @@ test("the very first logon asks for a reset; later ones keep their numbers", () 
   assert.equal(again?.seq, 40);
 });
 
+test("the session remembers when the exchange last sent anything", () => {
+  const session = new Session(config);
+  session.connected(1000);
+  assert.equal(session.lastHeardAt(), undefined, "connecting is not hearing from it");
+  session.receive(incoming(MsgType.Logon, 1), 1, 2000);
+  session.receive(incoming(MsgType.Heartbeat, 2), 2, 5000);
+  assert.equal(session.lastHeardAt(), 5000);
+  session.disconnected();
+  assert.equal(session.lastHeardAt(), 5000, "kept after a disconnect, so a dead link shows how long ago");
+});
+
 test("a logon reply ahead of us logs on, then asks for what was missed", () => {
   const session = new Session(config, { nextOut: 40, nextIn: 70 });
   session.connected(0);

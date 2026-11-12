@@ -49,6 +49,8 @@ export class Session {
   private seq: SequenceState | undefined;
   private lastSent = 0;
   private lastReceived = 0;
+  /** When the exchange last sent us anything, heartbeats included. Undefined until it has. */
+  private lastHeard: number | undefined;
   private testRequestSentAt: number | undefined;
   private resendRequested = false;
 
@@ -59,6 +61,11 @@ export class Session {
 
   isActive(): boolean {
     return this.state === "active";
+  }
+
+  /** When the exchange last sent us anything (ms since the epoch), or undefined if it never has. */
+  lastHeardAt(): number | undefined {
+    return this.lastHeard;
   }
 
   /** The numbers to persist. Defined once the session has started. */
@@ -127,6 +134,7 @@ export class Session {
   receive(message: FixMessage, seq: number, now: number): Action[] {
     if (!this.seq) return [{ kind: "disconnect", why: "message before logon" }];
     this.lastReceived = now;
+    this.lastHeard = now;
     this.testRequestSentAt = undefined;
 
     if (

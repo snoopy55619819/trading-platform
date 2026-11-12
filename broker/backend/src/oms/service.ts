@@ -37,6 +37,11 @@ export class Oms {
     return this.fix?.isActive() ?? false;
   }
 
+  /** When the exchange last sent anything over FIX, heartbeats included. Shown in the web header. */
+  venueLastHeardAt(): number | undefined {
+    return this.fix?.lastHeardAt();
+  }
+
   async place(accountId: string, clientOrderId: string, request: OrderRequest): Promise<Placement> {
     const placement = await transaction(this.pool, (db) =>
       placeOrder(db, accountId, clientOrderId, request, this.venueUp()),
