@@ -1,0 +1,8 @@
+[Unit]
+Description=Report the server's disk use to CloudWatch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /opt/trading-platform/hosting/disk-metric.sh

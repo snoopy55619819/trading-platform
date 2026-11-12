@@ -1,0 +1,9 @@
+[Unit]
+Description=Nightly backup, after the 21:00 UTC business-day roll
+
+[Timer]
+OnCalendar=*-*-* 22:30:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -30,6 +30,7 @@ main() {
 
   echo "deploying $version ($target)"
   git checkout --quiet --force --detach "$target"
+  install_units
   export IMAGE_PREFIX=$registry TAG=$version
   # The exchange first, then the firms that trade on it, then the broker.
   local stack
@@ -42,6 +43,19 @@ main() {
   mkdir -p "$(dirname "$state")"
   echo "$target" > "$state"
   echo "deployed $version"
+}
+
+# The server's own jobs ship with each release: this agent, the nightly backup, the hourly
+# disk report. Installing them on every deploy means a change to hosting/ needs nothing
+# done by hand on the server.
+install_units() {
+  [ -n "${DEPLOY_REPO:-}" ] && return 0 # a test run: leave the real systemd alone
+  install -m 644 hosting/*.service hosting/*.timer /etc/systemd/system/
+  systemctl daemon-reload
+  local timer
+  for timer in hosting/*.timer; do
+    systemctl enable --now "$(basename "$timer")" > /dev/null 2>&1
+  done
 }
 
 main "$@"
