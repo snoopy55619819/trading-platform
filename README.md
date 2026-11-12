@@ -27,8 +27,8 @@ by published protocols, the way real market infrastructure is.
 
 ### Highlights
 
-- **Matching engine:** matches orders in memory with price-time priority. Replaying its
-  journal rebuilds the exact same order book.
+- **Matching engine:** matches orders in memory with price-time priority. Each day starts
+  from a snapshot, and replaying the day's journal rebuilds the exact same order book.
 - **FIX 4.4:** written by hand on both sides (Rust exchange, TypeScript broker) and tested
   against QuickFIX/Go, an independent FIX engine. Survives the exchange being killed
   mid-session without losing a fill.

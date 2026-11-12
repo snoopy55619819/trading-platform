@@ -4,7 +4,8 @@
 //
 // Needs the exchange running (FIX on 9878, market data on 9879; see the repo README).
 // Configuration is by environment variable; see src/config.ts. Ctrl-C cancels every
-// resting order and logs out.
+// resting order and logs out. Once a day, at the venue's roll, it does the same and logs
+// straight back on with fresh sequence numbers.
 
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
@@ -15,6 +16,7 @@ import { MeanReversionTrader, MomentumTrader, NoiseTrader } from "./agents/taker
 import { loadConfig, profileFor } from "./config.ts";
 import { FeedClient } from "./feed/client.ts";
 import { FixConnection } from "./fix/connection.ts";
+import { nextSessionReset } from "./fix/daily-reset.ts";
 import { diurnal } from "./market/diurnal.ts";
 import { FairValue } from "./market/fair-value.ts";
 import { Rng } from "./market/rng.ts";
@@ -91,8 +93,28 @@ function step(): void {
   last = now;
   context.activity = diurnal(new Date(now));
   for (const value of fair.values()) value.step(dtSec, context.activity, rng);
-  if (!fix.isActive()) return;
+  if (!fix.isActive() || resetting) return;
   for (const agent of agents) agent.step(now, dtSec);
+}
+
+// Once a day, at the venue's roll, the FIX session starts over (see fix/daily-reset.ts).
+// Everything resting is cancelled first, so nothing can trade while we are away and no fill
+// is lost when the exchange forgets what it would have resent. The makers quote again as
+// soon as we are back.
+let resetting = false;
+let resetTimer: NodeJS.Timeout | undefined;
+function scheduleSessionReset(): void {
+  const at = nextSessionReset(Date.now(), config.sessionResetUtc, config.sessionResetEverySecs);
+  resetTimer = setTimeout(() => void resetSession(), at - Date.now());
+}
+async function resetSession(): Promise<void> {
+  resetting = true;
+  const cancelled = orders.cancelEverything(Date.now());
+  console.log(`fix: daily session reset; cancelled ${cancelled} resting order(s) first`);
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await fix.restart("daily session reset");
+  resetting = false; // agents resume once the new session is active
+  scheduleSessionReset();
 }
 
 console.log(
@@ -101,6 +123,7 @@ console.log(
 );
 fix.start();
 feed.start();
+scheduleSessionReset();
 const stepper = setInterval(step, STEP_MS);
 const saver = setInterval(saveOpenOrders, 1000);
 const reporter = setInterval(
@@ -111,6 +134,7 @@ const reporter = setInterval(
 async function shutdown(): Promise<void> {
   clearInterval(stepper);
   clearInterval(reporter);
+  clearTimeout(resetTimer);
   clearInterval(saver);
   const cancelled = orders.cancelEverything(Date.now());
   console.log(`simulator: stopping; cancelling ${cancelled} resting order(s)`);

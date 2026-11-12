@@ -3,7 +3,7 @@
 **Makes the market look alive when nobody is using the app.** Without it, v1 is an empty
 book and a flat chart.
 
-Status: **done** · 33 tests, plus behaviour runs against the real exchange
+Status: **done** · 36 tests, plus behaviour runs against the real exchange
 
 ```
 pnpm install && pnpm proto:gen      # once: dependencies, and TypeScript from the vendored proto
@@ -35,6 +35,7 @@ All optional, by environment variable (`src/config.ts`):
 | `SIM_SEED` | the clock | the same seed replays the same price paths |
 | `SIM_REPORT_SECS` | `30` | how often the status table prints |
 | `SIM_COMP_ID` | `SIM` | must be in the exchange's `ALPHA_COMP_IDS` |
+| `SIM_SESSION_RESET_EVERY_SECS` | `0` | also start the FIX session over this often; `0` means only daily, at the venue's roll |
 | `SIM_FIX_HOST` / `SIM_FIX_PORT` / `SIM_FEED_URL` | from `listings.json` | where the venue is |
 
 ## Checklist
@@ -68,6 +69,17 @@ All optional, by environment variable (`src/config.ts`):
 - [x] Price wanders without exploding or flatlining over a long run
 - [x] Market makers end roughly flat rather than accumulating unbounded inventory
 - [x] The 1-minute chart looks like a real stock to the eye
+
+### 5. Daily session reset (post-MVP, before deployment)
+- [x] At the venue's business-date roll (`business_date_roll_utc`, 21:00 UTC) the simulator
+      pauses its agents, cancels everything resting, logs out and logs straight back on.
+      Every logon resets sequence numbers, and the exchange drops the copies it keeps of a
+      session's messages for resends only when that session resets. The simulator never
+      logged off on its own, so those copies grew by roughly 250 MB a day.
+      Cancelling first means nothing can trade while it is away, so no fill is lost.
+      Checked against a real gateway with `SIM_SESSION_RESET_EVERY_SECS=8`: the messages
+      stored for the session fell from about 160 to 1 at each reset, with one clean logout
+      and logon each time. `src/fix/daily-reset.ts`, `test/daily-reset.test.ts`.
 
 ## Done when
 

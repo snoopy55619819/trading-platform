@@ -70,7 +70,9 @@ These are architectural commitments, not preferences. Breaking them causes rewri
 - **Positions and cash are derived from ledger journal lines**, never stored as an incremented
   counter. Every journal entry balances: `SUM(debit) = SUM(credit)` per entry, per asset.
 - **The matching engine has no database.** State is RAM; durability is an append-only journal;
-  recovery is replay. Journal replay must reproduce a byte-identical book.
+  recovery is the newest daily snapshot plus a replay of that day's journal (each business
+  day closes at 21:00 UTC; ADR 0004). Either way, snapshot or full replay, the result must be
+  byte-identical.
 - **The simulator gets no backdoor.** Its agents connect over the same public FIX path a real
   client uses. That's what makes it a valid test rather than a cheat.
 - **`venue` is on every order and fill**, always `"ALPHA"` in v1. Adding Exchange Beta later is

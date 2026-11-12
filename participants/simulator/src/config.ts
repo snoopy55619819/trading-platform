@@ -34,6 +34,7 @@ interface PublishedListings {
     order_entry: { host: string; port: number };
     market_data: { host: string; port: number };
   };
+  market: { business_date_roll_utc: string };
   symbols: {
     ticker: string;
     tick_size_cents: number;
@@ -63,6 +64,10 @@ export interface Config {
   reportSecs: number;
   /** Where open orders are saved, so a restart can cancel what a crash left resting. */
   stateFile: string;
+  /** The venue's business-date roll, `HH:MM:SS` UTC: when the FIX session starts over. */
+  sessionResetUtc: string;
+  /** Also start the session over this often, in seconds; 0 for only the daily reset. */
+  sessionResetEverySecs: number;
 }
 
 function env(name: string, fallback: string): string {
@@ -100,5 +105,7 @@ export function loadConfig(): Config {
     speed: number("SIM_SPEED", 1),
     reportSecs: number("SIM_REPORT_SECS", 30),
     stateFile: env("SIM_STATE_FILE", new URL("../data/open-orders.json", import.meta.url).pathname),
+    sessionResetUtc: published.market.business_date_roll_utc,
+    sessionResetEverySecs: number("SIM_SESSION_RESET_EVERY_SECS", 0),
   };
 }

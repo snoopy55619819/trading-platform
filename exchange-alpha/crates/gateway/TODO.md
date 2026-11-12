@@ -111,9 +111,8 @@ engine events, so replaying the journal rebuilds it exactly. Nothing extra to pe
   never told. The fix is to regenerate reports from the journal on recovery, or to keep FIX
   state in the same journal. Worth doing before anything depends on it.
 - **Rejected `ClOrdID`s are forgotten on restart.** Accepted orders are rebuilt from the
-  journal; orders rejected before the engine, and cancel requests, are not journaled.
-- **No business date.** Duplicate `ClOrdID` checks span the process's life, not a trading day,
-  until the clock service exists.
+  journal; orders rejected before the engine, and cancel requests, are not journaled. Since
+  business days, only ids used since the day's snapshot can be lost this way.
 - **Slow clients are unbounded.** A connection's outbound queue has no limit.
 
 ## Found by conformance testing
