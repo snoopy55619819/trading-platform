@@ -56,6 +56,9 @@ Go without touching anything else.
         exactly, 15 for 15.
       - `MD_NEWS_URL` overrides where the newswire is (from `newswire.json`); empty turns news
         off.
+      - Each headline's story (newswire spec 1.1.0) is in a nullable `body` column (migration
+        `0003_news_body`), served in `/news` and the live push. A headline without one comes
+        back without the field.
 - [x] `ticks(ts, symbol, venue, event_type, price_cents, size, feed_seq)`
 - [x] `bars(bucket_ts, symbol, interval, open, high, low, close, volume, trade_count)`
 - [x] Rollup job: 1m from ticks, then 5m/1h/1d from 1m

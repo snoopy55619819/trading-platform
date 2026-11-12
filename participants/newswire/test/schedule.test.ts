@@ -8,10 +8,11 @@ import { Rng } from "../src/rng.ts";
 import { MAJOR_SHARE, MOVING_PER_DAY, NEUTRAL_PER_DAY, Schedule, type Story } from "../src/schedule.ts";
 
 const companies = [
-  { ticker: "ACME", name: "Acme Industrial Corp" },
-  { ticker: "GRID", name: "Gridline Utilities Corp" },
-  { ticker: "HELX", name: "Helix Biosciences Inc" },
+  { ticker: "ACME", name: "Acme Industrial Corp", referenceCents: 4210 },
+  { ticker: "GRID", name: "Gridline Utilities Corp", referenceCents: 3312 },
+  { ticker: "HELX", name: "Helix Biosciences Inc", referenceCents: 725 },
 ];
+const NOW = new Date("2026-11-12T12:00:00Z");
 
 /**
  * `days` of steps of `stepSec`. A step holds at most one story of each kind per company, so
@@ -20,7 +21,7 @@ const companies = [
 function run(days: number, seed: number, rate = 1, stepSec = 60): Story[] {
   const schedule = new Schedule(companies, rate, new Rng(seed));
   const stories: Story[] = [];
-  for (let t = 0; t < days * 86_400; t += stepSec) stories.push(...schedule.step(stepSec));
+  for (let t = 0; t < days * 86_400; t += stepSec) stories.push(...schedule.step(stepSec, NOW));
   return stories;
 }
 

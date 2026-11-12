@@ -5,9 +5,9 @@ publishes them. The simulator trades on them, and the broker stores them and sho
 the web app. Why it is a separate participant, and why news moves prices, is in
 [ADR 0006](../../docs/adr/0006-news-from-a-newswire-participant.md).
 
-Stages 1 to 4 are done: the newswire publishes, the simulator trades on it, and the broker's
-market-data stores and serves it. The web app does not show it yet. Each stage below is one
-PR.
+Stages 1 to 4b are done: the newswire publishes headlines with short stories, the simulator
+trades on them, and the broker's market-data stores and serves them. The web app does not
+show them yet. Each stage below is one PR.
 
 ## The flow
 
@@ -29,7 +29,10 @@ because simulated traders react to it, over the same public FIX path as any clie
 - **Out:** headlines, over the protocol below. The spec lives in `participants/newswire/spec/`;
   the simulator and market-data vendor it.
 
-## The protocol (spec 1.0.0)
+## The protocol (spec 1.1.0)
+
+The protocol as first planned (1.0.0) is below. 1.1.0 adds an optional `body`: the story
+under the headline, a few sentences. `spec/README.md` is the protocol as published.
 
 **A headline:**
 
@@ -70,7 +73,11 @@ need older news than they already stored.
 
 ## The catalogue
 
-Each category has a tone and several wordings, with stronger words for `MAJOR`.
+Each category has a tone and several wordings, with stronger words for `MAJOR`. Since stage
+4b each wording has its own short story, so the details match the headline (the two neutral
+appointments are different jobs, for example). Every figure in a story is invented but
+consistent, and scales with severity: a major earnings miss misses by 12 to 30%, a minor one
+by 2 to 6%. Price targets are set from the listing's reference price.
 
 | Tone | Categories |
 |---|---|
@@ -177,8 +184,16 @@ Each stage is one PR, with its tests and docs.
    - the subscriber with catch-up;
    - `GET /news` and the live push;
    - tests against Postgres.
+   (PR #45)
+4b. [x] **Story bodies** (added after stage 4: a headline alone left the News panel nothing
+   to open):
+   - a story for each wording in `src/catalogue.ts`, with invented, consistent figures;
+   - spec 1.1.0: an optional `body`, re-synced into the simulator and market-data;
+   - market-data: a nullable `body` column (migration `0003_news_body`), in `/news` and the
+     live push; a headline without one comes back without the field;
+   - the simulator only types the field; it trades on headlines.
 5. [ ] **The web app:**
-   - the News panel in every style;
+   - the News panel in every style, with a headline opening its story;
    - chart markers;
    - tests for any new pure logic;
    - screenshots.

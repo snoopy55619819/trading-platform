@@ -29,12 +29,16 @@ export function newsworthiness(ticker: string): number {
 export interface Company {
   ticker: string;
   name: string;
+  /** The listing's reference price, for price targets in stories. */
+  referenceCents: number;
 }
 
 /** A story before it is stamped with an id and a time. */
 export interface Story {
   symbol: string;
   headline: string;
+  /** A few sentences under the headline. */
+  body: string;
   category: Category;
   tone: Tone;
   severity: Severity;
@@ -52,36 +56,30 @@ export class Schedule {
     this.rng = rng;
   }
 
-  /** The stories that happen in the next `dtSec` seconds, in no particular order. */
-  step(dtSec: number): Story[] {
+  /**
+   * The stories that happen in the next `dtSec` seconds, in no particular order. `now` only
+   * decides which quarter an earnings story reports.
+   */
+  step(dtSec: number, now = new Date()): Story[] {
     const stories: Story[] = [];
     for (const company of this.companies) {
       const perSec = (newsworthiness(company.ticker) * this.rate) / SECONDS_PER_DAY;
-      if (this.rng.chance(MOVING_PER_DAY * perSec, dtSec)) stories.push(this.moving(company));
-      if (this.rng.chance(NEUTRAL_PER_DAY * perSec, dtSec)) stories.push(this.neutral(company));
+      if (this.rng.chance(MOVING_PER_DAY * perSec, dtSec)) stories.push(this.moving(company, now));
+      if (this.rng.chance(NEUTRAL_PER_DAY * perSec, dtSec)) stories.push(this.story(company, "NEUTRAL", "MINOR", now));
     }
     return stories;
   }
 
-  private moving(company: Company): Story {
+  private moving(company: Company, now: Date): Story {
     // Good and bad news equally likely, so news alone gives prices no drift.
     const tone: Tone = this.rng.next() < 0.5 ? "POSITIVE" : "NEGATIVE";
     const severity: Severity = this.rng.next() < MAJOR_SHARE ? "MAJOR" : "MINOR";
-    return this.story(company, tone, severity);
+    return this.story(company, tone, severity, now);
   }
 
-  private neutral(company: Company): Story {
-    return this.story(company, "NEUTRAL", "MINOR");
-  }
-
-  private story(company: Company, tone: Tone, severity: Severity): Story {
+  private story(company: Company, tone: Tone, severity: Severity, now: Date): Story {
     const category = pickCategory(company.ticker, tone, this.rng);
-    return {
-      symbol: company.ticker,
-      headline: write(category, severity, company.name, this.rng),
-      category,
-      tone,
-      severity,
-    };
+    const { headline, body } = write(category, severity, company, this.rng, now);
+    return { symbol: company.ticker, headline, body, category, tone, severity };
   }
 }

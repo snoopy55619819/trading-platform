@@ -8,6 +8,8 @@ export interface Headline {
   ts: string;
   symbol: string;
   headline: string;
+  /** The story under the headline (spec 1.1.0). Absent when the wire sent none. */
+  body?: string;
   category: string;
   tone: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
   severity: "MINOR" | "MAJOR";
@@ -28,6 +30,9 @@ export function checkHeadline(value: unknown, symbols: readonly string[]): Headl
   if (typeof h.ts !== "string" || Number.isNaN(Date.parse(h.ts))) return "ts: not a time";
   if (typeof h.symbol !== "string" || !symbols.includes(h.symbol)) return `symbol: ${String(h.symbol)} is not listed`;
   if (typeof h.headline !== "string" || h.headline.length === 0 || h.headline.length > 160) return "headline: 1 to 160 characters";
+  if (h.body !== undefined && (typeof h.body !== "string" || h.body.length === 0 || h.body.length > 1000)) {
+    return "body: 1 to 1,000 characters when present";
+  }
   if (typeof h.category !== "string" || h.category.length === 0) return "category: missing";
   if (typeof h.tone !== "string" || !TONES.has(h.tone)) return `tone: ${String(h.tone)}`;
   if (typeof h.severity !== "string" || !SEVERITIES.has(h.severity)) return `severity: ${String(h.severity)}`;
@@ -36,6 +41,7 @@ export function checkHeadline(value: unknown, symbols: readonly string[]): Headl
     ts: new Date(h.ts).toISOString(),
     symbol: h.symbol,
     headline: h.headline,
+    ...(typeof h.body === "string" ? { body: h.body } : {}),
     category: h.category,
     tone: h.tone as Headline["tone"],
     severity: h.severity as Headline["severity"],
@@ -45,10 +51,10 @@ export function checkHeadline(value: unknown, symbols: readonly string[]): Headl
 /** Stores a headline; true if it was new, false if we already had it. */
 export async function insertHeadline(db: Db, h: Headline): Promise<boolean> {
   const result = await db.query(
-    `INSERT INTO market_data.news (id, ts, symbol, headline, category, tone, severity)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO market_data.news (id, ts, symbol, headline, body, category, tone, severity)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (id) DO NOTHING`,
-    [h.id, h.ts, h.symbol, h.headline, h.category, h.tone, h.severity],
+    [h.id, h.ts, h.symbol, h.headline, h.body ?? null, h.category, h.tone, h.severity],
   );
   return result.rowCount === 1;
 }
@@ -66,14 +72,25 @@ export async function recentNews(db: Db, symbol: string | undefined, limit: numb
     ts: Date;
     symbol: string;
     headline: string;
+    body: string | null;
     category: string;
     tone: Headline["tone"];
     severity: Headline["severity"];
   }>(
-    `SELECT id, ts, symbol, headline, category, tone, severity FROM market_data.news
+    `SELECT id, ts, symbol, headline, body, category, tone, severity FROM market_data.news
       WHERE $1::text IS NULL OR symbol = $1
       ORDER BY ts DESC, id DESC LIMIT $2`,
     [symbol ?? null, limit],
   );
-  return rows.map((r) => ({ ...r, ts: r.ts.toISOString() }));
+  // The same shape as checkHeadline gives and the live push sends: no body, no field.
+  return rows.map(({ body, ...r }) => ({
+    id: r.id,
+    ts: r.ts.toISOString(),
+    symbol: r.symbol,
+    headline: r.headline,
+    ...(body === null ? {} : { body }),
+    category: r.category,
+    tone: r.tone,
+    severity: r.severity,
+  }));
 }

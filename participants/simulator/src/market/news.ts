@@ -21,6 +21,8 @@ export interface Headline {
   ts: string;
   symbol: string;
   headline: string;
+  /** The story (spec 1.1.0). This firm trades on headlines and never reads it. */
+  body?: string;
   category: string;
   tone: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
   severity: "MINOR" | "MAJOR";
