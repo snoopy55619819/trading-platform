@@ -4,7 +4,7 @@ The plan for running the platform publicly as a live demo, at **`tradeplatform.d
 gets deployed, where, and how a change gets from `main` to the server. **Live since `v0.1.0`**
 (2026-11-12): the images and compose files (stage 1), CI on every PR and merge (stage 2),
 and the deploy workflow, server and AWS setup (stage 3, [AWS-SETUP.md](AWS-SETUP.md)) are
-done. Nightly backups and the disk alarm (stage 4) come next. Why one server with Docker
+done, and so are nightly backups and the alarms (stage 4). Why one server with Docker
 Compose rather than two servers, Kubernetes or managed services is in
 [ADR 0003](adr/0003-one-server-with-docker-compose.md). Running it locally is in
 [RUNNING.md](RUNNING.md).
@@ -93,7 +93,7 @@ Estimated for us-east-2 (Ohio), November 2026. Prices change; check the totals i
 | EBS gp3, 30 GB | 1 volume | the server's disk: databases, day files, images | ~$2.40 |
 | Public IPv4 (Elastic IP) | 1 | a fixed address for DNS; AWS charges for every public IPv4 | ~$3.65 |
 | S3 | 1 bucket | nightly database dumps and the exchange's old day files | < $1 |
-| CloudWatch | a disk-usage metric, its alarm, a billing alarm | warnings before the disk or the bill gets out of hand | ~$0.30 |
+| CloudWatch and SNS | two custom metrics (disk use, finished backups), their alarms, an email topic | warnings before the disk fills, when backups stop, or when the server goes quiet | ~$0.60 |
 | Systems Manager | | shell access and one-off commands without SSH | $0 |
 | Data transfer out | | the first 100 GB a month is free; a demo uses far less | $0 |
 | **Total** | | | **≈ $19** |
@@ -208,13 +208,22 @@ anyway: no credentials in GitHub, no inbound connection to the server.
 
 ## Backups and upkeep
 
-- **Nightly:** `pg_dump` each of the three databases to S3. A lifecycle rule deletes dumps
-  older than 30 days.
-- **Nightly:** copy the exchange's finished day files (every snapshot and journal except the
-  newest pair) to S3, then delete local copies older than a week. The gateway only ever reads
-  the newest pair and never deletes anything itself. At the simulator's default activity
-  that is about 3 GB a month in S3.
-- **Disk alarm:** a CloudWatch alarm when the disk passes 80%. market-data's `ticks` grow
+Two jobs in [`hosting/`](../hosting/), run by systemd timers that the deploy agent
+installs with every release (steps in [AWS-SETUP.md](AWS-SETUP.md), section 7):
+
+- **Nightly at 22:30 UTC** (`backup.sh`), after the exchange's 21:00 roll:
+  - `pg_dump` each of the three databases to the private S3 bucket
+    `tradeplatform-dev-backups`, gzipped. A bucket rule deletes dumps after 30 days.
+  - Archive the exchange's finished day files (every snapshot and journal except the
+    current pair) there, gzipped, then delete local copies that are archived and over a week
+    old. The gateway only ever reads the newest pair and never deletes anything itself.
+    Measured live, the journal grows about 120 MB a day even at `SIM_ACTIVITY=0.2` (the
+    market makers' re-quoting dominates, and that setting only slows the takers); gzipped,
+    about a tenth of that. A bucket rule deletes archived days after a year.
+  - Report a finished backup to CloudWatch.
+- **Hourly** (`disk-metric.sh`): report disk use to CloudWatch.
+- **Alarms**, emailed through an SNS topic: the disk passes 80% or the hourly reports stop
+  (the server is down), and a day passes with no finished backup. market-data's `ticks` grow
   about 13 MB a day and are kept on purpose; how to move old ones rather than delete them is
   in [BACKLOG.md](BACKLOG.md).
 - **Uptime:** a free checker (UptimeRobot or Better Stack) on the site, `/api/status` and
@@ -253,7 +262,7 @@ In the repo:
 | Three compose files and a `Caddyfile` | done (stage 1): `exchange-alpha/deploy/`, `participants/simulator/deploy/`, `broker/deploy/`, `broker/web/Caddyfile` |
 | GitHub Actions: `ci` | done (stage 2): `.github/workflows/ci.yml` |
 | GitHub Actions: `deploy` and the deploy agent | done (stage 3): `.github/workflows/deploy.yml`, `hosting/` |
-| Nightly scripts | database dumps, and archiving the exchange's day files |
+| Nightly backups and the disk report | done (stage 4): `hosting/backup.sh`, `hosting/disk-metric.sh` and their timers |
 
 In AWS, once. The steps, as commands, are in [AWS-SETUP.md](AWS-SETUP.md).
 
@@ -262,6 +271,6 @@ In AWS, once. The steps, as commands, are in [AWS-SETUP.md](AWS-SETUP.md).
 | Account | done: MFA, and the `trading-platform-monthly` budget |
 | IAM | an instance role for the server (Systems Manager; S3 in stage 4) |
 | Server | a `t4g.small` on Amazon Linux 2023 in `us-east-2`, set up by `hosting/server-setup.sh`; a security group allowing 443 and 80 |
-| S3 | a bucket for backups and archived day files, with lifecycle rules |
+| S3 | the private `tradeplatform-dev-backups` bucket, with lifecycle rules |
 | DNS | in Cloudflare: an `A` record for `tradeplatform.dev` to the server's Elastic IP, "DNS only" |
-| Monitoring | a disk alarm and an uptime checker |
+| Monitoring | the disk and backup alarms through an email topic; an uptime checker |

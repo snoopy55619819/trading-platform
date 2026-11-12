@@ -36,7 +36,8 @@ Each company also owns how it is deployed: a `Dockerfile` beside each deployable
 production compose file in its own `deploy/` folder. The three stacks meet only on a shared
 Docker network, `trading`, where the gateway is reachable by name on its published ports
 (`docs/DEPLOYMENT.md`). The one machine they share is set up by `hosting/`: its first-boot
-script and the deploy agent that pulls each release. That folder belongs to the server, not
+script, the deploy agent that pulls each release, and its nightly backup and hourly disk
+report. That folder belongs to the server, not
 to any company, and holds no company's configuration.
 
 Cross-company: the exchange **publishes** a spec; consumers vendor a copy and implement

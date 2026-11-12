@@ -43,6 +43,11 @@ SITE_ADDRESS=tradeplatform.dev
 SITE_ORIGIN=https://tradeplatform.dev
 ENV
 
-install -m 644 hosting/deploy-agent.service hosting/deploy-agent.timer /etc/systemd/system/
+# The server's jobs: the deploy agent, nightly backups, the hourly disk report. The agent
+# reinstalls them with every release. Backups need /etc/trading-platform/aws.env
+# (docs/AWS-SETUP.md); until it exists they skip quietly.
+install -m 644 hosting/*.service hosting/*.timer /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now deploy-agent.timer
+for timer in hosting/*.timer; do
+  systemctl enable --now "$(basename "$timer")"
+done
