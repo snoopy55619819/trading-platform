@@ -48,16 +48,21 @@ One set of components, three styles, each in light and dark:
 | <img src="docs/images/style-pro-dark.png" alt="Pro style, dark mode: dense, small type, everything visible at once"> | <img src="docs/images/style-active-light.png" alt="Active style, light mode: bold colours and big Buy and Sell buttons"> | <img src="docs/images/style-calm-light.png" alt="Calm style, light mode: spacious, large type, one thing at a time"> |
 | dense, everything at once | bold, quick to trade | spacious, one thing at a time |
 
-### Stack
+### What's inside
 
-| Part | Language | What it does |
+| Component | Language | What it does |
 |---|---|---|
 | `exchange-alpha/` | Rust | matching engine, FIX 4.4 gateway, market data publisher |
 | `broker/backend/` | TypeScript (Node) | API, order management, pre-trade risk, ledger, FIX initiator |
 | `broker/market-data/` | TypeScript (Node) | live price fan-out to browsers, candle history |
 | `broker/web/` | TypeScript (React, Vite) | the trading app |
 | `participants/simulator/` | TypeScript (Node) | simulated trading firms |
-| Postgres | | one database per service, never shared |
+| Postgres | SQL | one database per service, never shared |
+
+Each top-level folder is a separate business: the exchange, the broker, and the simulated
+trading firms. They share no code and connect only through what the exchange publishes (its
+FIX spec and market data schema), the way real firms do. How those published specs are
+versioned and copied is in [DECISIONS.md](docs/DECISIONS.md#9-specs-and-codegen).
 
 ## Architecture
 
@@ -65,442 +70,54 @@ One set of components, three styles, each in light and dark:
 
 To keep scope manageable the broker runs as one backend process and the exchange as one binary. 
 
-[![Current MVP plan: broker backend and exchange binary, connected by FIX for orders and WebSocket for market data](docs/architecture/current-plan.svg)](https://snoopy55619819.github.io/trading-platform/architecture/current-plan.html)
+[![Current implementation (MVP): broker backend and exchange binary, connected by FIX for orders and WebSocket for market data](docs/architecture/current-plan.svg)](https://snoopy55619819.github.io/trading-platform/architecture/current-plan.html)
 
-### Ideal end state
+### Long-Term Goal
 
-Every service split the way the industry splits it, with nothing cut for scope. **SPLIT**
-boxes were modules inside a merged process in the MVP; **dashed** boxes and dotted lines were
-cut from the MVP entirely. Post-trade (clearing, custody, settlement) appears as a third plane.
+Where the platform is headed: every part becomes its own service, split the way real market
+infrastructure is split, and a third plane is added for what happens after a trade (clearing,
+custody and settlement). In the diagram, boxes tagged **SPLIT** run together in one process
+today, and **dashed** boxes and dotted lines are not built yet.
 
-[![Ideal end state: broker, two exchanges, market infrastructure and simulation across order, market data and post-trade planes](docs/architecture/ideal-end-state.svg)](https://snoopy55619819.github.io/trading-platform/architecture/ideal-end-state.html)
+[![Long-term goal: broker, two exchanges, market infrastructure and simulation across order, market data and post-trade planes](docs/architecture/ideal-end-state.svg)](https://snoopy55619819.github.io/trading-platform/architecture/ideal-end-state.html)
 
 The numbered badges are explained in each diagram's legend. Open the interactive versions,
 with the full legend and a light/dark toggle: [current plan](https://snoopy55619819.github.io/trading-platform/architecture/current-plan.html) and
 [ideal end state](https://snoopy55619819.github.io/trading-platform/architecture/ideal-end-state.html). Click either image to open it too. The source
 is `docs/architecture/*.html`.
 
-## How it fits together
+## Key design choices
 
-The single most important structural fact: **this is not one pipeline, it is two independent
-planes.** The same match reaches you twice, by two different routes, carrying two different
-things: privately as your execution report, publicly as an anonymous print on the tape.
-
-The diagrams above show both planes: blue for orders, orange for market data.
-
-`web` talks to **two** services and joins them itself: positions from `backend`, prices from
-`market-data`. That is what keeps the backend free of any market-data dependency.
-
-**Where the boundaries are, and why.** The company boundary is real: two businesses, a
-network between them, FIX as the contract. Inside the broker, `api`/`oms`/`ledger` are *not*
-separate. Splitting them would make a buying-power check non-transactional in exchange for
-nothing. `market-data` is separate on technical grounds: different workload, different
-database, no transactional coupling.
-
-**`fix-core` is a library, not a server:** the FIX codec plus the session state machine.
-The gateway links it in, and the backend links its own initiator against the same published
-dictionary. It has never heard of an order book.
-
-**What the two planes must never share:** `TradePrint` has no field for an account or a
-client order id, structurally, not by convention. Leaking one onto the public feed would be
-a correctness bug, so the schema makes it impossible to write.
-
-## Organised by company, not by service
-
-The top level mirrors the real world: **each folder is a business that would exist
-independently.** They share no code, no build, and no contracts directory.
-
-```
-exchange-alpha/   Alpha Exchange        (Rust)  publishes spec/, everything else is private
-broker/           A broker-dealer       (TS)    backend, market-data, web
-                                                  three deployables, nothing shared
-participants/     Other trading firms   (TS)    the simulated market
-```
-
-Cross-company interfaces work the way they do in the industry: **the exchange publishes a
-spec, and everyone else implements against it.** Nasdaq doesn't co-own a schema repo with
-Schwab; it publishes a FIX spec and firms build to it.
-
-The exchange publishes `fix44.xml`, `marketdata.proto` and `listings.json` in
-`exchange-alpha/spec/`. Each consumer copies only the files it uses into its own
-`vendor/exchange-alpha/`, stamped with the spec version:
-
-| Consumer | Vendors |
-|---|---|
-| `broker/backend` | `fix44.xml`, `listings.json` |
-| `broker/market-data` | `marketdata.proto`, `listings.json` |
-
-`pnpm spec:sync` updates the copies on purpose; `pnpm spec:check` fails when a copy falls
-behind. A stale copy is not a repo problem: it is integration work, and handling it is part
-of what this project is for.
-
-There are no shared packages, even between the broker's own services. That is what keeps
-each of them free to be rewritten in another language.
+- **Two separate data paths.** Orders and fills travel privately between one customer and the
+  exchange (blue in the diagrams). Prices travel publicly to everyone (orange). A trade reaches
+  you both ways: privately as your fill, and publicly as an anonymous trade on the feed.
+- **The public feed cannot leak who traded.** Its trade message has no field for an account or
+  order ID, so a leak can't even be written, rather than merely being avoided.
+- **Split only where it pays off.** The broker's API, order management and ledger run in one
+  process, so checking buying power and recording the order happen in a single database
+  transaction. Market data is its own service because its work is different: constant writes
+  and its own database.
+- **The browser joins the two paths itself.** It gets positions from the broker's backend and
+  prices from market-data, so the backend never depends on market data.
 
 ## Running it
 
-One command runs the whole stack: three databases, the exchange, the simulated market, the
-broker's backend and market-data, and the web client. You trade in a browser at
-http://localhost:5173.
-
-### Quick start
-
-**Prerequisites:**
-
-| | |
-|---|---|
-| Docker | the three Postgres databases run in containers |
-| Rust 1.98 or later | the exchange (`rust-version` in `exchange-alpha/Cargo.toml`) |
-| Node 26 | every TypeScript service (`engines` in each `package.json`; `.nvmrc` pins 26.8.1, so `nvm use` picks it) |
-| pnpm | installs and scripts |
-| `buf` | generates the market data types from the exchange's published `.proto` |
-
-**First time.** Each deployable installs on its own. There is no workspace and no root
-install:
-
-```bash
-nvm use
-pnpm backend install && pnpm market-data install && pnpm web install && pnpm simulator install
-```
-
-The simulator and market-data read the exchange's feed through generated code, which is
-never committed:
-
-```bash
-pnpm simulator proto:gen && pnpm market-data proto:gen
-```
-
-Start the broker's two databases, then create their schemas and seed the instruments:
-
-```bash
-pnpm db:up && pnpm backend db:migrate && pnpm backend db:seed && pnpm market-data db:migrate
-```
-
-The exchange's database needs no migration step: `pnpm dev` starts it and the gateway sets
-up its own tables.
-
-**Every time:**
+With Docker, Rust, Node 26 and pnpm installed, and the first-time setup done once, one command
+starts everything: the databases, the exchange, the simulated market, the broker and the web
+app.
 
 ```bash
 pnpm dev
 ```
 
-The first run compiles the exchange, so give it a minute. Ctrl-C stops every process; the
-databases keep running.
+Then open http://localhost:5173, open an account, add funds and place an order.
 
-**In the browser**, open http://localhost:5173:
+First-time setup, troubleshooting, running one service on its own, and every shortcut from the
+repo root are in [RUNNING.md](docs/RUNNING.md).
 
-1. Choose "New here? Open an account" and sign up with any email and password.
-2. Click **Add funds** at the top of the activity panel. A new account has no cash.
-3. Pick a symbol, enter a quantity in the order ticket (or click a price in the book), and
-   confirm. The fill shows in the blotter and your holdings update.
+## Roadmap
 
-### When something goes wrong
-
-- **A port is already in use.** Each process binds a fixed port: FIX 9878, the exchange's
-  feed 9879, backend 8080, market-data 8081, web 5173, Postgres 5432, 5433 and 5434. The web
-  client will not move to another port, because the backend only allows that origin. Find
-  the old process with `lsof -i :<port>` and stop it.
-- **The gateway cannot reach its database.** Start it with `pnpm exchange:db`.
-- **Start the databases again from empty.** `pnpm db:reset` deletes the broker's two
-  volumes, migrates and re-seeds. Every account, order and candle is lost. It does not touch
-  the exchange's database.
-- **A spec changed under you.** `pnpm spec:check` names any vendored copy that is behind;
-  `pnpm spec:sync` updates them, then run `proto:gen` again.
-
-### Working on one piece alone
-
-Each service also runs by itself, from its own folder. The commands below assume the
-first-time setup above.
-
-#### The database
-
-`psql` without installing it, through the container:
-
-```bash
-docker compose -f broker/compose.yml exec broker-postgres psql -U broker -d broker
-```
-
-If you do have `psql` locally (`brew install libpq`), or want to point a GUI at it
-(TablePlus, DBeaver, DataGrip):
-
-```
-postgres://broker:broker@127.0.0.1:5432/broker
-postgres://market_data:market_data@127.0.0.1:5434/market_data
-postgres://exchange_alpha:exchange_alpha@127.0.0.1:5433/exchange_alpha
-```
-
-Useful once you are in the broker's:
-
-| | |
-|---|---|
-| `\dn` | list schemas: you should see `broker` |
-| `\dt broker.*` | its tables: users, accounts, orders, fills, the ledger's journal, and more |
-| `\d broker.securities` | columns **and the CHECK constraints** |
-| `SELECT * FROM broker.securities;` | the seeded instruments |
-| `SELECT * FROM broker.schema_migrations;` | what has been applied, and when |
-
-#### The exchange
-
-Alpha Exchange has its own database (port 5433), separate from the broker's:
-
-```bash
-pnpm exchange:db
-```
-
-```bash
-cd exchange-alpha && cargo run -p gateway
-```
-
-It listens for FIX 4.4 on `127.0.0.1:9878`, publishes market data over WebSocket on
-`127.0.0.1:9879`, and journals to `exchange-alpha/data/`. CompIDs allowed to log on:
-`BROKER`, `SIM`, `QFGO1`, `QFGO2` (set `ALPHA_COMP_IDS` to change). The other settings are
-listed at the top of `exchange-alpha/crates/gateway/src/main.rs`.
-
-**Watch the feed**: a live depth ladder for one symbol, rebuilt from the public feed alone.
-Kill it and start it again and it carries on from a snapshot with no gap. `--log` prints
-each message with its sequence numbers instead:
-
-```bash
-cd exchange-alpha && cargo run -p md-publisher --bin md-watch -- ACME
-```
-
-**Conformance against QuickFIX**, an independent FIX engine loading the same published
-spec. Two sessions trade, then the gateway is killed with `kill -9` and restarted, and a fill
-that happened while a client was away must reach it by resend. It needs Go, the exchange's
-database, and port 9878 free, so stop `pnpm dev` first. It builds and starts its own
-gateway on a fresh journal, and it drops the exchange database's FIX session tables before
-it starts:
-
-```bash
-pnpm exchange:conformance
-```
-
-#### The simulated market
-
-Simulated trading firms (market makers, noise, momentum and mean-reversion traders) that
-connect like any other client: one FIX session, the public feed, no backdoor. With the
-exchange running:
-
-```bash
-cd participants/simulator && pnpm start
-```
-
-Then watch a symbol with `md-watch` as above. `SIM_SPEED=20` runs prices twenty times
-faster than the clock; `SIM_ACTIVITY=0.2` makes a quiet market for a deployed instance.
-Ctrl-C cancels everything the simulator has resting.
-
-#### The broker's backend
-
-An HTTP API, the OMS with pre-trade risk, the ledger, and its own FIX connection to the
-exchange. With the exchange running (and ideally the simulator, so there is something to
-trade against):
-
-```bash
-cd broker/backend && pnpm start
-```
-
-Every endpoint is listed at the top of `broker/backend/src/api/server.ts`. With `curl`:
-sign up, log in, fund the account, buy, and look at the result.
-
-```bash
-curl -s -X POST localhost:8080/users -d '{"email":"ada@example.com","password":"correct horse"}'
-```
-
-```bash
-TOKEN=$(curl -s -X POST localhost:8080/sessions -d '{"email":"ada@example.com","password":"correct horse"}' | jq -r .token)
-```
-
-```bash
-curl -s -X POST localhost:8080/deposits -H "Authorization: Bearer $TOKEN" -d '{"amountCents":5000000}'
-```
-
-```bash
-curl -s -X POST localhost:8080/orders -H "Authorization: Bearer $TOKEN" -d '{"clientOrderId":"first","symbol":"ACME","side":"BUY","orderType":"MARKET","timeInForce":"IOC","qty":100}'
-```
-
-```bash
-curl -s localhost:8080/positions -H "Authorization: Bearer $TOKEN"
-```
-
-`GET /status` says whether the FIX session to the exchange is up.
-
-#### The broker's market data
-
-Live prices for browsers and chart history, from the exchange's public feed. With the
-exchange running:
-
-```bash
-cd broker/market-data && pnpm start
-```
-
-```bash
-curl -s "localhost:8081/history?symbol=ACME&interval=1m"
-curl -s "localhost:8081/trades?symbol=ACME&limit=10"
-curl -s localhost:8081/health
-```
-
-Browsers subscribe on `ws://localhost:8081/live` with `{"subscribe": ["ACME"]}`.
-
-#### The web client
-
-The browser client, built with Vite. With the backend and market-data running:
-
-```bash
-cd broker/web && pnpm dev
-```
-
-It serves on `http://localhost:5173`, the origin the backend allows by default
-(`BROKER_WEB_ORIGIN` on the backend changes that). Point the client elsewhere at build time
-with `VITE_BACKEND_URL` and `VITE_MARKET_DATA_URL`.
-
-#### The matching engine (no network)
-
-A walkthrough of every matching rule (price-time priority, walking the book, IOC, FOK,
-self-trade prevention, cancels), with commentary:
-
-```bash
-cd exchange-alpha && cargo run -p matching-engine -- crates/matching-engine/scenarios/demo.txt
-```
-
-Or trade interactively. With `--journal`, quit and restart and the book is exactly as you
-left it:
-
-```bash
-cd exchange-alpha && cargo run -p matching-engine -- --journal /tmp/alpha.journal
-```
-
-#### Tests
-
-The whole exchange (matching, FIX, gateway, market data), then the matching latency
-benchmark:
-
-```bash
-pnpm exchange:test && cd exchange-alpha && cargo bench -p matching-engine
-```
-
-Each TypeScript deployable runs its own with `pnpm test` (and `pnpm typecheck`) from its
-folder.
-
-### Shortcuts from the repo root
-
-| | |
-|---|---|
-| `pnpm dev` | everything at once, on http://localhost:5173. Ctrl-C stops it all (the databases keep running) |
-| `pnpm db:up` / `pnpm db:down` | start / stop the broker's two databases |
-| `pnpm db:reset` | wipe the broker's databases, re-migrate, re-seed |
-| `pnpm exchange:db` | start the exchange's database |
-| `pnpm exchange:run` / `exchange:build` / `exchange:test` | run, build or test the exchange |
-| `pnpm exchange:conformance` | the QuickFIX conformance run |
-| `pnpm spec:check` / `pnpm spec:sync` | find / update stale vendored copies of the exchange's spec |
-| `pnpm backend <script>` | run a script inside `broker/backend`; likewise `market-data`, `web` and `simulator` |
-
-These are conveniences only. Everything they do you can do from inside the folder itself:
-no deployable depends on the repo root to build, run or deploy.
-
-## Working on it
-
-Each service carries its own **`TODO.md`**: a checklist plus the inputs and outputs it is
-responsible for. Start there rather than from `PLAN.md`, which is the roadmap rather than
-the working document.
-
-| Milestone | Service | Checklist |
-|---|---|---|
-| M1 | matching engine | [`exchange-alpha/crates/matching-engine/TODO.md`](exchange-alpha/crates/matching-engine/TODO.md) |
-| M2 | FIX codec + session | [`exchange-alpha/crates/fix-core/TODO.md`](exchange-alpha/crates/fix-core/TODO.md) |
-| M2 | exchange gateway | [`exchange-alpha/crates/gateway/TODO.md`](exchange-alpha/crates/gateway/TODO.md) |
-| M3 | market data feed | [`exchange-alpha/crates/md-publisher/TODO.md`](exchange-alpha/crates/md-publisher/TODO.md) |
-| M4 | simulated participants | [`participants/simulator/TODO.md`](participants/simulator/TODO.md) |
-| M5–M6 | broker backend | [`broker/backend/TODO.md`](broker/backend/TODO.md) |
-| M7 | broker market data | [`broker/market-data/TODO.md`](broker/market-data/TODO.md) |
-| M8 | client | [`broker/web/TODO.md`](broker/web/TODO.md) |
-
-Conventions that apply everywhere are in [`docs/DECISIONS.md`](docs/DECISIONS.md); the
-short version is in [`CLAUDE.md`](CLAUDE.md).
-
-## Built so far
-
-The MVP, milestones 0 to 8, is complete. Each milestone had a concrete test that proves it;
-the full plan is in [PLAN.md](PLAN.md).
-
-| | Milestone | Proved by |
-|---|---|---|
-| M1 | Matching engine | replaying the journal reproduces a byte-identical book |
-| M2 | FIX 4.4 | QuickFIX/Go trades through the book, survives a `kill -9` of the gateway, and recovers a missed fill by resend |
-| M3 | Market data | a property test: a subscriber joining at any point rebuilds the engine's exact book from the feed alone |
-| M4 | Simulated market | thousands of orders with zero rejects and zero feed gaps; books one-sided for 9 of 721 seconds, market makers within their inventory limits |
-| M5 | Broker ledger | 1,000 random fills match an independent tally to the cent; the database refuses an unbalanced entry |
-| M6 | Order management | a fill that happened while the broker was killed was recovered on restart and booked to the cent |
-| M7 | Market data service | a recorded feed replayed into candles that match an independent tally; killed mid-stream with no gap or double bar |
-| M8 | Web client | "Buy 100" in the browser fills in the blotter while the book moves and holdings and P&L update |
-
-<details>
-<summary>What each milestone built, in more detail</summary>
-
-**Milestone 8, the web client: complete.** The whole MVP runs in a browser with `pnpm dev`.
-A Vite + React client signs in, and joins the two planes itself: prices, depth, candles and
-time and sales from market-data (live over WebSocket), account, positions and orders from
-the backend. Pick a symbol, star it, watch the book and chart move, place a market or limit
-order from the ticket or by clicking a price in the book, confirm it, and see it fill in
-the blotter with a toast while holdings and P&L update. Three styles (Pro, Active, Calm),
-each in light and dark, share every container and differ only in tokens, layout and a few
-view variants; layouts are data, ready for a drag-and-drop editor.
-
-**Milestone 7, the broker's market data: complete.** Its own service and its own database.
-It follows the exchange's feed with gap detection, stores every trade once, and rolls them
-into 1-minute to 1-day candles (days on the venue's business day) by recomputing buckets,
-so late ticks land correctly and restarts never double a bar. Browsers get live books
-(conflated) and trades over WebSocket, and a slow browser is cut off rather than allowed
-to stall ingest. Tested by replaying a recorded feed against an independent tally and by
-killing it mid-stream.
-
-**Milestone 6, the broker's OMS: complete.** An order now goes end to end: `curl` →
-pre-trade risk in one transaction with the order write → the broker's own TypeScript FIX
-initiator → Alpha Exchange → execution reports → the ledger. Every bad order is refused for
-its own named reason. The FIX session never resets its numbers: a fill that happened while
-the broker was `kill -9`'d was recovered by resend on restart and booked to the cent.
-Orders are committed before they are sent, and recorded as sent in the same transaction as
-their FIX sequence number, so a crash at any point loses nothing.
-
-**Milestone 5, the broker's ledger: complete.** Double-entry books in Postgres, where the
-rules cannot be bypassed: every entry balances per asset (checked at commit), shares can
-never land in a cash account, and history is append-only. A fill books one entry with
-three balanced pairs; positions and cash are only ever derived by summing lines; a settle
-job moves shares from unsettled to settled; reconciliation checks the books against an
-independent tally of fills. A test posts 1,000 random fills and matches an in-memory tally
-to the cent.
-
-**Milestone 4, simulated participants: complete.** The market is alive. A TypeScript
-simulator, sharing no code with the exchange, logs on over its own FIX 4.4 initiator and
-reads the public feed: market makers quote ten books around a hidden fair value (geometric
-Brownian motion with news jumps), skew to shed inventory and pull quotes on jumps; noise,
-momentum and mean-reversion traders take liquidity. Behaviour runs against the real
-exchange, with an independent recorder on the feed, found and fixed books going one-sided
-and market makers overshooting their inventory limits. Zero rejects and zero feed gaps
-across thousands of orders.
-
-**Milestone 3, market data: complete.** The public plane. Every book change and trade goes
-out over WebSocket as protobuf, per the published `marketdata.proto`, with no field that
-could identify a participant. Each message carries a venue-wide `feed_seq` and a
-per-symbol `symbol_seq` (ADR 0001); a subscriber that sees a gap asks for a fresh
-snapshot. Slow subscribers are disconnected rather than allowed to stall the feed. The
-feed is rebuilt from the journal on restart, so its sequence numbers survive a `kill -9`.
-A property test drives random order flow through the real engine and checks that a
-subscriber joining at any point rebuilds the engine's exact book from the feed alone. 106
-tests across the exchange.
-
-**Milestone 2, FIX 4.4: complete.** Alpha Exchange speaks FIX over TCP. `fix-core` is a
-hand-written codec, data dictionary and session state machine (logon, heartbeats, sequence
-numbers, gap detection, resend); the `gateway` validates every order against the venue's
-rules before the engine sees it and sends each side of a trade only its own execution
-report. Sequence numbers live in the exchange's own Postgres and survive restarts.
-Conformance-tested against **QuickFIX/Go**, which trades through the book, survives the
-gateway being SIGKILLed, and recovers a missed fill by resend.
-
-</details>
-
-## What's next
-
-The post-MVP roadmap is in `PLAN.md` Part 8, led by the post-trade plane (clearing, custody,
-and settlement on a real T+1 clock). Smaller follow-ups and the layout editor are in
-[BACKLOG.md](BACKLOG.md).
+The MVP, milestones 0 to 8, is built, each milestone proved by a concrete test. Next is the
+post-trade plane: clearing, custody and settlement on a real T+1 clock. What each milestone
+built and proved, what comes after, and where each service's checklist lives are in
+[ROADMAP.md](docs/ROADMAP.md).

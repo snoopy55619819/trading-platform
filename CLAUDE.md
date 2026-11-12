@@ -2,7 +2,7 @@
 
 End-to-end simulation of the equities trading lifecycle. Entirely synthetic — no real market
 data, no real money. Built as a learning project: the point is the systems architecture, not the
-UI. See `PLAN.md` for the full architecture and milestone breakdown; read it before making
+UI. See `docs/PLAN.md` for the full architecture and milestone breakdown; read it before making
 structural decisions.
 
 ## Layout: organised by company
@@ -106,7 +106,7 @@ execution report, publicly as an anonymous print.
 
 ## Working here
 
-- Milestones are independently workable — see `PLAN.md` Part 7. Each has a concrete done-test.
+- Milestones are independently workable — see `docs/PLAN.md` Part 7. Each has a concrete done-test.
 - Empty directories carry a `.gitkeep` only because git will not track them otherwise. As soon as
   a directory gains a real file, delete its `.gitkeep` in the same change — it has done its job.
 - **`docs/DECISIONS.md`** holds the long-form version of the conventions above — money

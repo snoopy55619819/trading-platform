@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Trading Platform: Ideal End State</title>
+<title>Trading Platform: Long-Term Goal</title>
 <!--
 MODEL
 
@@ -145,11 +145,11 @@ omitted on purpose:
 <main>
 <header>
   <div>
-    <h1>Trading Platform: ideal end state</h1>
-    <p class="sub">Every service split along the lines the real industry draws, with no scope
-      shortcuts. Compared with the current plan: <strong>SPLIT</strong> boxes were modules inside a
-      merged process in the MVP, and <strong>dashed</strong> boxes and dotted lines were cut from the
-      MVP entirely. A third plane, post-trade, appears here for the first time.</p>
+    <h1>Trading Platform: Long-Term Goal</h1>
+    <p class="sub">Where the platform is headed: every part becomes its own service, split the way
+      real market infrastructure is split, and a third plane is added for what happens after a
+      trade (clearing, custody and settlement). Boxes tagged <strong>SPLIT</strong> run together in
+      one process today, and <strong>dashed</strong> boxes and dotted lines are not built yet.</p>
   </div>
   <button id="theme" type="button">Toggle theme</button>
 </header>
@@ -164,7 +164,7 @@ omitted on purpose:
 
 <div class="diagram">
 <svg viewBox="0 0 1420 1060" role="img" aria-labelledby="dtitle">
-  <title id="dtitle">Ideal end state: broker, two venues, market infrastructure and a simulation layer across order, market data and post-trade planes</title>
+  <title id="dtitle">Long-term goal: broker, two venues, market infrastructure and a simulation layer across order, market data and post-trade planes</title>
 
   <!-- Owner boundaries -->
   <g class="boundary own-1"><rect x="40" y="30" width="530" height="1010" rx="12"/><text x="56" y="52">BROKER</text></g>
@@ -377,11 +377,11 @@ omitted on purpose:
   <li><svg viewBox="0 0 44 26"><path class="edge flow-1" d="M2,13 L40,13" marker-end="url(#arr-1)"/></svg>Order plane</li>
   <li><svg viewBox="0 0 44 26"><path class="edge flow-2" d="M2,13 L40,13" marker-end="url(#arr-2)"/></svg>Market data plane</li>
   <li><svg viewBox="0 0 44 26"><path class="edge flow-3" d="M2,13 L40,13" marker-end="url(#arr-3)"/></svg>Post-trade plane</li>
-  <li><svg viewBox="0 0 44 26"><path class="edge flow-3 planned" d="M2,13 L40,13" marker-end="url(#arr-3)"/></svg>Connection cut from the MVP</li>
+  <li><svg viewBox="0 0 44 26"><path class="edge flow-3 planned" d="M2,13 L40,13" marker-end="url(#arr-3)"/></svg>Connection not built yet</li>
   <li><svg viewBox="0 0 44 26"><g class="node"><rect x="2" y="3" width="40" height="20" rx="4"/></g></svg>Deployable process</li>
-  <li><svg viewBox="0 0 44 26"><g class="node planned"><rect x="2" y="3" width="40" height="20" rx="4"/></g></svg>Service cut from the MVP</li>
+  <li><svg viewBox="0 0 44 26"><g class="node planned"><rect x="2" y="3" width="40" height="20" rx="4"/></g></svg>Service not built yet</li>
   <li><svg viewBox="0 0 44 26"><g class="boundary own-1"><rect x="2" y="3" width="40" height="20" rx="4"/></g></svg>Company boundary</li>
-  <li><strong>SPLIT</strong>: a module in the MVP, its own service here</li>
+  <li><strong>SPLIT</strong>: runs inside one process today, its own service here</li>
 </ul>
 
 <h2>Legend</h2>
