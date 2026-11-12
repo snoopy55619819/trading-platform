@@ -1,9 +1,11 @@
 // The chart's choices: which interval can show a range, which range suits an interval, how
-// many bars to fetch, where the view starts, and what the legend says about a candle.
+// many bars to fetch, where the view starts, what the legend says about a candle, and which
+// candles in view get the high and low marks.
 
 import { describe, expect, test } from "vitest";
 
 import { INTERVALS, MAX_BARS, type Bar } from "../../api/marketData.ts";
+import { visibleExtremes } from "./extremes.ts";
 import { legendFor } from "./legend.ts";
 import { RANGES, RIGHT_OFFSET, barsToFetch, fits, frame, intervalForRange, rangeForInterval } from "./range.ts";
 
@@ -94,5 +96,34 @@ describe("legend", () => {
   test("a falling candle is down, an unchanged one flat", () => {
     expect(legendFor(candle(4250, 4200))).toMatchObject({ change: "-0.50 (-1.18%)", direction: "down" });
     expect(legendFor(candle(4200, 4200))).toMatchObject({ change: "0.00 (0.00%)", direction: "flat" });
+  });
+});
+
+describe("visible high and low", () => {
+  // Highs and lows by index: the high is at 3 (4300), the low at 1 (4100).
+  const bars = [candle(4200, 4210), candle(4110, 4105), candle(4200, 4220), candle(4290, 4280), candle(4200, 4200)];
+
+  test("the highest high and lowest low in view, by index", () => {
+    expect(visibleExtremes(bars, 0, 4)).toEqual({ high: { index: 3, cents: 4295 }, low: { index: 1, cents: 4100 } });
+  });
+
+  test("only bars whose centres are in view count", () => {
+    // 2.5 to 4.6 holds bars 3 and 4; bar 1, the overall low, is out of view.
+    expect(visibleExtremes(bars, 2.5, 4.6)).toEqual({ high: { index: 3, cents: 4295 }, low: { index: 4, cents: 4195 } });
+  });
+
+  test("a range past either end, as with the space after the latest candle, is clamped", () => {
+    expect(visibleExtremes(bars, -3, 4 + RIGHT_OFFSET)).toEqual(visibleExtremes(bars, 0, 4));
+  });
+
+  test("on a tie the earlier bar wins", () => {
+    const flat = [candle(4200, 4200), candle(4200, 4200)];
+    expect(visibleExtremes(flat, 0, 1)).toEqual({ high: { index: 0, cents: 4205 }, low: { index: 0, cents: 4195 } });
+  });
+
+  test("nothing in view, no marks", () => {
+    expect(visibleExtremes([], 0, 10)).toBeUndefined();
+    expect(visibleExtremes(bars, 5.2, 9)).toBeUndefined();
+    expect(visibleExtremes(bars, 1.2, 1.8)).toBeUndefined();
   });
 });

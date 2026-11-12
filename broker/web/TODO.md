@@ -346,6 +346,15 @@ Decisions:
 - **Prices in the legend come from cents** (`chart/legend.ts`, `formatCents`); the series
   stays in dollars for drawing only.
 
+Later: the highest high and lowest low among the candles in view are marked on the chart,
+"H 101.25" above that candle and "L 98.10" below, as most trading charts do. They move as
+you zoom or scroll, with a new range or interval, and when a live trade sets a new high or
+low. Drawn with the library's own series markers (`createSeriesMarkers`) and worked out
+again on its visible range event (`subscribeVisibleLogicalRangeChange`); which candles
+count is a pure function (`chart/extremes.ts`, 5 unit tests). Only candles whose centre is
+in view count, and on a tie the earlier one wins. The marks use the muted text colour, so
+they read in every style and mode.
+
 ### After M8
 
 - **Defaults:** Active is the style a first visit gets (`DEFAULT_STYLE` in `theme/theme.ts`,

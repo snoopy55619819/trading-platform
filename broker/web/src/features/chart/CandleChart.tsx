@@ -9,6 +9,10 @@
 // cursor, or the latest one when the cursor is elsewhere. The crosshair labels the price on
 // the right axis and the time on the bottom one. Wheel, drag and pinch zoom and pan are the
 // library's own and left on; the range buttons only set where the view starts.
+//
+// The highest high and lowest low among the candles in view are marked "H" and "L" with
+// their price, using the library's series markers. They are worked out again whenever the
+// view moves (zoom, pan, a new range) and whenever the bars change.
 
 import {
   CandlestickSeries,
@@ -23,12 +27,16 @@ import {
   type Time,
   TickMarkType,
   type UTCTimestamp,
+  type ISeriesMarkersPluginApi,
   createChart,
+  createSeriesMarkers,
 } from "lightweight-charts";
 import { useEffect, useRef, useState } from "react";
 
 import type { Bar, Interval } from "../../api/marketData.ts";
+import { formatCents } from "../../money.ts";
 import { readTokens, useTheme } from "../../theme/theme.ts";
+import { visibleExtremes } from "./extremes.ts";
 import { legendFor } from "./legend.ts";
 import { RIGHT_OFFSET, type Range, frame } from "./range.ts";
 import { chartChange } from "./updates.ts";
@@ -67,6 +75,20 @@ const volume = (bar: Bar, c: Colours): HistogramData => ({
   color: translucent(bar.closeCents >= bar.openCents ? c.up : c.down, 0.4),
 });
 
+/** "H 101.25" above the highest candle in view and "L 98.10" below the lowest. */
+function markExtremes(chart: IChartApi | undefined, markers: ISeriesMarkersPluginApi<Time> | undefined, bars: Bar[], c: Colours): void {
+  const range = chart?.timeScale().getVisibleLogicalRange();
+  const found = range ? visibleExtremes(bars, range.from, range.to) : undefined;
+  markers?.setMarkers(
+    found
+      ? [
+          { time: seconds(bars[found.high.index]!), position: "aboveBar", shape: "arrowDown", color: c.text, size: 0.5, text: `H ${formatCents(found.high.cents)}` },
+          { time: seconds(bars[found.low.index]!), position: "belowBar", shape: "arrowUp", color: c.text, size: 0.5, text: `L ${formatCents(found.low.cents)}` },
+        ]
+      : [],
+  );
+}
+
 function localTime(time: Time, withDate: boolean): string {
   const date = new Date((time as number) * 1000);
   const hm = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -97,6 +119,7 @@ export function CandleChart({
   const chart = useRef<IChartApi>(undefined);
   const candles = useRef<ISeriesApi<"Candlestick">>(undefined);
   const volumes = useRef<ISeriesApi<"Histogram">>(undefined);
+  const markers = useRef<ISeriesMarkersPluginApi<Time>>(undefined);
   const drawn = useRef<{ bars: Bar[]; key: string } | undefined>(undefined);
   const colours = useRef<Colours>(undefined);
   const framed = useRef<string>(undefined);
@@ -119,6 +142,7 @@ export function CandleChart({
       priceFormat: { type: "price", precision: 2, minMove: 0.01 },
       borderVisible: false,
     });
+    markers.current = createSeriesMarkers(candles.current);
     volumes.current = api.addSeries(HistogramSeries, { priceScaleId: "", priceFormat: { type: "volume" }, lastValueVisible: false, priceLineVisible: false });
     // Volume along the bottom fifth, under the candles.
     api.priceScale("").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
@@ -130,7 +154,11 @@ export function CandleChart({
       setHovered(index);
     };
     api.subscribeCrosshairMove(onMove);
+    // Zoom, pan and a new frame all move the visible range; the marks follow.
+    const onRange = () => markExtremes(api, markers.current, drawn.current?.bars ?? [], colours.current ?? readColours());
+    api.timeScale().subscribeVisibleLogicalRangeChange(onRange);
     return () => {
+      api.timeScale().unsubscribeVisibleLogicalRangeChange(onRange);
       api.unsubscribeCrosshairMove(onMove);
       api.remove();
       chart.current = undefined;
@@ -166,7 +194,10 @@ export function CandleChart({
       },
     });
     candles.current?.applyOptions({ upColor: c.up, downColor: c.down, wickUpColor: c.up, wickDownColor: c.down });
-    if (drawn.current) volumes.current?.setData(drawn.current.bars.map((b) => volume(b, c)));
+    if (drawn.current) {
+      volumes.current?.setData(drawn.current.bars.map((b) => volume(b, c)));
+      markExtremes(chart.current, markers.current, drawn.current.bars, c);
+    }
   }, [theme.mode, theme.style]);
 
   // The data: an update when only the tail moved, otherwise everything.
@@ -174,6 +205,8 @@ export function CandleChart({
     const c = colours.current ?? readColours();
     const previous = drawn.current?.key === viewKey ? drawn.current.bars : undefined;
     const change = chartChange(previous, bars);
+    // Set before drawing, so a range change fired while drawing marks these bars.
+    drawn.current = { bars, key: viewKey };
     if (change.kind === "update") {
       for (const bar of change.bars) {
         candles.current?.update(candle(bar));
@@ -183,7 +216,6 @@ export function CandleChart({
       candles.current?.setData(bars.map(candle));
       volumes.current?.setData(bars.map((b) => volume(b, c)));
     }
-    drawn.current = { bars, key: viewKey };
     // A new view or range starts at the latest bars; a refetch or a live trade keeps where
     // you scrolled or zoomed.
     if (frameKey !== undefined && framed.current !== frameKey) {
@@ -193,6 +225,8 @@ export function CandleChart({
         framed.current = frameKey;
       }
     }
+    // A live trade can set a new high or low without moving the view.
+    markExtremes(chart.current, markers.current, bars, c);
   }, [bars, viewKey, frameKey, range, interval]);
 
   const bar = (hovered !== undefined ? bars[hovered] : undefined) ?? bars.at(-1);
