@@ -41,14 +41,14 @@ by published protocols, the way real market infrastructure is.
 - **Crash safety:** a broker killed mid-trade loses no orders and books no fill twice.
 - **Simulated market:** market makers and traders keep prices moving, connecting over the
   same FIX session as any other client.
-- **Trading app:** React App with live prices, charts, order book, order confirmations, and positions with P&L, in three styles with light and dark modes.
+- **Trading app:** React App with live prices, charts, order book, order confirmations, and positions with P&L, in four styles with light and dark modes.
 
-One set of components, three styles, each in light and dark:
+One set of components, four styles, each in light and dark (Terminal is dark only):
 
-| Pro | Active | Calm |
-|:---:|:---:|:---:|
-| <img src="docs/images/style-pro-dark.png" alt="Pro style, dark mode: dense, small type, everything visible at once"> | <img src="docs/images/style-active-light.png" alt="Active style, light mode: bold colours and big Buy and Sell buttons"> | <img src="docs/images/style-calm-light.png" alt="Calm style, light mode: spacious, large type, one thing at a time"> |
-| dense, everything at once | bold, quick to trade | spacious, one thing at a time |
+| Pro | Active | Calm | Terminal |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/images/style-pro-dark.png" alt="Pro style, dark mode: dense, small type, everything visible at once"> | <img src="docs/images/style-active-light.png" alt="Active style, light mode: bold colours and big Buy and Sell buttons"> | <img src="docs/images/style-calm-light.png" alt="Calm style, light mode: spacious, large type, one thing at a time"> | <img src="docs/images/style-terminal.png" alt="Terminal style: black, amber panel titles, all monospace, the densest"> |
+| dense, everything at once | bold, quick to trade | spacious, one thing at a time | a market data terminal: black, amber, monospace |
 
 ### What's inside
 
