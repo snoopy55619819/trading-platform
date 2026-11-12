@@ -161,7 +161,7 @@ cd participants/simulator && pnpm start
 ```
 
 Then watch a symbol with `md-watch` as above. `SIM_SPEED=20` runs prices twenty times
-faster than the clock; `SIM_ACTIVITY=0.2` makes a quiet market for a deployed instance.
+faster than the clock; `SIM_ACTIVITY` below 1 (`0.2`, say) makes a quieter market.
 Ctrl-C cancels everything the simulator has resting.
 
 ### The broker's backend

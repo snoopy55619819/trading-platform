@@ -1,6 +1,6 @@
 # ADR 0005: The gateway keeps a full record only for live orders
 
-**Status:** accepted, 2026-11-12. Built in PR #34; released as `v0.3.0`.
+**Status:** accepted, 2026-11-12. Built in PR #34; released as `v0.3.0`; measured below.
 Changes how `gateway/src/orders.rs` (the order tracker) holds the business day's orders.
 
 ## Context
@@ -100,6 +100,21 @@ makers as a separate improvement (in `docs/BACKLOG.md`).
   this change still load; finished orders in them become small entries.
 - Memory still grows with the day's traffic, but by a small entry per order rather than a
   full record, and the roll still clears it.
-- **To confirm after release:** the gateway's memory on the live server at the same time of
-  day, against the 234 MB above. Then a day at `SIM_ACTIVITY=1`, measured before the roll.
-  If memory is still tight, option 1 or 5.
+
+## Measured
+
+On the live server, after `v0.3.0` was released at 17:27 UTC the same day. A restart replays
+the whole business day's journal, so the gateway held the same day's orders as before, in the
+new form:
+
+| | `v0.2.0`, mid-day | `v0.3.0`, 17:27 UTC |
+|---|---|---|
+| Orders since the 21:00 roll | 173,342 | 180,007 |
+| Full records held | every one of them | 51, the orders still on the book |
+| Gateway process memory | **234 MB** | **37 MB** |
+| Memory available on the server | 626 MB | 897 MB |
+
+That is about 0.2 KB per finished order instead of 1.35 KB, so a day at `SIM_ACTIVITY=1`
+(several times the orders) should leave the gateway somewhere near 100 to 150 MB. The
+simulator was raised to `SIM_ACTIVITY=1` at 17:32 UTC to find out; the reading before the
+next roll is the check. If memory is ever tight, options 1 and 5 remain.

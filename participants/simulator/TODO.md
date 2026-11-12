@@ -30,7 +30,7 @@ All optional, by environment variable (`src/config.ts`):
 | Variable | Default | |
 |---|---|---|
 | `SIM_MAX_ORDERS_PER_SEC` | `40` | ceiling on orders and cancels, every agent together |
-| `SIM_ACTIVITY` | `1` | how often the takers trade; `0.2` for a quiet deployed instance |
+| `SIM_ACTIVITY` | `1` | how often the takers trade; below 1 for a quieter market (the deployed instance ran at `0.2` until ADR 0005) |
 | `SIM_SPEED` | `1` | fair value runs this many times faster than the clock, to see hours in minutes |
 | `SIM_SEED` | the clock | the same seed replays the same price paths |
 | `SIM_REPORT_SECS` | `30` | how often the status table prints |
