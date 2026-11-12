@@ -78,9 +78,12 @@ changes to deploy it.
 
 **Memory**, measured with the whole stack running locally in Docker: about 350 MB at start
 (backend 80 MB, market-data and the simulator about 58 MB each, three Postgres about 40 MB
-each, Caddy 30 MB, the gateway 4 MB). It grows as the databases warm their caches, but a
-2 GB server has plenty of room, with a 2 GB swap file as a safety net. Measure again after a
-few days live.
+each, Caddy 30 MB, the gateway 4 MB), with a 2 GB swap file as a safety net. Live, the
+gateway grew through each business day: 234 MB by mid-day at `SIM_ACTIVITY=0.2`, because it
+kept a full record of every order until the 21:00 roll. Since `v0.3.0` it keeps a full record
+only for live orders ([ADR 0005](adr/0005-gateway-keeps-only-live-orders.md)). The
+databases' "memory" in `docker stats` is mostly file cache, which the system reclaims when
+needed.
 
 ## AWS services and cost
 
