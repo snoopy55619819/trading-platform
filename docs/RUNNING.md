@@ -199,7 +199,8 @@ curl -s -X POST localhost:8080/orders -H "Authorization: Bearer $TOKEN" -d '{"cl
 curl -s localhost:8080/positions -H "Authorization: Bearer $TOKEN"
 ```
 
-`GET /status` says whether the FIX session to the exchange is up.
+`GET /status` says whether the FIX session to the exchange is up, and `lastHeardAt`: when
+the exchange last sent anything over it, heartbeats included (null if never).
 
 ### The broker's market data
 

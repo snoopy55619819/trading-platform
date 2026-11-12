@@ -14,6 +14,14 @@ export type OrderStatus =
 
 export const WORKING_STATUSES: readonly OrderStatus[] = ["PENDING_NEW", "NEW", "PARTIALLY_FILLED", "PENDING_CANCEL"];
 
+/** GET /status: the backend's FIX session to the exchange. */
+export interface VenueStatus {
+  venue: string;
+  connected: boolean;
+  /** When the exchange last sent anything over FIX, heartbeats included (ISO), or null if never. */
+  lastHeardAt: string | null;
+}
+
 export interface Security {
   symbol: string;
   name: string;
@@ -120,7 +128,7 @@ export const backend = {
   signUp: (email: string, password: string, name: string) =>
     request<{ userId: string; accountId: string }>("POST", "/users", { email, password, name }),
   logIn: (email: string, password: string) => request<{ token: string }>("POST", "/sessions", { email, password }),
-  status: () => request<{ venue: string; connected: boolean }>("GET", "/status"),
+  status: () => request<VenueStatus>("GET", "/status"),
   symbols: () => request<{ symbols: Security[] }>("GET", "/symbols").then((r) => r.symbols),
   positions: () => request<Positions>("GET", "/positions"),
   deposit: (amountCents: number, reference: string) =>

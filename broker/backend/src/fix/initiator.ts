@@ -84,6 +84,10 @@ export class Initiator {
     return this.session.isActive();
   }
 
+  lastHeardAt(): number | undefined {
+    return this.session.lastHeardAt();
+  }
+
   /**
    * Sends an application message. Its sequence number, a stored copy (for resends) and
    * whatever `alongside` writes all commit together, before a byte is written.

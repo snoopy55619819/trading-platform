@@ -5,7 +5,7 @@
 //   POST   /users          {email, password, name}         sign up: a user and an account with $10,000.00
 //   POST   /sessions       {email, password}                log in: {token}
 //   GET    /symbols                                         what can be traded
-//   GET    /status                                          is the exchange connection up
+//   GET    /status                                          is the exchange connection up, and when it was last heard from
 //   ---- with Authorization: Bearer <token> ----
 //   POST   /deposits       {amountCents, reference?}        add cash (stands in for a bank transfer)
 //   GET    /positions                                       cash, buying power, holdings with cost
@@ -171,7 +171,11 @@ export function createApi(pool: pg.Pool, oms: Oms, webOrigins = process.env.BROK
       return { status: 201, body: { token: issued } };
     }
     if (route === "GET /status") {
-      return { status: 200, body: { venue: "ALPHA", connected: oms.venueUp() } };
+      const heard = oms.venueLastHeardAt();
+      return {
+        status: 200,
+        body: { venue: "ALPHA", connected: oms.venueUp(), lastHeardAt: heard === undefined ? null : new Date(heard).toISOString() },
+      };
     }
     if (route === "GET /symbols") {
       const { rows } = await pool.query(

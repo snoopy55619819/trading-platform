@@ -111,6 +111,7 @@
 
 /* ---------- connections ---------- */
 .connections {
+  position: relative;
   display: flex;
   gap: var(--space-3);
   margin: 0;
@@ -123,6 +124,32 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  cursor: default;
+  border-radius: var(--radius);
+}
+/* Hover or focus a connection: its details, under the whole row so they line up. */
+.connection-details {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  right: 0;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  font-size: var(--fs-sm);
+  pointer-events: none;
+}
+.connection-details p {
+  margin: 0;
+}
+.connection-details p + p {
+  margin-top: var(--space-1);
+  color: var(--text-muted);
 }
 .sr-only {
   position: absolute;
@@ -136,6 +163,11 @@
 @media (max-width: 640px) {
   .quote-full-name {
     display: none;
+  }
+  /* The connections sit at the left of the bar here, so their details open rightward. */
+  .connection-details {
+    right: auto;
+    left: 0;
   }
   .topbar-end {
     margin-left: 0;
