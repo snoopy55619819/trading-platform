@@ -89,17 +89,19 @@ proxy status **DNS only** (grey cloud). Caddy then gets its own Let's Encrypt ce
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-The `deploy` workflow builds the five images and moves the `live` tag. The first time,
-GitHub creates the images' packages as **private**, and the server cannot pull them: on
-GitHub, under the profile's **Packages**, set each `trading-platform/*` package to public
-(Package settings, Change visibility). The server's agent retries every minute.
+The `deploy` workflow builds the five images and moves the `live` tag; within a minute the
+server's agent pulls them. The images' packages on GitHub came out public, because the repo
+is public and every image is labelled with it. If one is ever private, the server cannot
+pull it: set it to public under the profile's **Packages** (Package settings, Change
+visibility).
 
 Then seed the broker's security master, once. Systems Manager runs it on the server; no
-shell or SSH needed:
+shell or SSH needed. `IMAGE_PREFIX` and `TAG` must name the released image: without them
+compose looks for a local one and builds it from source on the server instead.
 
 ```bash
 aws ssm send-command --instance-ids "$instance" --document-name AWS-RunShellScript \
-  --parameters 'commands=["docker compose -f /opt/trading-platform/broker/deploy/compose.yml run --rm --no-deps backend node scripts/seed-securities.mjs"]'
+  --parameters 'commands=["cd /opt/trading-platform && IMAGE_PREFIX=ghcr.io/snoopy55619819/trading-platform TAG=v0.1.0 docker compose -f broker/deploy/compose.yml run --rm --no-deps backend node scripts/seed-securities.mjs"]'
 ```
 
 For an interactive shell, `aws ssm start-session --target "$instance"` (it needs AWS's

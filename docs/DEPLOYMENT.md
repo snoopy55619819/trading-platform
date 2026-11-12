@@ -1,10 +1,10 @@
 # Deploying the trading platform
 
 The plan for running the platform publicly as a live demo, at **`tradeplatform.dev`**: what
-gets deployed, where, and how a change gets from `main` to the server. **In progress:** the
-images and compose files are built and run locally (stage 1), every PR and merge is checked
-by CI (stage 2), and the deploy workflow and server setup are written (stage 3); the AWS
-resources and the first release come next ([AWS-SETUP.md](AWS-SETUP.md)). Why one server with Docker
+gets deployed, where, and how a change gets from `main` to the server. **Live since `v0.1.0`**
+(2026-11-12): the images and compose files (stage 1), CI on every PR and merge (stage 2),
+and the deploy workflow, server and AWS setup (stage 3, [AWS-SETUP.md](AWS-SETUP.md)) are
+done. Nightly backups and the disk alarm (stage 4) come next. Why one server with Docker
 Compose rather than two servers, Kubernetes or managed services is in
 [ADR 0003](adr/0003-one-server-with-docker-compose.md). Running it locally is in
 [RUNNING.md](RUNNING.md).
