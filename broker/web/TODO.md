@@ -367,6 +367,12 @@ Decisions:
   held cost, fees included (`costBasisCents`, the figure P&L is measured against). In
   Calm's list it is on the line under the symbol. Open orders keeps its count, since that one is
   worth noticing.
+- **Connection details:** hovering or focusing (Tab) Broker, Exchange or Prices in the top bar
+  shows what it is and when it was last heard from; Escape closes it. Broker: reachable or not
+  (with the error), when `/status` last answered. Exchange: whether the backend's FIX session
+  is up, and when the exchange last sent anything (`lastHeardAt`, added to `/status` for
+  this). Prices: the live WebSocket's state, for how long, and when its last message
+  arrived. The text is built in `features/header/connections.ts`.
 
 ## Done when
 
