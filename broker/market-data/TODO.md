@@ -3,11 +3,12 @@
 **The broker's market data service.** Live fanout *and* history. Independent of the
 backend in every way that matters: own database, own vendored spec, no shared code.
 
-Status: **done** · 6 tests (history against Postgres, rolled back), plus live runs
+Status: **done** · 11 tests (history and news against Postgres, rolled back), plus live
+runs. Stores and serves the newswire's headlines since stage 4 of the news plan (ADR 0006).
 
 ```
 pnpm db:up && pnpm --dir broker/market-data db:migrate     # from the repo root, once
-pnpm start                                                  # needs the exchange running
+pnpm start                                                  # needs the exchange running; news from the newswire (9890)
 pnpm test
 ```
 
@@ -15,15 +16,17 @@ pnpm test
 |---|---|
 | `GET /history?symbol=ACME&interval=1m&from=<ISO>&to=<ISO>` | candles, oldest first, at most 1,000 |
 | `GET /trades?symbol=ACME&limit=50` | the latest trades, newest first, at most 200: seeds the web client's time and sales, since `/live` only sends trades from the moment a browser subscribes |
-| `GET /health` | feed state (gaps, reconnects, live books), ticks stored, browsers connected |
-| `WS /live` | `{"subscribe": ["ACME"]}`, then `book` and `trade` messages as JSON |
+| `GET /news?symbol=ACME&limit=50` | the latest headlines, newest first, at most 200; leave out `symbol` for every symbol's |
+| `GET /health` | feed state (gaps, reconnects, live books), news state (connected, received, stored, rejected), ticks stored, browsers connected |
+| `WS /live` | `{"subscribe": ["ACME"]}`, then `book` and `trade` messages as JSON; every browser also gets each new headline as a `news` message, whatever it subscribed to |
 
 ## Inputs / outputs
 
 | | |
 |---|---|
 | **In** | Alpha Exchange's WebSocket feed, decoded with `marketdata.proto` |
-| **Out** | Live prices and depth over WebSocket to `web`; `GET /history` for charts; `GET /trades` for time and sales |
+| **In** | The newswire's headlines, over its published protocol (`vendor/newswire/`) |
+| **Out** | Live prices, depth and news over WebSocket to `web`; `GET /history` for charts; `GET /trades` for time and sales; `GET /news` for the news panel |
 | **Owns** | Its **own database**: `broker-market-data-postgres` on 5434, not a schema in the backend's |
 
 It lives on the anonymous public plane, so it never sees an account or an order id. That
@@ -38,6 +41,21 @@ Go without touching anything else.
       (`src/feed/mirror.ts`), not imported.
 - [x] Reconnect with backoff, resync on reconnect
 - [x] Own compose entry, own database, own migrations (`scripts/migrate.mjs`)
+- [x] **News** (ADR 0006): subscribe to the newswire, store each headline once in
+      `market_data.news` (migration `0002_news`), serve `GET /news`, push new ones on `/live`.
+      - Follows the newswire's spec: open the WebSocket, then catch up from the newest stored
+        headline (everything the wire keeps, the first time). The primary key on the id drops
+        repeats, and only a newly stored headline is pushed, so no browser sees a story twice.
+      - Each headline is checked against `headline.schema.json` before it is stored, except
+        that an unknown category is accepted, as the spec asks. Anything else is logged and
+        dropped.
+      - Retention: forever. A few hundred short rows a day.
+      - Checked against the real stack: 7 headlines received, stored and pushed to a browser.
+        Then market-data was stopped while the wire published 8 more; on restart it caught up
+        9 (the 8 plus a repeat of the newest it had), stored the 8, and matched the wire
+        exactly, 15 for 15.
+      - `MD_NEWS_URL` overrides where the newswire is (from `newswire.json`); empty turns news
+        off.
 - [x] `ticks(ts, symbol, venue, event_type, price_cents, size, feed_seq)`
 - [x] `bars(bucket_ts, symbol, interval, open, high, low, close, volume, trade_count)`
 - [x] Rollup job: 1m from ticks, then 5m/1h/1d from 1m
