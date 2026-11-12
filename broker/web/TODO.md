@@ -418,6 +418,19 @@ they read in every style and mode.
     hovered candle's headline showed in the legend, in Active dark, Calm light, Terminal and
     Pro light at phone width (no sideways scroll).
 
+- **"How it works?" guide** (ADR 0007): a button in the top bar, beside Settings, opens a
+  dialog with four tabs: Market data, News, Your holdings, Placing a trade. Each steps
+  through a small diagram, by Back and Next or by Play (4 seconds a step). The current
+  step's arrow is lit with a dot travelling along it, and boxes not reached yet are faded;
+  the dot is hidden when the system asks for reduced motion. A line under each ties it to
+  the screen: the selected symbol's last price (the watchlist's rule), the latest headline,
+  or your cash right now.
+  - The flows are data (`features/guide/flows.ts`), drawn by one hand-written SVG component
+    (`FlowDiagram.tsx`) coloured by the theme's variables, so no library was added. Tests
+    check every flow's data holds together and the arrow geometry.
+  - Checked against the real stack in Active dark, Terminal and Calm light, and at phone
+    width (no sideways scroll; the diagram scales down).
+
 ## Done when
 
 Click "Buy 100" in the browser, watch the order fill in the blotter, the book move, and
