@@ -162,7 +162,11 @@ cd participants/simulator && pnpm start
 ```
 
 Then watch a symbol with `md-watch` as above. `SIM_SPEED=20` runs prices twenty times
-faster than the clock; `SIM_ACTIVITY` below 1 (`0.2`, say) makes a quieter market.
+faster than the clock; `SIM_ACTIVITY` below 1 (`0.2`, say) makes a quieter market. Prices
+jump only on news: with the newswire running (below), each headline moves fair value and
+starts a few minutes of busier trading, and the simulator logs it as
+`news: JOLT -1.02% <headline>`. Without the newswire the market still moves, just without
+news.
 Ctrl-C cancels everything the simulator has resting.
 
 ### The newswire
@@ -177,8 +181,8 @@ cd participants/newswire && pnpm start
 About one story per company every 70 minutes, half of them meant to move the price.
 `NEWS_RATE=20` makes it twenty times busier, to watch it work; `NEWS_SEED` repeats the same
 stories. With it running, `curl "localhost:9890/headlines?since=2000-01-01T00:00:00Z"` shows
-what it has published. Nothing reads it yet: the simulator and the broker subscribe in later
-stages (`participants/newswire/TODO.md`).
+what it has published. The simulator trades on it; the broker subscribes in a later stage
+(`participants/newswire/TODO.md`).
 
 ### The broker's backend
 

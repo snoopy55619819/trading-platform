@@ -3,11 +3,12 @@
 **Makes the market look alive when nobody is using the app.** Without it, v1 is an empty
 book and a flat chart.
 
-Status: **done** · 36 tests, plus behaviour runs against the real exchange
+Status: **done** · 45 tests, plus behaviour runs against the real exchange. Trades on the
+newswire's headlines since stage 3 of the news plan (ADR 0006).
 
 ```
 pnpm install && pnpm proto:gen      # once: dependencies, and TypeScript from the vendored proto
-pnpm start                          # needs the exchange running (FIX 9878, feed 9879)
+pnpm start                          # needs the exchange running (FIX 9878, feed 9879); news from the newswire (9890)
 pnpm test                           # FIX codec and session, mirror, price model, agents, orders
 ```
 
@@ -16,6 +17,7 @@ pnpm test                           # FIX codec and session, mirror, price model
 | | |
 |---|---|
 | **In** | The public market data feed — agents watch the book like anyone else |
+| **In** | Headlines from the newswire, over its published protocol (`vendor/newswire/`) |
 | **Out** | Orders over FIX, through the **same public gateway** a real client uses |
 | **Owns** | Per-agent state in memory: fair value estimate, inventory, PnL, live quote ids |
 
@@ -37,12 +39,15 @@ All optional, by environment variable (`src/config.ts`):
 | `SIM_COMP_ID` | `SIM` | must be in the exchange's `ALPHA_COMP_IDS` |
 | `SIM_SESSION_RESET_EVERY_SECS` | `0` | also start the FIX session over this often; `0` means only daily, at the venue's roll |
 | `SIM_FIX_HOST` / `SIM_FIX_PORT` / `SIM_FEED_URL` | from `listings.json` | where the venue is |
+| `SIM_NEWS_URL` | from `newswire.json` | the newswire's WebSocket; empty to trade without news |
 
 ## Checklist
 
 ### 1. Plumbing
 - [x] Vendor the venue spec (`fix44.xml`, `marketdata.proto`, `listings.json`), added to
       the root `spec:sync` / `spec:check`
+- [x] Vendor the newswire's spec (`newswire.json`, `headline.schema.json`, `README.md`) the
+      same way, and subscribe: WebSocket, catch-up from the newest headline, repeats dropped
 - [x] FIX initiator — a TypeScript one, independent of the Rust acceptor
 - [x] Subscribe to the market data feed with gap detection (`symbol_seq`, then resync)
 - [x] Per-agent FIX sessions, or one session with distinct account ids: **one session,
@@ -52,7 +57,8 @@ All optional, by environment variable (`src/config.ts`):
 - [x] Hidden fair value per symbol on a geometric Brownian motion, seeded from
       `reference_price_cents`
 - [x] Per-symbol drift and volatility (HELX should move far more than GRID)
-- [x] Occasional jumps — "news" — or charts look like noise around a flat line
+- [x] Occasional jumps ("news"), or charts look like noise around a flat line. Since ADR
+      0006 these come only from the newswire's headlines: see "News" below
 - [x] Diurnal multiplier on volume and volatility, so there are quiet and busy hours
 
 ### 3. Agents
@@ -162,6 +168,27 @@ about 15,000 commands (21 a second).
   the thing to delay.
 - **Takers use marketable limits, not unbounded market orders**, except noise traders,
   whose orders are small. A momentum order cannot sweep the book.
+- **News** (`market/news.ts`, ADR 0006). The newswire says what happened; what it is worth
+  is this firm's model:
+  - **A new level.** Fair value moves once, up for positive news and down for negative, by
+    `dailyVol × jumpSize × 0.3` for `MINOR` news and `× 0.75` for `MAJOR`, give or take
+    30%. For ACME that is about 1.1% and 2.8%. Neutral news moves nothing. The sizes are
+    calibrated so a day of news adds as much volatility as the random jumps it replaced
+    (2 a day, each a standard normal times `dailyVol × jumpSize`): the wire sends 5 times as
+    many moving stories, so each is smaller. A test holds it to that.
+  - **A burst.** The symbol's heat starts at 1 (major), 0.6 (minor) or 0.2 (neutral) and
+    halves every 2 minutes of wall-clock time, also under `SIM_SPEED`. At full heat fair
+    value moves 4 times as fast, takers trade 5 times as often with shorter cooldowns and
+    twice the size, and market makers show half their size. Their spread widens by itself,
+    since it follows volatility.
+  - **Pulling.** A move sets `jumped` for one step, so the market makers cancel and pause
+    as before, and the first trades happen at the new price.
+  - **Without the wire** the simulator logs it once, trades without news, and reconnects
+    with backoff. Catch-up starts from when the simulator started, so news it was not
+    running for is never traded on.
+  - Checked against the real stack at `NEWS_RATE=20`: a minor JOLT regulator story moved
+    fair value down 1.02%, its market maker pulled once, and JOLT printed 20 trades that
+    minute against 2 to 6 in the minutes around it.
 
 ## Known gaps
 

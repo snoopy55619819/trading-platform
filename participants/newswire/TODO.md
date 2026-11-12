@@ -5,8 +5,8 @@ publishes them. The simulator trades on them, and the broker stores them and sho
 the web app. Why it is a separate participant, and why news moves prices, is in
 [ADR 0006](../../docs/adr/0006-news-from-a-newswire-participant.md).
 
-Stages 1 and 2 are done: the newswire runs and publishes, but nothing reads it yet. Each
-stage below is one PR.
+Stages 1 to 3 are done: the newswire publishes and the simulator trades on it. The broker
+does not read it yet. Each stage below is one PR.
 
 ## The flow
 
@@ -119,9 +119,11 @@ The rates and the weights per category are constants in `src/schedule.ts` and
 On each headline for a symbol it trades:
 
 1. **A new level.** Fair value moves once, up for positive news and down for negative, by
-   about `dailyVol × jumpSize × size`, where size is about 0.6 for `MINOR` and 1.5 for
-   `MAJOR`, with some randomness. That is close to today's jumps, but now with a known
-   direction and a reason. Neutral news moves nothing.
+   about `dailyVol × jumpSize × size`, where size is 0.3 for `MINOR` and 0.75 for `MAJOR`,
+   give or take 30%. Neutral news moves nothing. (Planned as 0.6 and 1.5; halved when built,
+   because the wire sends 5 times as many moving stories as the old random jumps, and the
+   total should add the same volatility. `participants/simulator/TODO.md` has the
+   arithmetic.)
 2. **A burst.** Each symbol gets a "heat" that starts at 1 for major news, 0.6 for minor and
    0.2 for neutral, then halves every 2 minutes, so it is mostly gone after 10. While it is
    warm:
@@ -156,14 +158,14 @@ The simulator's 40 orders a second ceiling still applies. A big burst flattens t
 Each stage is one PR, with its tests and docs.
 
 1. [x] **Plan and ADR:** this file and ADR 0006 (PR #42).
-2. [x] **The newswire:**
+2. [x] **The newswire:** (PR #43)
    - the spec (README and a JSON schema for a headline) in `spec/`;
    - the service: the catalogue, the scheduler, the WebSocket and `GET /headlines`;
    - vendored listings with `spec:sync`;
    - unit tests for the catalogue, the scheduler (seeded) and the catch-up;
    - added to `pnpm dev` and `docs/RUNNING.md`;
    - its own CI job (moved here from stage 6: tests should run from the start).
-3. [ ] **The simulator follows the wire:**
+3. [x] **The simulator follows the wire:**
    - vendor the newswire spec and subscribe, with catch-up on reconnect;
    - the new level and the burst, as above, replacing `jumpsPerDay`;
    - tests: news moves fair value the right way, heat decays, neutral news moves nothing.
