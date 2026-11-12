@@ -113,7 +113,8 @@ pnpm dev
 Then open http://localhost:5173, open an account, add funds and place an order.
 
 First-time setup, troubleshooting, running one service on its own, and every shortcut from the
-repo root are in [RUNNING.md](docs/RUNNING.md).
+repo root are in [RUNNING.md](docs/RUNNING.md). The plan for running it publicly is in
+[DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Roadmap
 

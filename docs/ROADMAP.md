@@ -89,7 +89,8 @@ gateway being SIGKILLed, and recovers a missed fill by resend.
 
 The post-MVP roadmap is in `PLAN.md` Part 8, led by the post-trade plane (clearing, custody,
 and settlement on a real T+1 clock). Smaller follow-ups and the layout editor are in
-[BACKLOG.md](BACKLOG.md).
+[BACKLOG.md](BACKLOG.md). The plan for running it publicly is in
+[DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Working on it
 
