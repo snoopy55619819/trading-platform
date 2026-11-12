@@ -51,7 +51,7 @@
   .own-3 rect { fill: var(--own-3); stroke: var(--own-3-stroke); }
   .boundary text { font-size: 12px; font-weight: 700; letter-spacing: .06em; fill: var(--ink-2); }
   .divider { stroke: var(--line); stroke-width: 1; }
-  .band { font-size: 15px; font-weight: 700; letter-spacing: .08em; }
+  .band { font-size: 12px; font-weight: 700; letter-spacing: .08em; }
 
   .node rect, .node path { fill: var(--node); stroke: var(--node-stroke); stroke-width: 1.5; }
   .module rect { fill: var(--module); stroke: var(--node-stroke); stroke-width: 1; }
