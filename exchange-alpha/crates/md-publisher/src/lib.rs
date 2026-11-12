@@ -30,7 +30,7 @@ pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/alpha.v1.rs"));
 }
 
-pub use feed::Feed;
+pub use feed::{Feed, Sequence};
 pub use mirror::{Applied, Mirror};
 pub use public::PublicEvent;
 pub use server::{MarketData, Publisher};

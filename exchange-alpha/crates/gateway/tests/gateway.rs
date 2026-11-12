@@ -8,7 +8,7 @@ use gateway::MemoryStore;
 
 #[tokio::test]
 async fn an_order_is_acknowledged_with_a_venue_order_id() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let gateway = start_gateway(&journal, MemoryStore::default()).await;
     let mut broker = Client::logon(gateway.addr, "BROKER").await;
 
@@ -24,7 +24,7 @@ async fn an_order_is_acknowledged_with_a_venue_order_id() {
 
 #[tokio::test]
 async fn two_sessions_trade_and_each_sees_only_its_own_side() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let gateway = start_gateway(&journal, MemoryStore::default()).await;
     let mut broker = Client::logon(gateway.addr, "BROKER").await;
     let mut sim = Client::logon(gateway.addr, "SIM").await;
@@ -60,7 +60,7 @@ async fn two_sessions_trade_and_each_sees_only_its_own_side() {
 
 #[tokio::test]
 async fn every_validation_failure_names_its_reason() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let gateway = start_gateway(&journal, MemoryStore::default()).await;
     let mut broker = Client::logon(gateway.addr, "BROKER").await;
 
@@ -132,7 +132,7 @@ async fn every_validation_failure_names_its_reason() {
 
 #[tokio::test]
 async fn a_cancel_answers_with_the_cancel_requests_id() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let gateway = start_gateway(&journal, MemoryStore::default()).await;
     let mut broker = Client::logon(gateway.addr, "BROKER").await;
 
@@ -155,7 +155,7 @@ async fn a_cancel_answers_with_the_cancel_requests_id() {
 
 #[tokio::test]
 async fn one_session_cannot_cancel_anothers_order() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let gateway = start_gateway(&journal, MemoryStore::default()).await;
     let mut broker = Client::logon(gateway.addr, "BROKER").await;
     let mut sim = Client::logon(gateway.addr, "SIM").await;
@@ -174,7 +174,7 @@ async fn one_session_cannot_cancel_anothers_order() {
 
 #[tokio::test]
 async fn unknown_comp_ids_and_second_sessions_are_refused() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let gateway = start_gateway(&journal, MemoryStore::default()).await;
     let mut broker = Client::logon(gateway.addr, "BROKER").await;
 
@@ -212,7 +212,7 @@ async fn assert_refused(mut stream: tokio::net::TcpStream, comp_id: &str) {
 
 #[tokio::test]
 async fn fills_that_happen_while_a_client_is_away_arrive_by_resend() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let gateway = start_gateway(&journal, MemoryStore::default()).await;
     let mut broker = Client::logon(gateway.addr, "BROKER").await;
     let mut sim = Client::logon(gateway.addr, "SIM").await;
@@ -237,7 +237,7 @@ async fn fills_that_happen_while_a_client_is_away_arrive_by_resend() {
 
 #[tokio::test]
 async fn after_a_crash_the_book_and_the_sessions_come_back() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let store = MemoryStore::default();
 
     let gateway = start_gateway(&journal, store.clone()).await;

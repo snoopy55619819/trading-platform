@@ -22,6 +22,12 @@ impl UtcMillis {
         self.0.saturating_sub(earlier.0)
     }
 
+    /// The UTC calendar date, `YYYY-MM-DD`.
+    pub fn to_date(self) -> String {
+        let (year, month, day) = civil_from_days((self.0 / 86_400_000) as i64);
+        format!("{year:04}-{month:02}-{day:02}")
+    }
+
     /// `YYYYMMDD-HH:MM:SS.sss`
     pub fn to_fix(self) -> String {
         let days = (self.0 / 86_400_000) as i64;

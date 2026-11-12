@@ -4,6 +4,7 @@
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 use matching_engine::Side;
+use serde::{Deserialize, Serialize};
 
 use crate::proto::{
     self, BookDelta, FeedMessage, Heartbeat, PriceLevel, Snapshot, TradePrint, feed_message,
@@ -30,12 +31,35 @@ pub struct Level {
 struct Book {
     bids: BTreeMap<i64, Level>,
     asks: BTreeMap<i64, Level>,
-    symbol_seq: u64,
+}
+
+/// Where the feed's numbering stands: the last `feed_seq` and each symbol's last
+/// `symbol_seq`. The only part of the feed that a snapshot must carry, because the levels
+/// are always the engine's own levels and can be rebuilt from its book.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Sequence {
+    pub feed_seq: u64,
+    /// Symbols that have never published are absent: their last `symbol_seq` is zero.
+    pub symbol_seqs: BTreeMap<String, u64>,
+}
+
+impl Sequence {
+    /// Takes the next numbers for one message about `symbol`: `(feed_seq, symbol_seq)`.
+    pub fn next(&mut self, symbol: &str) -> (u64, u64) {
+        self.feed_seq += 1;
+        let symbol_seq = self.symbol_seqs.entry(symbol.to_string()).or_default();
+        *symbol_seq += 1;
+        (self.feed_seq, *symbol_seq)
+    }
+
+    pub fn symbol_seq(&self, symbol: &str) -> u64 {
+        self.symbol_seqs.get(symbol).copied().unwrap_or(0)
+    }
 }
 
 pub struct Feed {
     venue: String,
-    feed_seq: u64,
+    sequence: Sequence,
     books: HashMap<String, Book>,
     recent: VecDeque<FeedMessage>,
 }
@@ -45,7 +69,7 @@ impl Feed {
     pub fn new(venue: impl Into<String>, symbols: impl IntoIterator<Item = String>) -> Feed {
         Feed {
             venue: venue.into(),
-            feed_seq: 0,
+            sequence: Sequence::default(),
             books: symbols
                 .into_iter()
                 .map(|symbol| (symbol, Book::default()))
@@ -54,13 +78,47 @@ impl Feed {
         }
     }
 
+    /// The feed as it stood when `sequence` and `engine` were captured together: the same
+    /// numbering, and every level the engine's book has. The recent-messages buffer starts
+    /// empty; it is only ever for diagnosing gaps.
+    pub fn restore(
+        venue: impl Into<String>,
+        symbols: impl IntoIterator<Item = String>,
+        sequence: Sequence,
+        engine: &matching_engine::Snapshot,
+    ) -> Feed {
+        let mut feed = Feed::new(venue, symbols);
+        feed.sequence = sequence;
+        for snapshot in &engine.books {
+            let book = feed.books.entry(snapshot.symbol.clone()).or_default();
+            let sides = [
+                (&mut book.bids, &snapshot.bids),
+                (&mut book.asks, &snapshot.asks),
+            ];
+            for (levels, from) in sides {
+                for level in from {
+                    let order_count = count(level.orders.len());
+                    let qty = level.qty.0;
+                    levels.insert(level.price.0, Level { qty, order_count });
+                }
+            }
+        }
+        feed
+    }
+
+    /// The numbering so far. With the engine's book, everything [`restore`](Self::restore)
+    /// needs.
+    pub fn sequence(&self) -> &Sequence {
+        &self.sequence
+    }
+
     pub fn venue(&self) -> &str {
         &self.venue
     }
 
     /// The last `feed_seq` used. Zero before anything has traded or rested.
     pub fn feed_seq(&self) -> u64 {
-        self.feed_seq
+        self.sequence.feed_seq
     }
 
     pub fn is_listed(&self, symbol: &str) -> bool {
@@ -70,11 +128,8 @@ impl Feed {
     /// Applies one public event to the book, gives it the next `feed_seq` and `symbol_seq`,
     /// and returns the message to broadcast.
     pub fn publish(&mut self, event: &PublicEvent, ts_ns: i64) -> FeedMessage {
-        self.feed_seq += 1;
-        let feed_seq = self.feed_seq;
+        let (feed_seq, symbol_seq) = self.sequence.next(event.symbol());
         let book = self.books.entry(event.symbol().to_string()).or_default();
-        book.symbol_seq += 1;
-        let symbol_seq = book.symbol_seq;
 
         let payload = match event {
             PublicEvent::Level {
@@ -154,12 +209,12 @@ impl Feed {
         Some(Snapshot {
             venue: self.venue.clone(),
             symbol: symbol.to_string(),
-            feed_seq: self.feed_seq,
+            feed_seq: self.sequence.feed_seq,
             ts_ns,
             bids: book.bids.iter().rev().take(depth).map(level).collect(),
             asks: book.asks.iter().take(depth).map(level).collect(),
             depth_limit: depth as i32,
-            symbol_seq: book.symbol_seq,
+            symbol_seq: self.sequence.symbol_seq(symbol),
         })
     }
 
@@ -169,7 +224,7 @@ impl Feed {
         FeedMessage {
             payload: Some(feed_message::Payload::Heartbeat(Heartbeat {
                 venue: self.venue.clone(),
-                feed_seq: self.feed_seq,
+                feed_seq: self.sequence.feed_seq,
                 ts_ns,
             })),
         }

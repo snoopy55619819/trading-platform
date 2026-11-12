@@ -111,7 +111,7 @@ impl Subscriber {
 
 #[tokio::test]
 async fn a_trade_reaches_subscribers_as_anonymous_prints_and_level_changes() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let gateway = start_gateway(&journal, MemoryStore::default()).await;
     let (mut watcher, snapshot) = Subscriber::subscribe(gateway.md_addr, &["ACME"]).await;
     assert_eq!((snapshot.symbol_seq, snapshot.bids.len()), (0, 0));
@@ -154,7 +154,7 @@ async fn a_trade_reaches_subscribers_as_anonymous_prints_and_level_changes() {
 
 #[tokio::test]
 async fn a_subscriber_that_reconnects_carries_on_from_a_snapshot_with_no_gap() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let gateway = start_gateway(&journal, MemoryStore::default()).await;
     let mut broker = Client::logon(gateway.addr, "BROKER").await;
 
@@ -192,7 +192,7 @@ async fn a_subscriber_that_reconnects_carries_on_from_a_snapshot_with_no_gap() {
 
 #[tokio::test]
 async fn after_a_crash_the_feed_carries_on_with_the_same_numbers() {
-    let journal = TempJournal::new();
+    let journal = TempData::new();
     let store = MemoryStore::default();
     let gateway = start_gateway(&journal, store.clone()).await;
     let mut broker = Client::logon(gateway.addr, "BROKER").await;

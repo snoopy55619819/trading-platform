@@ -97,6 +97,12 @@ engine events, so replaying the journal rebuilds it exactly. Nothing extra to pe
   server. After each command the core sends the public part of its events down an unbounded
   channel, so order entry never waits on market data. `Core::open` replays the journal
   through the feed too and returns it, so feed sequence numbers survive a crash.
+- **Business days** (post-MVP). At the venue's roll (21:00 UTC) the core journals an
+  `EndOfDay`: resting day orders expire with `ExecType=C`, the order tracker forgets finished
+  orders and used `ClOrdID`s, a snapshot is written and the journal moves to the next day's
+  file in `ALPHA_DATA_DIR`. A start loads the newest snapshot and replays only its day,
+  finishing a roll it was stopped in the middle of, or closing the day if it was down at the
+  roll time. `ALPHA_ROLL_EVERY_SECS` rolls more often, to watch it happen. See `src/days.rs`.
 
 ## Known gaps
 

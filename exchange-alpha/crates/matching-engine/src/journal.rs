@@ -50,6 +50,16 @@ impl Journal {
     /// else that does not parse, or a gap in the sequence numbers, is corruption: we refuse
     /// to start rather than rebuild a book we cannot trust.
     pub fn open(path: impl AsRef<Path>) -> io::Result<(Journal, Vec<Command>)> {
+        Self::open_after(path, 0)
+    }
+
+    /// Like [`open`](Self::open), for a journal that continues an earlier one: its first
+    /// entry must be `after_seq + 1`. A new day's journal continues the numbering of the day
+    /// before, so sequence numbers (and the execution ids built from them) never repeat.
+    pub fn open_after(
+        path: impl AsRef<Path>,
+        after_seq: u64,
+    ) -> io::Result<(Journal, Vec<Command>)> {
         let path = path.as_ref();
         let mut file = OpenOptions::new()
             .read(true)
@@ -78,7 +88,7 @@ impl Journal {
             let entry: EntryIn = serde_json::from_slice(line).map_err(|error| {
                 corrupt(path, format!("line {line_number} does not parse: {error}"))
             })?;
-            let expected = line_number as u64;
+            let expected = after_seq + line_number as u64;
             if entry.seq != expected {
                 return Err(corrupt(
                     path,
@@ -90,7 +100,7 @@ impl Journal {
 
         let journal = Journal {
             writer: BufWriter::new(file),
-            last_seq: commands.len() as u64,
+            last_seq: after_seq + commands.len() as u64,
         };
         Ok((journal, commands))
     }
@@ -143,13 +153,20 @@ impl JournaledEngine {
     /// For callers that keep their own state derived from events (the gateway tracks each
     /// order's fills so it can write execution reports). Replaying the journal through them
     /// rebuilds that state exactly as it was, with no separate store to keep in sync.
-    pub fn open_observing(
+    pub fn open_observing(path: impl AsRef<Path>, observe: impl FnMut(&Event)) -> io::Result<Self> {
+        Self::resume_observing(path, Engine::default(), 0, observe)
+    }
+
+    /// Recovery from a snapshot: starts from `engine` (restored from a snapshot taken after
+    /// journal entry `after_seq`) and replays only the journal that follows it.
+    pub fn resume_observing(
         path: impl AsRef<Path>,
+        mut engine: Engine,
+        after_seq: u64,
         mut observe: impl FnMut(&Event),
     ) -> io::Result<Self> {
-        let (journal, commands) = Journal::open(path)?;
+        let (journal, commands) = Journal::open_after(path, after_seq)?;
         let recovered = commands.len();
-        let mut engine = Engine::default();
         for command in commands {
             for event in engine.apply(command) {
                 observe(&event);
@@ -160,6 +177,22 @@ impl JournaledEngine {
             journal,
             recovered,
         })
+    }
+
+    /// Carries on in a new journal file at `path`, continuing the numbering. For the start of
+    /// a business day, once the state up to here is safely in a snapshot. Refuses a file that
+    /// already has entries: those would be commands the engine has not applied.
+    pub fn continue_in(&mut self, path: impl AsRef<Path>) -> io::Result<()> {
+        let path = path.as_ref();
+        let (journal, commands) = Journal::open_after(path, self.journal.last_seq())?;
+        if !commands.is_empty() {
+            return Err(corrupt(
+                path,
+                "a new day's journal already has entries".into(),
+            ));
+        }
+        self.journal = journal;
+        Ok(())
     }
 
     /// Sequence number of the last command journaled. Deterministic across restarts, so it

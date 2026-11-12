@@ -29,5 +29,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [dev-dependencies]
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+proptest = "1"
 prost = "0.14"
 tokio-tungstenite = "0.30"

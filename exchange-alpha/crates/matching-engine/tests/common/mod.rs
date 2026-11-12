@@ -42,6 +42,12 @@ impl Market {
         }))
     }
 
+    pub fn end_of_day(&mut self) -> Vec<Event> {
+        self.engine.apply(Command::EndOfDay(EndOfDay {
+            business_date: "2026-11-12".to_string(),
+        }))
+    }
+
     pub fn new_order(
         &mut self,
         who: &str,

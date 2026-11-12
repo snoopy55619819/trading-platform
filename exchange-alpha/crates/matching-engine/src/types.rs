@@ -188,8 +188,7 @@ impl OrderType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TimeInForce {
-    /// Rests until the end of the trading day. There is no session clock yet (it arrives
-    /// post-MVP), so until then a day order behaves exactly like GTC.
+    /// Rests until the business day closes (an `EndOfDay` command), then expires.
     Day,
     /// Good till cancelled: rests until it fills or is cancelled.
     Gtc,
