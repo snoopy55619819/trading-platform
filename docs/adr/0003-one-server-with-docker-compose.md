@@ -64,7 +64,7 @@ next step.
 - **Serverless does not fit.** The gateway, backend, market-data and simulator are
   long-running processes holding open connections (FIX sessions, WebSockets, the feed).
 - **Why AWS.** Any Linux server runs the same compose files, and Hetzner is cheaper. AWS
-  uses services worth knowing (EC2, IAM, S3, Route 53, Systems Manager), and moving one
+  uses services worth knowing (EC2, IAM, S3, CloudWatch, Systems Manager), and moving one
   piece to a managed service later, such as a database to RDS, stays in one account.
 - **Fully managed AWS costs five to six times more** for a demo with a handful of visitors,
   and the gateway's day files still need a disk that outlives restarts.
@@ -75,8 +75,9 @@ next step.
   market-data, simulator, and the web client served by Caddy.
 - Three compose files, one per company (`exchange-alpha/`, `participants/simulator/`,
   `broker/`), on one shared Docker network.
-- Memory is the tight spot: an estimated 1 to 1.3 GB in use on a 2 GB server, with swap as a
-  safety net. A `t4g.medium` (4 GB) is the fix if measurement says so.
+- Memory was the expected tight spot, estimated at 1 to 1.3 GB on a 2 GB server. Measured
+  with the whole stack in Docker it is about 350 MB at start, so there is room; swap stays as
+  a safety net, and a `t4g.medium` (4 GB) is the fix if that ever changes.
 - No SSH. The server is reached through AWS Systems Manager, and GitHub Actions deploys
   through it with short-lived credentials, so there are no keys to leak.
 - The server is a single point of failure. For a demo with fake money, a few minutes of

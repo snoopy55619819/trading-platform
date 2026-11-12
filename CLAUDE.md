@@ -32,6 +32,11 @@ contracts directory. This is the single most important structural fact about the
 - `participants/` — other trading firms. **TypeScript.** Connects over the same public
   FIX session any client uses.
 
+Each company also owns how it is deployed: a `Dockerfile` beside each deployable and a
+production compose file in its own `deploy/` folder. The three stacks meet only on a shared
+Docker network, `trading`, where the gateway is reachable by name on its published ports
+(`docs/DEPLOYMENT.md`).
+
 Cross-company: the exchange **publishes** a spec; consumers vendor a copy and implement
 against it. Never reach across a company boundary to import a file — sync it, stamp the
 version, and let `spec:check` tell you when it goes stale.
