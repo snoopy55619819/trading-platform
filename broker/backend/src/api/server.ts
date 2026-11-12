@@ -2,7 +2,7 @@
 // authenticates, checks that a request is well formed, calls the oms or ledger module, and
 // shapes the answer as JSON. No business rule lives here.
 //
-//   POST   /users          {email, password, name}         sign up: a user and an account
+//   POST   /users          {email, password, name}         sign up: a user and an account with $10,000.00
 //   POST   /sessions       {email, password}                log in: {token}
 //   GET    /symbols                                         what can be traded
 //   GET    /status                                          is the exchange connection up

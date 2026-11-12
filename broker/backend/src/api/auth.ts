@@ -7,10 +7,14 @@ import { promisify } from "node:util";
 
 import type { Db } from "../db.ts";
 import { ulid } from "../ids.ts";
+import { creditCash } from "../ledger/index.ts";
 import { seedWatchlist } from "../watchlist.ts";
 
 const derive = promisify(scrypt) as (password: string, salt: Buffer, length: number) => Promise<Buffer>;
 const SESSION_MS = 12 * 3_600_000;
+
+/** Cash every new account starts with: $10,000.00, booked as an ordinary deposit. */
+export const OPENING_DEPOSIT_CENTS = 1_000_000;
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
@@ -26,7 +30,11 @@ export async function verifyPassword(password: string, stored: string): Promise<
   return timingSafeEqual(actual, expected);
 }
 
-/** Creates a user with one brokerage account. Returns undefined if the email is taken. */
+/**
+ * Creates a user with one brokerage account, funded with OPENING_DEPOSIT_CENTS. Returns
+ * undefined if the email is taken. Run it in a transaction: the deposit commits with the
+ * account or not at all.
+ */
 export async function signUp(
   db: Db,
   email: string,
@@ -48,6 +56,9 @@ export async function signUp(
   ]);
   await db.query("INSERT INTO broker.risk_limits (account_id) VALUES ($1)", [accountId]);
   await seedWatchlist(db, accountId);
+  // Its own reference shape: API deposits are "<account>:<ref>" or a bare ULID, so a client
+  // can never collide with it.
+  await creditCash(db, accountId, OPENING_DEPOSIT_CENTS, `opening:${accountId}`);
   return { userId, accountId };
 }
 
