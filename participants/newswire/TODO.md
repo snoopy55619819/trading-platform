@@ -5,9 +5,10 @@ publishes them. The simulator trades on them, and the broker stores them and sho
 the web app. Why it is a separate participant, and why news moves prices, is in
 [ADR 0006](../../docs/adr/0006-news-from-a-newswire-participant.md).
 
-Stages 1 to 5 are done: the newswire publishes headlines with short stories, the simulator
-trades on them, the broker's market-data stores and serves them, and the web app shows them
-in a News panel and on the chart. Only deploying it is left. Each stage below is one PR.
+All six stages are built: the newswire publishes headlines with short stories, the
+simulator trades on them, the broker's market-data stores and serves them, the web app shows
+them in a News panel and on the chart, and it deploys with the rest. The done-test is checked
+on the live server after the next release. Each stage below was one PR.
 
 ## The flow
 
@@ -192,17 +193,24 @@ Each stage is one PR, with its tests and docs.
    - market-data: a nullable `body` column (migration `0003_news_body`), in `/news` and the
      live push; a headline without one comes back without the field;
    - the simulator only types the field; it trades on headlines.
-5. [x] **The web app:**
+5. [x] **The web app:** (PR #47)
    - the News panel in every style, with a headline opening its story;
    - chart markers, and the headline in the chart's legend;
    - tests for any new pure logic;
    - screenshots (`docs/images/news-*.png`). Details in `broker/web/TODO.md`.
-6. [ ] **Deploy:**
+6. [x] **Deploy:**
    - a Dockerfile, and `participants/newswire/deploy/compose.yml` on the `trading` network
      (its port is not published to the internet);
    - the image in CI and the deploy workflow;
-   - the newswire in `docs/DEPLOYMENT.md` and the architecture diagrams;
-   - a release.
+   - `SIM_NEWS_URL` and `MD_NEWS_URL` pointed at `newswire:9890` in the simulator's and the
+     broker's compose files;
+   - the deploy agent starts the newswire after the exchange and before the simulator and
+     the broker, its two subscribers;
+   - the newswire in `docs/DEPLOYMENT.md` and the architecture diagram (`current-plan`);
+   - checked locally: the image builds and runs as the `node` user, and another container on
+     the same network reaches it by name, with headlines and stories;
+   - a release (`v0.5.0`). After it: check the newswire's image package on GitHub is public
+     like the others, or the server cannot pull it (`docs/AWS-SETUP.md` section 6).
 
 ## Done when
 
