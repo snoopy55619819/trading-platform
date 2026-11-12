@@ -256,6 +256,10 @@ pnpm exchange:test && cd exchange-alpha && cargo bench -p matching-engine
 Each TypeScript deployable runs its own with `pnpm test` (and `pnpm typecheck`) from its
 folder.
 
+GitHub Actions runs all of it on every pull request and every merge to `main`
+(`.github/workflows/ci.yml`): one job per deployable, Postgres beside the backend's and
+market-data's, plus a check that every production image still builds.
+
 ## Shortcuts from the repo root
 
 | | |

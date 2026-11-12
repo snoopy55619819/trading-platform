@@ -1,5 +1,7 @@
 # trading-platform
 
+[![ci](https://github.com/snoopy55619819/trading-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/snoopy55619819/trading-platform/actions/workflows/ci.yml)
+
 **A stock market built from scratch, end to end with:**
 
 - **A Rust exchange** with its own matching engine and FIX 4.4 ([Financial Information eXchange protocol](https://fixtrading.org/standards/fix-protocol/)) gateway
