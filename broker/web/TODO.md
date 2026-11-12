@@ -359,6 +359,10 @@ Decisions:
 - **Starting watchlist:** a new account now starts with every active symbol, up to 10
   (`DEFAULT_WATCHLIST_SIZE` in the backend's `watchlist.ts`; it was the first 5). Ten are
   listed today, so the whole market is starred. Accounts that already exist keep their lists.
+- **Top bar:** on screens 1280px and wider, Pro and Active keep it to one line; when space is
+  short the company's full name is cut with an ellipsis. Renaming to "Trading Platform"
+  had made Active's bar 9px too wide at 1440px, pushing Settings and Sign out to a second
+  line. Narrower screens still wrap, and Calm keeps its stacked header.
 - **Positions tab:** no count in its name, and a **Book cost** column: what the shares still
   held cost, fees included (`costBasisCents`, the figure P&L is measured against). In
   Calm's list it is on the line under the symbol. Open orders keeps its count, since that one is

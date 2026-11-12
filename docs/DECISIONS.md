@@ -218,4 +218,5 @@ be build machinery with no caller.
 The Rust FIX acceptor and the TypeScript FIX initiator are independent implementations
 that share only the dictionary. Neither may import the other's parsing code — that
 independence is the point, and it is why conformance is tested against QuickFIX rather
-than against ourselves.
+than against ourselves. Why FIX 4.4 rather than FIX 5.0:
+[ADR 0002](adr/0002-fix-4-4-for-order-entry.md).
