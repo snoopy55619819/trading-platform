@@ -24,6 +24,8 @@ export class FixConnection {
   private timer: NodeJS.Timeout | undefined;
   private backoffMs = 1000;
   private stopping = false;
+  /** Set by `restart`: the next close is ours, so reconnect at once and quietly. */
+  private restarting = false;
 
   constructor(host: string, port: number, config: SessionConfig, events: ConnectionEvents) {
     this.host = host;
@@ -54,6 +56,20 @@ export class FixConnection {
     this.socket?.destroy();
   }
 
+  /**
+   * Logs out and logs straight back on. Every logon resets sequence numbers, so this starts
+   * the session over; the exchange then drops what it was keeping for resends.
+   */
+  async restart(why: string): Promise<void> {
+    const socket = this.socket;
+    this.restarting = true;
+    this.apply(this.session.logout(Date.now(), why));
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Usually the exchange has closed it already, and the new connection is up. Close only
+    // the one we logged out on, never its replacement.
+    socket?.destroy();
+  }
+
   private open(): void {
     const decoder = new Decoder();
     const socket = connect({ host: this.host, port: this.port, noDelay: true });
@@ -79,6 +95,12 @@ export class FixConnection {
       const wasActive = this.session.isActive();
       this.session.disconnected();
       if (this.stopping) return;
+      if (this.restarting) {
+        this.restarting = false;
+        this.backoffMs = 1000;
+        this.open();
+        return;
+      }
       this.events.onDown(wasActive ? "connection lost" : `cannot reach ${this.host}:${this.port}`);
       setTimeout(() => this.open(), this.backoffMs);
       this.backoffMs = Math.min(this.backoffMs * 2, 30_000);
