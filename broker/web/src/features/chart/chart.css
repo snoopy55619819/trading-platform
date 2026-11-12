@@ -49,6 +49,13 @@
 .chart-legend-values > span {
   white-space: nowrap;
 }
+/* The headline on the candle shown, if it has one: one line, cut short. */
+.chart-legend-news {
+  font-family: var(--font);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* Range buttons under the chart. They wrap rather than push the panel wider on a phone. */
 .chart-ranges {
   display: flex;
