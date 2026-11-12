@@ -8,7 +8,7 @@
 // It also counts interest: the first component to want a symbol subscribes the feed to
 // it, and the last to stop wanting it unsubscribes.
 
-import type { BookMessage, LiveMessage, TradeMessage } from "../api/marketData.ts";
+import type { BookMessage, TradeMessage } from "../api/marketData.ts";
 
 /** Trades kept per symbol, and fetched for time and sales: enough for its largest choice. */
 export const RECENT_TRADES = 50;
@@ -75,7 +75,7 @@ export class MarketStore {
     };
   }
 
-  apply(message: LiveMessage): void {
+  apply(message: BookMessage | TradeMessage): void {
     const before = this.get(message.symbol);
     const after: SymbolMarket =
       message.type === "book"

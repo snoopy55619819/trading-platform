@@ -10,15 +10,19 @@ import {
   type Interval,
   LiveFeed,
   MAX_BARS,
+  type NewsMessage,
   fetchHistory,
+  fetchNews,
   fetchRecentTrades,
 } from "../api/marketData.ts";
 import { bucketStart, foldTrade } from "./candles.ts";
+import { NewsStore, mergeNews } from "./news.ts";
 import { MarketStore, RECENT_TRADES, type SymbolMarket } from "./store.ts";
 import { mergeTrades } from "./tape.ts";
 import { quoteFrom } from "../features/header/quote.ts";
 
 export const marketStore = new MarketStore();
+export const newsStore = new NewsStore();
 
 // The feed's connection state, as a tiny store of its own.
 let feedState: ConnectionState = "closed";
@@ -42,7 +46,8 @@ export function startMarketData(): void {
   feed = new LiveFeed({
     onMessage: (message) => {
       feedLastMessageAt = Date.now();
-      marketStore.apply(message);
+      if (message.type === "news") newsStore.add(message);
+      else marketStore.apply(message);
     },
     onState: setFeedState,
   });
@@ -128,6 +133,22 @@ export function useRecentTrades(symbol: string | undefined) {
     [market.trades, stored.data],
   );
   return { trades, isLoading: stored.isLoading && market.trades.length === 0, error: stored.error };
+}
+
+/**
+ * The latest headlines, newest first: for `symbol`, or every symbol's when it is undefined.
+ * The stored ones are fetched when the choice changes and every minute (which also fills
+ * anything missed while the feed was down); live ones are added as they arrive.
+ */
+export function useNews(symbol: string | undefined, limit = 50): { news: NewsMessage[]; isLoading: boolean; error: Error | null } {
+  const stored = useQuery({
+    queryKey: ["news", symbol ?? "*", limit],
+    queryFn: () => fetchNews(symbol, limit),
+    refetchInterval: 60_000,
+  });
+  const live = useSyncExternalStore(newsStore.subscribe, newsStore.get);
+  const news = useMemo(() => mergeNews(live, stored.data ?? [], symbol, limit), [live, stored.data, symbol, limit]);
+  return { news, isLoading: stored.isLoading && news.length === 0, error: stored.error };
 }
 
 /** Live data for several symbols at once (the same store, one subscription each). */
