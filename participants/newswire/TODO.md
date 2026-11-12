@@ -5,7 +5,8 @@ publishes them. The simulator trades on them, and the broker stores them and sho
 the web app. Why it is a separate participant, and why news moves prices, is in
 [ADR 0006](../../docs/adr/0006-news-from-a-newswire-participant.md).
 
-Nothing here is built yet. Each stage below is one PR.
+Stages 1 and 2 are done: the newswire runs and publishes, but nothing reads it yet. Each
+stage below is one PR.
 
 ## The flow
 
@@ -107,6 +108,12 @@ Per-company weights handle that.
 | `NEWS_SEED` | random | as above |
 | `NEWS_LISTINGS` | vendored file | the listings to read |
 
+**As built:** each symbol has a moving story 10 times a day at the base rate (one every 2.4
+hours) and a neutral one 10 times a day, so about one story per company every 70 minutes.
+HELX is at 2 times the base, GRID and JOLT at half. A quarter of moving stories are `MAJOR`.
+The rates and the weights per category are constants in `src/schedule.ts` and
+`src/catalogue.ts`.
+
 ## How the simulator reacts
 
 On each headline for a symbol it trades:
@@ -148,13 +155,14 @@ The simulator's 40 orders a second ceiling still applies. A big burst flattens t
 
 Each stage is one PR, with its tests and docs.
 
-1. [ ] **Plan and ADR:** this file and ADR 0006.
-2. [ ] **The newswire:**
+1. [x] **Plan and ADR:** this file and ADR 0006 (PR #42).
+2. [x] **The newswire:**
    - the spec (README and a JSON schema for a headline) in `spec/`;
    - the service: the catalogue, the scheduler, the WebSocket and `GET /headlines`;
    - vendored listings with `spec:sync`;
    - unit tests for the catalogue, the scheduler (seeded) and the catch-up;
-   - added to `pnpm dev` and `docs/RUNNING.md`.
+   - added to `pnpm dev` and `docs/RUNNING.md`;
+   - its own CI job (moved here from stage 6: tests should run from the start).
 3. [ ] **The simulator follows the wire:**
    - vendor the newswire spec and subscribe, with catch-up on reconnect;
    - the new level and the burst, as above, replacing `jumpsPerDay`;
@@ -174,7 +182,7 @@ Each stage is one PR, with its tests and docs.
 6. [ ] **Deploy:**
    - a Dockerfile, and `participants/newswire/deploy/compose.yml` on the `trading` network
      (its port is not published to the internet);
-   - the newswire job in CI and the image in the deploy workflow;
+   - the image in CI and the deploy workflow;
    - the newswire in `docs/DEPLOYMENT.md` and the architecture diagrams;
    - a release.
 

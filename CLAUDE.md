@@ -29,7 +29,9 @@ contracts directory. This is the single most important structural fact about the
   **Do not split a backend module into a service** without a technical reason; "it feels
   like a microservice" is not one.
 
-- `participants/` — other trading firms. **TypeScript.** Connects over the same public
+- `participants/` — other market participants. **TypeScript.** `simulator/` is the other
+  trading firms; `newswire/` invents and publishes headlines (ADR 0006), with its own
+  published spec in `newswire/spec/`. The simulator connects over the same public
   FIX session any client uses.
 
 Each company also owns how it is deployed: a `Dockerfile` beside each deployable and a

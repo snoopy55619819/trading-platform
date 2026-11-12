@@ -25,7 +25,7 @@ install:
 
 ```bash
 nvm use
-pnpm backend install && pnpm market-data install && pnpm web install && pnpm simulator install
+pnpm backend install && pnpm market-data install && pnpm web install && pnpm simulator install && pnpm newswire install
 ```
 
 The simulator and market-data read the exchange's feed through generated code, which is
@@ -64,7 +64,7 @@ databases keep running.
 ## When something goes wrong
 
 - **A port is already in use.** Each process binds a fixed port: FIX 9878, the exchange's
-  feed 9879, backend 8080, market-data 8081, web 5173, Postgres 5432, 5433 and 5434. The web
+  feed 9879, backend 8080, market-data 8081, newswire 9890, web 5173, Postgres 5432, 5433 and 5434. The web
   client will not move to another port, because the backend only allows that origin. Find
   the old process with `lsof -i :<port>` and stop it.
 - **The gateway cannot reach its database.** Start it with `pnpm exchange:db`.
@@ -164,6 +164,21 @@ cd participants/simulator && pnpm start
 Then watch a symbol with `md-watch` as above. `SIM_SPEED=20` runs prices twenty times
 faster than the clock; `SIM_ACTIVITY` below 1 (`0.2`, say) makes a quieter market.
 Ctrl-C cancels everything the simulator has resting.
+
+### The newswire
+
+Invents headlines about the listed companies and publishes them (ADR 0006; the protocol is
+in `participants/newswire/spec/README.md`). It needs nothing else running:
+
+```bash
+cd participants/newswire && pnpm start
+```
+
+About one story per company every 70 minutes, half of them meant to move the price.
+`NEWS_RATE=20` makes it twenty times busier, to watch it work; `NEWS_SEED` repeats the same
+stories. With it running, `curl "localhost:9890/headlines?since=2000-01-01T00:00:00Z"` shows
+what it has published. Nothing reads it yet: the simulator and the broker subscribe in later
+stages (`participants/newswire/TODO.md`).
 
 ### The broker's backend
 
@@ -274,7 +289,7 @@ market-data's, plus a check that every production image still builds.
 | `pnpm exchange:run` / `exchange:build` / `exchange:test` | run, build or test the exchange |
 | `pnpm exchange:conformance` | the QuickFIX conformance run |
 | `pnpm spec:check` / `pnpm spec:sync` | find / update stale vendored copies of the exchange's spec |
-| `pnpm backend <script>` | run a script inside `broker/backend`; likewise `market-data`, `web` and `simulator` |
+| `pnpm backend <script>` | run a script inside `broker/backend`; likewise `market-data`, `web`, `simulator` and `newswire` |
 
 These are conveniences only. Everything they do you can do from inside the folder itself:
 no deployable depends on the repo root to build, run or deploy.
