@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1320 810" width="1320" height="810">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 750" width="1440" height="750">
 <style>
   :root {
     --bg: #f6f6f4; --surface: #ffffff; --ink: #1d1d1f; --ink-2: #5d6168; --line: #c8cbd0;
@@ -51,7 +51,7 @@
   .own-3 rect { fill: var(--own-3); stroke: var(--own-3-stroke); }
   .boundary text { font-size: 12px; font-weight: 700; letter-spacing: .06em; fill: var(--ink-2); }
   .divider { stroke: var(--line); stroke-width: 1; }
-  .band { font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+  .band { font-size: 15px; font-weight: 700; letter-spacing: .08em; }
 
   .node rect, .node path { fill: var(--node); stroke: var(--node-stroke); stroke-width: 1.5; }
   .module rect { fill: var(--module); stroke: var(--node-stroke); stroke-width: 1; }
@@ -89,165 +89,147 @@
     <marker id="arr-1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="arrow-1" d="M0,0 L10,5 L0,10 z"/></marker>
     <marker id="arr-2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="arrow-2" d="M0,0 L10,5 L0,10 z"/></marker>
   </defs>
-<rect class="export-bg" x="0" y="0" width="1320" height="810" rx="10"/>
+<rect class="export-bg" x="0" y="0" width="1440" height="750" rx="10"/>
 <title id="dtitle">Current MVP plan: a broker backend and an exchange binary, connected over FIX for orders and WebSocket for market data</title>
 
   <!-- Owner boundaries -->
-  <g class="boundary own-1"><rect x="40" y="30" width="600" height="760" rx="12"/><text x="56" y="52">BROKER</text></g>
-  <g class="boundary own-2"><rect x="660" y="30" width="360" height="760" rx="12"/><text x="676" y="52">ALPHA EXCHANGE</text></g>
-  <g class="boundary own-3"><rect x="1040" y="30" width="250" height="760" rx="12"/><text x="1056" y="52">THIRD PARTIES (SIMULATED)</text></g>
+  <g class="boundary own-1"><rect x="40" y="30" width="505" height="690" rx="12"/><text x="56" y="52">BROKER</text></g>
+  <g class="boundary own-2"><rect x="700" y="30" width="540" height="690" rx="12"/><text x="716" y="52">ALPHA EXCHANGE</text></g>
+  <g class="boundary own-3"><rect x="1260" y="30" width="170" height="690" rx="12"/><text x="1276" y="52">THIRD PARTIES</text><text x="1276" y="68">(SIMULATED)</text></g>
 
   <!-- Planes -->
-  <line class="divider" x1="30" y1="470" x2="1300" y2="470"/>
+  <line class="divider" x1="30" y1="470" x2="1420" y2="470"/>
   <text class="band t-flow-1" transform="translate(22 250) rotate(-90)" text-anchor="middle">ORDER PLANE · PRIVATE</text>
-  <text class="band t-flow-2" transform="translate(22 630) rotate(-90)" text-anchor="middle">MARKET DATA PLANE · PUBLIC</text>
+  <text class="band t-flow-2" transform="translate(22 595) rotate(-90)" text-anchor="middle">MARKET DATA PLANE · PUBLIC</text>
 
   <!-- Process shells (drawn before edges and modules) -->
-  <g class="node"><rect x="190" y="180" width="420" height="172" rx="10"/>
-    <text class="n-title" x="276" y="202">backend</text>
-    <text class="n-sub" x="276" y="219">one process · one transaction · M5-M6</text>
-    <text class="tag built" x="210" y="338">BUILT</text></g>
-  <g class="node"><rect x="680" y="180" width="220" height="490" rx="10"/>
-    <text class="n-title" x="694" y="202">exchange-alpha</text>
-    <text class="n-sub" x="694" y="219">one Rust binary · M1-M3</text></g>
+  <g class="node"><rect x="95" y="180" width="420" height="172" rx="10"/>
+    <text class="n-title" x="181" y="202">backend</text>
+    <text class="n-sub" x="181" y="219">one process · one transaction</text></g>
+  <g class="node"><rect x="740" y="180" width="320" height="450" rx="10"/>
+    <text class="n-title" x="754" y="202">exchange-alpha</text>
+    <text class="n-sub" x="754" y="219">one Rust binary</text></g>
 
   <!-- Edges: order plane -->
-  <path class="edge flow-1" d="M260,140 L260,230" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="268" y="160">HTTP</text>
-  <text class="elabel t-flow-1" x="268" y="174">orders · positions</text>
+  <path class="edge flow-1" d="M165,140 L165,230" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="173" y="160">HTTP</text>
+  <text class="elabel t-flow-1" x="173" y="174">orders · positions</text>
 
-  <path class="edge flow-1 thin" d="M310,254 L348,254" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="329" y="246" text-anchor="middle">call</text>
-  <path class="edge flow-1 thin" d="M450,254 L488,254" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="469" y="246" text-anchor="middle">call</text>
-  <path class="edge flow-1 thin" d="M400,277 L400,296" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="408" y="291">call</text>
+  <path class="edge flow-1 thin" d="M215,254 L253,254" marker-end="url(#arr-1)"/>
+  <path class="edge flow-1 thin" d="M355,254 L393,254" marker-end="url(#arr-1)"/>
+  <path class="edge flow-1 thin" d="M305,277 L305,296" marker-end="url(#arr-1)"/>
 
-  <path class="edge flow-1" d="M400,352 L400,384" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="408" y="372">SQL</text>
+  <path class="edge flow-1" d="M305,352 L305,384" marker-end="url(#arr-1)"/>
 
-  <path class="edge flow-1" d="M590,246 L698,246" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="672" y="205" text-anchor="end">FIX 4.4 / TCP</text>
-  <text class="elabel t-flow-1" x="672" y="219" text-anchor="end">NewOrderSingle 35=D</text>
+  <path class="edge flow-1" d="M495,246 L758,246" marker-end="url(#arr-1)"/>
 
-  <path class="edge flow-1" d="M700,266 L592,266" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="630" y="292" text-anchor="middle">ExecutionReport</text>
-  <text class="elabel t-flow-1" x="630" y="306" text-anchor="middle">35=8</text>
+  <path class="edge flow-1" d="M760,266 L497,266" marker-end="url(#arr-1)"/>
 
-  <path class="links" d="M850,144 L850,230"/>
-  <text class="elabel t-muted" x="858" y="190">links</text>
+  <g class="badge" transform="translate(622 186)"><circle r="11"/><text y="4" text-anchor="middle">4</text></g>
+  <text class="elabel t-flow-1" x="622" y="216" text-anchor="middle">FIX 4.4 / TCP</text>
+  <text class="elabel t-flow-1" x="622" y="232" text-anchor="middle">NewOrderSingle 35=D</text>
+  <text class="elabel t-flow-1" x="622" y="286" text-anchor="middle">ExecutionReport 35=8</text>
+  <g class="badge" transform="translate(622 310)"><circle r="11"/><text y="4" text-anchor="middle">10</text></g>
 
-  <path class="edge flow-1" d="M880,268 L962,268 L962,320" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="970" y="300">SQL</text>
+  <path class="links" d="M900,144 L900,230"/>
 
-  <path class="edge flow-1" d="M790,277 L790,418" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="782" y="340" text-anchor="end">in-process</text>
-  <text class="elabel t-flow-1" x="782" y="354" text-anchor="end">NewOrder · Cancel</text>
-  <path class="edge flow-1" d="M845,420 L845,279" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="853" y="340">fills</text>
-  <text class="elabel t-flow-1" x="853" y="354">private</text>
+  <path class="edge flow-1" d="M1040,268 L1152,268 L1152,320" marker-end="url(#arr-1)"/>
 
-  <path class="edge flow-1" d="M880,478 L914,478" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="897" y="469" text-anchor="middle">write</text>
+  <path class="edge flow-1" d="M860,277 L860,418" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="852" y="347" text-anchor="end">NewOrder · Cancel</text>
+  <path class="edge flow-1" d="M940,420 L940,279" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="948" y="347">Fill</text>
 
-  <path class="edge flow-1" d="M1165,594 L1165,250 L882,250" marker-end="url(#arr-1)"/>
-  <text class="elabel t-flow-1" x="1095" y="226" text-anchor="middle">FIX 4.4 / TCP</text>
-  <text class="elabel t-flow-1" x="1095" y="240" text-anchor="middle">NewOrderSingle</text>
+  <path class="edge flow-1" d="M1040,478 L1094,478" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="1067" y="469" text-anchor="middle">write</text>
+
+  <path class="edge flow-1" d="M1345,554 L1345,250 L1042,250" marker-end="url(#arr-1)"/>
+  <text class="elabel t-flow-1" x="1135" y="226" text-anchor="middle">FIX 4.4 / TCP</text>
+  <text class="elabel t-flow-1" x="1135" y="240" text-anchor="middle">NewOrderSingle</text>
 
   <!-- Edges: market data plane -->
-  <path class="edge flow-2" d="M790,520 L790,598" marker-end="url(#arr-2)"/>
-  <text class="elabel t-flow-2" x="782" y="556" text-anchor="end">in-process</text>
-  <text class="elabel t-flow-2" x="782" y="570" text-anchor="end">BookDelta · Trade</text>
+  <path class="edge flow-2" d="M900,520 L900,558" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="892" y="543" text-anchor="end">BookDelta · Trade</text>
 
-  <path class="edge flow-2" d="M700,622 L382,622" marker-end="url(#arr-2)"/>
-  <text class="elabel t-flow-2" x="540" y="598" text-anchor="middle">WebSocket</text>
-  <text class="elabel t-flow-2" x="540" y="612" text-anchor="middle">Snapshot · Delta</text>
+  <path class="edge flow-2" d="M760,582 L385,582" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="622" y="558" text-anchor="middle">WebSocket</text>
+  <text class="elabel t-flow-2" x="622" y="572" text-anchor="middle">Snapshot · Delta</text>
 
-  <path class="edge flow-2" d="M880,622 L1078,622" marker-end="url(#arr-2)"/>
-  <text class="elabel t-flow-2" x="980" y="598" text-anchor="middle">WebSocket</text>
-  <text class="elabel t-flow-2" x="980" y="612" text-anchor="middle">Snapshot · Delta</text>
+  <path class="edge flow-2" d="M1040,582 L1273,582" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="1135" y="558" text-anchor="middle">WebSocket</text>
+  <text class="elabel t-flow-2" x="1135" y="572" text-anchor="middle">Snapshot · Delta</text>
 
-  <path class="edge flow-2" d="M290,648 L290,688" marker-end="url(#arr-2)"/>
-  <text class="elabel t-flow-2" x="298" y="672">SQL</text>
+  <path class="edge flow-2" d="M293,610 L293,630" marker-end="url(#arr-2)"/>
 
-  <path class="edge flow-2" d="M200,620 L165,620 L165,114 L198,114" marker-end="url(#arr-2)"/>
-  <text class="elabel t-flow-2" x="157" y="360" text-anchor="end">WebSocket · REST</text>
-  <text class="elabel t-flow-2" x="157" y="374" text-anchor="end">prices · history</text>
+  <path class="edge flow-2" d="M203,582 L70,582 L70,114 L103,114" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="78" y="396">WebSocket · REST</text>
+  <text class="elabel t-flow-2" x="78" y="410">prices · history</text>
 
   <!-- Nodes -->
-  <g class="node"><rect x="200" y="88" width="120" height="52" rx="8"/>
-    <text class="n-title" x="260" y="110" text-anchor="middle">web</text>
-    <text class="n-sub" x="260" y="128" text-anchor="middle">static SPA · M8</text></g>
-  <text class="tag built" x="328" y="128">BUILT</text>
+  <g class="node"><rect x="105" y="88" width="120" height="52" rx="8"/>
+    <text class="n-title" x="165" y="110" text-anchor="middle">web</text>
+    <text class="n-sub" x="165" y="128" text-anchor="middle">static SPA</text></g>
 
-  <g class="module"><rect x="210" y="232" width="100" height="45" rx="6"/>
-    <text class="n-title" x="260" y="252" text-anchor="middle">api</text>
-    <text class="n-sub" x="260" y="268" text-anchor="middle">front door</text></g>
-  <g class="module"><rect x="350" y="232" width="100" height="45" rx="6"/>
-    <text class="n-title" x="400" y="252" text-anchor="middle">oms</text>
-    <text class="n-sub" x="400" y="268" text-anchor="middle">risk · lifecycle</text></g>
-  <g class="module"><rect x="490" y="232" width="100" height="45" rx="6"/>
-    <text class="n-title" x="540" y="252" text-anchor="middle">fix</text>
-    <text class="n-sub" x="540" y="268" text-anchor="middle">initiator</text></g>
-  <g class="module"><rect x="350" y="298" width="100" height="42" rx="6"/>
-    <text class="n-title" x="400" y="316" text-anchor="middle">ledger</text>
-    <text class="n-sub" x="400" y="332" text-anchor="middle">double-entry</text></g>
+  <g class="module"><rect x="115" y="232" width="100" height="45" rx="6"/>
+    <text class="n-title" x="165" y="252" text-anchor="middle">api</text>
+    <text class="n-sub" x="165" y="268" text-anchor="middle">front door</text></g>
+  <g class="module"><rect x="255" y="232" width="100" height="45" rx="6"/>
+    <text class="n-title" x="305" y="252" text-anchor="middle">oms</text>
+    <text class="n-sub" x="305" y="268" text-anchor="middle">risk · lifecycle</text></g>
+  <g class="module"><rect x="395" y="232" width="100" height="45" rx="6"/>
+    <text class="n-title" x="445" y="252" text-anchor="middle">fix</text>
+    <text class="n-sub" x="445" y="268" text-anchor="middle">initiator</text></g>
+  <g class="module"><rect x="255" y="298" width="100" height="42" rx="6"/>
+    <text class="n-title" x="305" y="316" text-anchor="middle">ledger</text>
+    <text class="n-sub" x="305" y="332" text-anchor="middle">double-entry</text></g>
 
-  <g class="node"><path d="M354,394 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
-    <text class="n-title" x="400" y="426" text-anchor="middle">broker-db</text>
-    <text class="n-sub" x="400" y="441" text-anchor="middle">Postgres</text></g>
-  <text class="tag built" x="454" y="420">BUILT</text>
+  <g class="node"><path d="M259,394 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
+    <text class="n-title" x="305" y="426" text-anchor="middle">broker-db</text>
+    <text class="n-sub" x="305" y="441" text-anchor="middle">Postgres</text></g>
 
-  <g class="node lib"><rect x="790" y="82" width="130" height="56" rx="6"/><rect x="785" y="88" width="130" height="56" rx="6"/>
-    <text class="tag" x="795" y="104">LIB</text>
-    <text class="n-title" x="850" y="122" text-anchor="middle">fix-core</text>
-    <text class="n-sub" x="850" y="137" text-anchor="middle">codec · M2 · <tspan class="tag built">BUILT</tspan></text></g>
+  <g class="node lib"><rect x="840" y="82" width="130" height="56" rx="6"/><rect x="835" y="88" width="130" height="56" rx="6"/>
+    <text class="tag" x="845" y="104">LIB</text>
+    <text class="n-title" x="900" y="126" text-anchor="middle">fix-core</text></g>
 
-  <g class="module"><rect x="700" y="232" width="180" height="45" rx="6"/>
-    <text class="n-title" x="790" y="252" text-anchor="middle">gateway</text>
-    <text class="n-sub" x="790" y="268" text-anchor="middle">validation · M2 · <tspan class="tag built">BUILT</tspan></text></g>
-  <g class="module"><rect x="700" y="420" width="180" height="100" rx="6"/>
-    <text class="n-title" x="790" y="466" text-anchor="middle">matching-engine</text>
-    <text class="n-sub" x="790" y="484" text-anchor="middle">RAM · M1</text>
-    <text class="tag built" x="790" y="503" text-anchor="middle">BUILT</text></g>
-  <g class="module"><rect x="700" y="600" width="180" height="45" rx="6"/>
-    <text class="n-title" x="790" y="619" text-anchor="middle">md-publisher</text>
-    <text class="n-sub" x="790" y="636" text-anchor="middle">sequenced · M3 · <tspan class="tag built">BUILT</tspan></text></g>
+  <g class="module"><rect x="760" y="232" width="280" height="45" rx="6"/>
+    <text class="n-title" x="900" y="252" text-anchor="middle">gateway</text>
+    <text class="n-sub" x="900" y="268" text-anchor="middle">validation</text></g>
+  <g class="module"><rect x="760" y="420" width="280" height="100" rx="6"/>
+    <text class="n-title" x="900" y="466" text-anchor="middle">matching-engine</text>
+    <text class="n-sub" x="900" y="484" text-anchor="middle">in memory</text></g>
+  <g class="module"><rect x="760" y="560" width="280" height="45" rx="6"/>
+    <text class="n-title" x="900" y="579" text-anchor="middle">md-publisher</text>
+    <text class="n-sub" x="900" y="596" text-anchor="middle">sequenced</text></g>
 
-  <g class="node"><path d="M916,330 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
-    <text class="n-title" x="962" y="362" text-anchor="middle">exchange-db</text>
-    <text class="n-sub" x="962" y="377" text-anchor="middle">Postgres · M2</text></g>
-  <text class="tag built" x="962" y="408" text-anchor="middle">BUILT</text>
-  <g class="node"><path d="M916,456 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
-    <text class="n-title" x="962" y="488" text-anchor="middle">journal</text>
-    <text class="n-sub" x="962" y="503" text-anchor="middle">append · M1</text></g>
-  <text class="tag built" x="962" y="530" text-anchor="middle">BUILT</text>
+  <g class="node"><path d="M1096,330 a56,8 0 0,0 112,0 a56,8 0 0,0 -112,0 v46 a56,8 0 0,0 112,0 v-46"/>
+    <text class="n-title" x="1152" y="362" text-anchor="middle">exchange-db</text>
+    <text class="n-sub" x="1152" y="377" text-anchor="middle">Postgres</text></g>
+  <g class="node"><path d="M1096,456 a56,8 0 0,0 112,0 a56,8 0 0,0 -112,0 v46 a56,8 0 0,0 112,0 v-46"/>
+    <text class="n-title" x="1152" y="488" text-anchor="middle">journal</text>
+    <text class="n-sub" x="1152" y="503" text-anchor="middle">append-only</text></g>
 
-  <g class="node"><rect x="200" y="592" width="180" height="56" rx="8"/>
-    <text class="n-title" x="290" y="614" text-anchor="middle">market-data</text>
-    <text class="n-sub" x="290" y="632" text-anchor="middle">live + history · M7 · <tspan class="tag built">BUILT</tspan></text></g>
-  <g class="node"><path d="M244,698 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
-    <text class="n-title" x="290" y="730" text-anchor="middle">md-db</text>
-    <text class="n-sub" x="290" y="745" text-anchor="middle">own DB · M7</text></g>
-  <text class="tag built" x="344" y="736">BUILT</text>
+  <g class="node"><rect x="203" y="554" width="180" height="56" rx="8"/>
+    <text class="n-title" x="293" y="576" text-anchor="middle">market-data</text>
+    <text class="n-sub" x="293" y="594" text-anchor="middle">live + history</text></g>
+  <g class="node"><path d="M247,640 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
+    <text class="n-title" x="293" y="672" text-anchor="middle">md-db</text>
+    <text class="n-sub" x="293" y="687" text-anchor="middle">Postgres</text></g>
 
-  <g class="node"><rect x="1080" y="594" width="170" height="56" rx="8"/>
-    <text class="n-title" x="1165" y="616" text-anchor="middle">simulator</text>
-    <text class="n-sub" x="1165" y="634" text-anchor="middle">agents · M4 · <tspan class="tag built">BUILT</tspan></text></g>
+  <g class="node"><rect x="1275" y="554" width="140" height="56" rx="8"/>
+    <text class="n-title" x="1345" y="576" text-anchor="middle">simulator</text>
+    <text class="n-sub" x="1345" y="594" text-anchor="middle">agents</text></g>
 
   <!-- Badges -->
-  <g class="badge" transform="translate(320 88)"><circle r="11"/><text y="4" text-anchor="middle">1</text></g>
-  <g class="badge" transform="translate(610 180)"><circle r="11"/><text y="4" text-anchor="middle">2</text></g>
-  <g class="badge" transform="translate(446 390)"><circle r="11"/><text y="4" text-anchor="middle">3</text></g>
-  <g class="badge" transform="translate(518 212)"><circle r="11"/><text y="4" text-anchor="middle">4</text></g>
-  <g class="badge" transform="translate(880 232)"><circle r="11"/><text y="4" text-anchor="middle">5</text></g>
-  <g class="badge" transform="translate(1008 326)"><circle r="11"/><text y="4" text-anchor="middle">6</text></g>
-  <g class="badge" transform="translate(915 88)"><circle r="11"/><text y="4" text-anchor="middle">7</text></g>
-  <g class="badge" transform="translate(880 420)"><circle r="11"/><text y="4" text-anchor="middle">8</text></g>
-  <g class="badge" transform="translate(1008 452)"><circle r="11"/><text y="4" text-anchor="middle">9</text></g>
-  <g class="badge" transform="translate(564 299)"><circle r="11"/><text y="4" text-anchor="middle">10</text></g>
-  <g class="badge" transform="translate(880 600)"><circle r="11"/><text y="4" text-anchor="middle">11</text></g>
-  <g class="badge" transform="translate(476 605)"><circle r="11"/><text y="4" text-anchor="middle">12</text></g>
-  <g class="badge" transform="translate(380 592)"><circle r="11"/><text y="4" text-anchor="middle">13</text></g>
-  <g class="badge" transform="translate(1250 594)"><circle r="11"/><text y="4" text-anchor="middle">14</text></g>
+  <g class="badge" transform="translate(225 88)"><circle r="11"/><text y="4" text-anchor="middle">1</text></g>
+  <g class="badge" transform="translate(515 180)"><circle r="11"/><text y="4" text-anchor="middle">2</text></g>
+  <g class="badge" transform="translate(351 390)"><circle r="11"/><text y="4" text-anchor="middle">3</text></g>
+  <g class="badge" transform="translate(1040 232)"><circle r="11"/><text y="4" text-anchor="middle">5</text></g>
+  <g class="badge" transform="translate(1208 326)"><circle r="11"/><text y="4" text-anchor="middle">6</text></g>
+  <g class="badge" transform="translate(965 88)"><circle r="11"/><text y="4" text-anchor="middle">7</text></g>
+  <g class="badge" transform="translate(1040 420)"><circle r="11"/><text y="4" text-anchor="middle">8</text></g>
+  <g class="badge" transform="translate(1208 452)"><circle r="11"/><text y="4" text-anchor="middle">9</text></g>
+  <g class="badge" transform="translate(1040 560)"><circle r="11"/><text y="4" text-anchor="middle">11</text></g>
+  <g class="badge" transform="translate(622 536)"><circle r="11"/><text y="4" text-anchor="middle">12</text></g>
+  <g class="badge" transform="translate(383 554)"><circle r="11"/><text y="4" text-anchor="middle">13</text></g>
+  <g class="badge" transform="translate(1415 554)"><circle r="11"/><text y="4" text-anchor="middle">14</text></g>
 </svg>
