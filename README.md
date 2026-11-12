@@ -1,51 +1,52 @@
 # trading-platform
 
-**A stock market built from scratch:** a Rust exchange with its own matching engine and FIX
-4.4 gateway, a broker with an order management system and a double-entry ledger, a live
-market data feed, simulated trading firms that keep the market moving, and a browser
-trading app on top. Entirely synthetic: no real market data, no real money.
+**A stock market built from scratch, end to end with:**
 
-![The trading screen: watchlist, live candlestick chart with a hover legend, order book, order ticket, positions with P&L, and time and sales](docs/images/trading-screen-pro-dark.png)
+- **A Rust exchange** with its own matching engine and FIX 4.4 ([Financial Information eXchange protocol](https://fixtrading.org/standards/fix-protocol/)) gateway
+- **A broker** with an order management system and a double-entry ledger
+- **A live market data feed**, sequenced, with gap recovery
+- **Simulated trading firms** that keep the market moving
+- **A browser trading app** with multiple UI themes
+
+Entirely synthetic: no real market data, no real money.
+
+![The trading screen in the Active style: watchlist, live candlestick chart with a hover legend, quick Buy and Sell buttons, order book, positions with book cost and P&L, and time and sales](docs/images/trading-screen-active-dark.png)
 
 ## What it is
 
-The whole life of a trade, end to end. You place an order in the browser; the broker checks
-it against your buying power and sends it over FIX to the exchange; the matching engine fills
-it against orders from simulated market makers and traders; the fill comes back to the
-broker's ledger, and the public feed moves the book and chart for everyone watching.
+The whole life of a trade, end to end:
+
+1. You place an order in the browser.
+2. The broker checks it against your buying power and sends it over FIX to the exchange.
+3. The matching engine fills it against orders from simulated market makers and traders.
+4. The fill comes back to the broker's ledger, and your holdings update.
+5. The public feed moves the book and chart for everyone watching.
 
 Each part is a separate business with its own code, language and database, connected only
-by published protocols, the way real market infrastructure is. It was built milestone by
-milestone, each with a concrete test that proves it works (see [Built so far](#built-so-far)).
+by published protocols, the way real market infrastructure is.
 
 ### Highlights
 
-- **A matching engine with no database.** Price-time priority, market, limit, IOC and FOK
-  orders, in memory. Durability is an append-only journal, and replaying it rebuilds a
-  byte-identical order book.
-- **FIX 4.4 written by hand, twice.** A Rust acceptor on the exchange and a TypeScript
-  initiator in the broker, sharing only the published spec. Conformance-tested against the
-  independent QuickFIX/Go engine, including a fill recovered by resend after the exchange
-  was killed with `kill -9`.
-- **Sequenced market data.** Every feed message carries venue-wide and per-symbol sequence
-  numbers; a subscriber that sees a gap recovers from a fresh snapshot. A property test
-  checks that a subscriber joining at any moment rebuilds the engine's exact book.
-- **A ledger the database enforces.** Double-entry books in Postgres: an entry that does not
-  balance per asset is refused at commit, and history is append-only. Positions and cash
-  are only ever derived from journal lines. 1,000 random fills match an independent tally
-  to the cent.
-- **An order path that survives crashes.** Orders are committed before they are sent, FIX
-  sequence numbers are never reset, and fills are idempotent, so a broker killed mid-trade
-  loses and duplicates nothing.
-- **A live market.** Simulated market makers quote around a hidden fair value and manage
-  their inventory; noise, momentum and mean-reversion traders take liquidity. They connect
-  over the same public FIX session as anyone else, with no backdoor.
-- **A real trading client.** React with live prices over WebSocket, candlestick charts with
-  zoomable ranges, an order book you can click to price an order, confirmations, toasts on
-  fills, and positions with P&L. Three styles (Pro, Active, Calm) in light and dark, from
-  one set of components.
+- **Matching engine:** matches orders in memory with price-time priority. Replaying its
+  journal rebuilds the exact same order book.
+- **FIX 4.4:** written by hand on both sides (Rust exchange, TypeScript broker) and tested
+  against QuickFIX/Go, an independent FIX engine. Survives the exchange being killed
+  mid-session without losing a fill.
+- **Market data:** every message is numbered, so a subscriber can detect a missed message
+  and recover from a fresh snapshot.
+- **Ledger:** double-entry bookkeeping where Postgres itself rejects an entry that does not
+  balance.
+- **Crash safety:** a broker killed mid-trade loses no orders and books no fill twice.
+- **Simulated market:** market makers and traders keep prices moving, connecting over the
+  same FIX session as any other client.
+- **Trading app:** React App with live prices, charts, order book, order confirmations, and positions with P&L, in three styles with light and dark modes.
 
-<img src="docs/images/trading-screen-active-light.png" alt="The same screen in the Active style, light mode: big Buy and Sell buttons with a quantity stepper" width="720">
+One set of components, three styles, each in light and dark:
+
+| Pro | Active | Calm |
+|:---:|:---:|:---:|
+| <img src="docs/images/style-pro-dark.png" alt="Pro style, dark mode: dense, small type, everything visible at once"> | <img src="docs/images/style-active-light.png" alt="Active style, light mode: bold colours and big Buy and Sell buttons"> | <img src="docs/images/style-calm-light.png" alt="Calm style, light mode: spacious, large type, one thing at a time"> |
+| dense, everything at once | bold, quick to trade | spacious, one thing at a time |
 
 ### Stack
 
@@ -58,17 +59,6 @@ milestone, each with a concrete test that proves it works (see [Built so far](#b
 | `participants/simulator/` | TypeScript (Node) | simulated trading firms |
 | Postgres | | one database per service, never shared |
 
-### Try it
-
-With Docker, Rust, Node 26 and pnpm installed, and the [first-time setup](#quick-start)
-done once:
-
-```bash
-pnpm dev
-```
-
-Then open http://localhost:5173, open an account, add funds and place an order.
-
 ## Architecture
 
 ### Current plan (MVP)
@@ -77,7 +67,7 @@ What we are building through milestone 8. To keep scope manageable the broker ru
 backend process and the exchange as one binary. Every box shows the milestone that builds it;
 the ones tagged BUILT exist today.
 
-![Current MVP plan: broker backend and exchange binary, connected by FIX for orders and WebSocket for market data](docs/architecture/current-plan.svg)
+[![Current MVP plan: broker backend and exchange binary, connected by FIX for orders and WebSocket for market data](docs/architecture/current-plan.svg)](https://snoopy55619819.github.io/trading-platform/architecture/current-plan.html)
 
 ### Ideal end state
 
@@ -85,13 +75,12 @@ Every service split the way the industry splits it, with nothing cut for scope. 
 boxes were modules inside a merged process in the MVP; **dashed** boxes and dotted lines were
 cut from the MVP entirely. Post-trade (clearing, custody, settlement) appears as a third plane.
 
-![Ideal end state: broker, two exchanges, market infrastructure and simulation across order, market data and post-trade planes](docs/architecture/ideal-end-state.svg)
+[![Ideal end state: broker, two exchanges, market infrastructure and simulation across order, market data and post-trade planes](docs/architecture/ideal-end-state.svg)](https://snoopy55619819.github.io/trading-platform/architecture/ideal-end-state.html)
 
-The numbered badges are explained in each diagram's legend: open
-[`current-plan.html`](docs/architecture/current-plan.html) or
-[`ideal-end-state.html`](docs/architecture/ideal-end-state.html) for the full table and a
-light/dark toggle. After editing a diagram, regenerate the images with
-`node docs/architecture/export-svg.mjs`.
+The numbered badges are explained in each diagram's legend. Open the interactive versions,
+with the full legend and a light/dark toggle: [current plan](https://snoopy55619819.github.io/trading-platform/architecture/current-plan.html) and
+[ideal end state](https://snoopy55619819.github.io/trading-platform/architecture/ideal-end-state.html). Click either image to open it too. The source
+is `docs/architecture/*.html`.
 
 ## How it fits together
 
