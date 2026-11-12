@@ -121,6 +121,23 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
 
+  newswire:
+    name: participants/newswire
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: participants/newswire
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+      - run: npm install --global pnpm@$PNPM_VERSION
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm spec:check
+      - run: pnpm typecheck
+      - run: pnpm test
+
   web:
     name: broker/web
     runs-on: ubuntu-24.04
