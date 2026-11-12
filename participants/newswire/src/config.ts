@@ -18,12 +18,14 @@ export interface Config {
 const VENDORED = join(dirname(fileURLToPath(import.meta.url)), "..", "vendor", "exchange-alpha", "listings.json");
 
 interface PublishedListings {
-  symbols: { ticker: string; name: string; status: string }[];
+  symbols: { ticker: string; name: string; status: string; reference_price_cents: number }[];
 }
 
 /** The exchange's active listings, as companies to write about. */
 export function companiesFrom(listings: PublishedListings): Company[] {
-  return listings.symbols.filter((s) => s.status === "ACTIVE").map((s) => ({ ticker: s.ticker, name: s.name }));
+  return listings.symbols
+    .filter((s) => s.status === "ACTIVE")
+    .map((s) => ({ ticker: s.ticker, name: s.name, referenceCents: s.reference_price_cents }));
 }
 
 function number(name: string, fallback: number): number {

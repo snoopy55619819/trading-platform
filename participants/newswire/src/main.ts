@@ -35,7 +35,7 @@ server.http.listen(config.port, () => {
 let last = Date.now();
 const timer = setInterval(() => {
   const now = Date.now();
-  for (const story of schedule.step((now - last) / 1000)) wire.publish(story, now);
+  for (const story of schedule.step((now - last) / 1000, new Date(now))) wire.publish(story, now);
   last = now;
 }, STEP_MS);
 

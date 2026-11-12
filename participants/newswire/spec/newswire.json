@@ -1,6 +1,6 @@
 {
   "$comment": "What the newswire publishes. Fictional companies, fictional news: nothing here is real. The protocol is described in README.md; a headline's shape is headline.schema.json.",
-  "spec_version": "1.0.0",
+  "spec_version": "1.1.0",
   "name": "Newswire",
   "live": {
     "protocol": "WS",

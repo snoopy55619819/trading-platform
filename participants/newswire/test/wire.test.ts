@@ -15,6 +15,7 @@ import { type Headline, Wire } from "../src/wire.ts";
 const story = (symbol = "ACME") => ({
   symbol,
   headline: "Acme Industrial Corp edges past quarterly estimates",
+  body: "Acme Industrial Corp reported third-quarter earnings of $1.20 a share, ahead of the $1.15 analysts had expected.",
   category: "EARNINGS_BEAT" as const,
   tone: "POSITIVE" as const,
   severity: "MINOR" as const,
@@ -27,7 +28,8 @@ const schema = JSON.parse(readFileSync(new URL("../spec/headline.schema.json", i
 
 /** The checks the schema states, without a JSON Schema library. */
 function assertMatchesSchema(h: Headline): void {
-  assert.deepEqual(Object.keys(h).sort(), [...schema.required].sort());
+  for (const field of schema.required) assert.ok(field in h, `${field} is required`);
+  for (const field of Object.keys(h)) assert.ok(field in schema.properties, `${field} is not in the schema`);
   for (const [field, rule] of Object.entries(schema.properties)) {
     const value = h[field as keyof Headline];
     if (rule.pattern) assert.match(value, new RegExp(rule.pattern), field);
@@ -66,8 +68,8 @@ test("companies come from the exchange's active listings", () => {
   ) as Parameters<typeof companiesFrom>[0];
   const companies = companiesFrom(listings);
   assert.equal(companies.length, 10);
-  assert.deepEqual(companies[0], { ticker: "ACME", name: "Acme Industrial Corp" });
-  assert.deepEqual(companiesFrom({ symbols: [{ ticker: "OLD", name: "Old Co", status: "HALTED" }] }), []);
+  assert.deepEqual(companies[0], { ticker: "ACME", name: "Acme Industrial Corp", referenceCents: 4210 });
+  assert.deepEqual(companiesFrom({ symbols: [{ ticker: "OLD", name: "Old Co", status: "HALTED", reference_price_cents: 100 }] }), []);
 });
 
 test("over the network: live on the WebSocket, catch-up and health over HTTP", async () => {
