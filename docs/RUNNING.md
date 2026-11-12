@@ -56,7 +56,8 @@ databases keep running.
 **In the browser**, open http://localhost:5173:
 
 1. Choose "New here? Open an account" and sign up with any email and password.
-2. Click **Add funds** at the top of the activity panel. A new account has no cash.
+2. A new account starts with $10,000.00 in cash, so you can trade straight away. For more,
+   click **Add funds** at the top of the activity panel.
 3. Pick a symbol, enter a quantity in the order ticket (or click a price in the book), and
    confirm. The fill shows in the blotter and your holdings update.
 
@@ -175,7 +176,8 @@ cd broker/backend && pnpm start
 ```
 
 Every endpoint is listed at the top of `broker/backend/src/api/server.ts`. With `curl`:
-sign up, log in, fund the account, buy, and look at the result.
+sign up, log in, add more cash, buy, and look at the result. Sign-up already funds the
+account with $10,000.00 (`OPENING_DEPOSIT_CENTS` in `broker/backend/src/api/auth.ts`).
 
 ```bash
 curl -s -X POST localhost:8080/users -d '{"email":"ada@example.com","password":"correct horse"}'
