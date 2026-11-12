@@ -8,33 +8,44 @@ use std::time::Duration;
 
 use fix_core::tags::*;
 use fix_core::*;
-use gateway::{Core, Gateway, MemoryStore};
+use gateway::listings::Listings;
+use gateway::{Core, DayClock, Gateway, MemoryStore};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
 pub const COMP_IDS: [&str; 3] = ["BROKER", "SIM", "OTHER"];
 
-/// A journal file removed when the test ends.
-pub struct TempJournal(pub PathBuf);
+/// A data directory removed when the test ends.
+pub struct TempData(pub PathBuf);
 
-impl TempJournal {
+impl TempData {
     pub fn new() -> Self {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        TempJournal(
-            std::env::temp_dir().join(format!("gw-test-{}-{n}.journal", std::process::id())),
-        )
+        TempData(std::env::temp_dir().join(format!("gw-test-{}-{n}", std::process::id())))
     }
 }
 
-impl Drop for TempJournal {
+impl Drop for TempData {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
+        let _ = std::fs::remove_dir_all(&self.0);
     }
 }
 
-pub async fn start_gateway(journal: &TempJournal, store: MemoryStore) -> Gateway {
-    let (core, feed) = Core::open(&journal.0, store, COMP_IDS.map(String::from))
+pub fn clock() -> DayClock {
+    DayClock::published(&Listings::published())
+}
+
+pub async fn start_gateway(journal: &TempData, store: MemoryStore) -> Gateway {
+    start_gateway_with(journal, store, clock()).await
+}
+
+pub async fn start_gateway_with(
+    journal: &TempData,
+    store: MemoryStore,
+    clock: DayClock,
+) -> Gateway {
+    let (core, feed) = Core::open(&journal.0, store, COMP_IDS.map(String::from), clock)
         .await
         .expect("open core");
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

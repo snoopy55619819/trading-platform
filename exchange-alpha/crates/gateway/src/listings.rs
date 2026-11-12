@@ -41,8 +41,14 @@ struct Venue {
 }
 
 #[derive(Deserialize)]
+struct Market {
+    business_date_roll_utc: String,
+}
+
+#[derive(Deserialize)]
 struct Published {
     venue: Venue,
+    market: Market,
     symbols: Vec<Symbol>,
 }
 
@@ -53,6 +59,8 @@ pub struct Listings {
     /// Basis points of notional. Negative is a rebate: the venue pays liquidity providers.
     pub maker_fee_bps: i64,
     pub taker_fee_bps: i64,
+    /// When the business date changes, as milliseconds after UTC midnight (21:00 UTC).
+    pub business_date_roll_ms: u64,
     symbols: HashMap<String, Symbol>,
 }
 
@@ -64,6 +72,8 @@ impl Listings {
             venue: file.venue.code,
             maker_fee_bps: file.venue.maker_fee_bps,
             taker_fee_bps: file.venue.taker_fee_bps,
+            business_date_roll_ms: parse_time_of_day(&file.market.business_date_roll_utc)
+                .unwrap_or_else(|| panic!("spec/listings.json: bad business_date_roll_utc")),
             symbols: file
                 .symbols
                 .into_iter()
@@ -97,6 +107,14 @@ impl Listings {
             quotient
         }
     }
+}
+
+/// `HH:MM:SS` as milliseconds after midnight.
+fn parse_time_of_day(text: &str) -> Option<u64> {
+    let mut parts = text.split(':').map(|part| part.parse::<u64>().ok());
+    let (hours, minutes, seconds) = (parts.next()??, parts.next()??, parts.next()??);
+    (parts.next().is_none() && hours < 24 && minutes < 60 && seconds < 60)
+        .then_some(((hours * 60 + minutes) * 60 + seconds) * 1000)
 }
 
 #[cfg(test)]

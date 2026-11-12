@@ -13,7 +13,7 @@ cd "$(dirname "$0")"
 
 ADDR=127.0.0.1:9878
 WORK=$(mktemp -d)
-export ALPHA_JOURNAL="$WORK/alpha.journal"
+export ALPHA_DATA_DIR="$WORK/data"
 GATEWAY_PID=""
 
 stop_gateway() { [ -n "$GATEWAY_PID" ] && kill "$GATEWAY_PID" 2>/dev/null; wait "$GATEWAY_PID" 2>/dev/null || true; }
@@ -36,7 +36,7 @@ start_gateway() {
   exit 1
 }
 
-echo "== fresh state: new journal, empty session tables, empty QuickFIX store"
+echo "== fresh state: new data directory, empty session tables, empty QuickFIX store"
 docker exec exchange-alpha-postgres psql -U exchange_alpha -d exchange_alpha -qc \
   "DROP TABLE IF EXISTS fix_outbound, fix_sessions, _sqlx_migrations" >/dev/null
 rm -rf .store
