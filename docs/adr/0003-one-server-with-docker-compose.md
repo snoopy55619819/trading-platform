@@ -78,8 +78,10 @@ next step.
 - Memory was the expected tight spot, estimated at 1 to 1.3 GB on a 2 GB server. Measured
   with the whole stack in Docker it is about 350 MB at start, so there is room; swap stays as
   a safety net, and a `t4g.medium` (4 GB) is the fix if that ever changes.
-- No SSH. The server is reached through AWS Systems Manager, and GitHub Actions deploys
-  through it with short-lived credentials, so there are no keys to leak.
+- No SSH, and no AWS keys anywhere. The server is reached through AWS Systems Manager, and
+  it deploys itself: GitHub Actions builds the images and moves a `live` git tag, and an
+  agent on the server pulls. (Planned first as GitHub signing in to AWS; the project's
+  organization does not allow the identity provider that needs.)
 - The server is a single point of failure. For a demo with fake money, a few minutes of
   downtime during a deploy or a reboot is acceptable.
 - Deploying the backend signs everyone out, because sign-in sessions live in its memory.
