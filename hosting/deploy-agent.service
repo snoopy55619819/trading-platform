@@ -1,0 +1,8 @@
+[Unit]
+Description=Deploy the trading platform's live release
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /opt/trading-platform/hosting/deploy-agent.sh

@@ -11,6 +11,7 @@ COPY crates crates
 RUN cargo build --release --locked -p gateway
 
 FROM debian:trixie-slim
+LABEL org.opencontainers.image.source=https://github.com/snoopy55619819/trading-platform
 RUN useradd --system --uid 10001 alpha && mkdir /data && chown alpha /data
 COPY --from=build /src/target/release/gateway /usr/local/bin/gateway
 USER alpha

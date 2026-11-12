@@ -4,6 +4,7 @@
 #   docker build -t broker-backend broker/backend
 
 FROM node:26.8.1-slim
+LABEL org.opencontainers.image.source=https://github.com/snoopy55619819/trading-platform
 RUN npm install --global pnpm@12.3.4
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./

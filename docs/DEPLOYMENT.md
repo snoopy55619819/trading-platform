@@ -2,8 +2,9 @@
 
 The plan for running the platform publicly as a live demo, at **`tradeplatform.dev`**: what
 gets deployed, where, and how a change gets from `main` to the server. **In progress:** the
-images and compose files are built and run locally (stage 1), and every PR and merge is
-checked by CI (stage 2); the AWS setup and deploys come next. Why one server with Docker
+images and compose files are built and run locally (stage 1), every PR and merge is checked
+by CI (stage 2), and the deploy workflow and server setup are written (stage 3); the AWS
+resources and the first release come next ([AWS-SETUP.md](AWS-SETUP.md)). Why one server with Docker
 Compose rather than two servers, Kubernetes or managed services is in
 [ADR 0003](adr/0003-one-server-with-docker-compose.md). Running it locally is in
 [RUNNING.md](RUNNING.md).
@@ -11,7 +12,8 @@ Compose rather than two servers, Kubernetes or managed services is in
 ## The layout
 
 One AWS EC2 server, a `t4g.small` (2 vCPU, 2 GB of memory, ARM) running Amazon Linux 2023,
-in `us-east-1` (the cheapest region), running Docker Compose. Only
+in `us-east-2` (Ohio), running Docker Compose. The AWS project the site lives in only
+allows `us-east-2`; it costs the same as `us-east-1`. Only
 [Caddy](https://caddyserver.com/) is reachable from the internet. It gets an HTTPS
 certificate by itself and routes by path on **one hostname**:
 
@@ -82,7 +84,7 @@ few days live.
 
 ## AWS services and cost
 
-Estimated for us-east-1 (N. Virginia), November 2026. Prices change; check the totals in the
+Estimated for us-east-2 (Ohio), November 2026. Prices change; check the totals in the
 [AWS Pricing Calculator](https://calculator.aws/) before relying on them.
 
 | Service | How many | What for | Per month |
@@ -92,7 +94,7 @@ Estimated for us-east-1 (N. Virginia), November 2026. Prices change; check the t
 | Public IPv4 (Elastic IP) | 1 | a fixed address for DNS; AWS charges for every public IPv4 | ~$3.65 |
 | S3 | 1 bucket | nightly database dumps and the exchange's old day files | < $1 |
 | CloudWatch | a disk-usage metric, its alarm, a billing alarm | warnings before the disk or the bill gets out of hand | ~$0.30 |
-| Systems Manager | | shell access and deploys without SSH | $0 |
+| Systems Manager | | shell access and one-off commands without SSH | $0 |
 | Data transfer out | | the first 100 GB a month is free; a demo uses far less | $0 |
 | **Total** | | | **≈ $19** |
 
@@ -172,28 +174,35 @@ deploys.
    and typechecks. The Rust tests need nothing else; the backend's and market-data's tests
    need Postgres, which runs as a service container in the job. Nothing is deployed.
 2. **Deploy when you choose: `deploy`.** Push a version tag (`git tag v0.3.0 && git push
-   origin v0.3.0`), or press "Run workflow" on the `deploy` workflow in GitHub and pick a tag
-   or branch. The tag names exactly what is live.
-3. **Build.** The five images are built for that commit and pushed, tagged with the version.
-4. **Roll out.** GitHub Actions signs in to AWS with short-lived credentials (OpenID Connect,
-   no stored keys) and, through Systems Manager, runs on the server: `db:migrate` for the
-   backend and market-data as one-off containers, then `docker compose pull && docker
-   compose up -d` for each company. Only containers whose image changed restart. The seed
-   (instruments) runs once, on the first deploy.
+   origin v0.3.0`), or press "Run workflow" on the `deploy` workflow in GitHub and give a
+   version. The tag names exactly what is live.
+3. **Build.** The five images are built for that commit on GitHub's ARM runners and pushed,
+   tagged with the version.
+4. **Release.** The workflow moves a git tag, `live`, to that commit. **GitHub never
+   connects to the server and holds no AWS credentials.** Instead the server's deploy agent
+   ([`hosting/deploy-agent.sh`](../hosting/deploy-agent.sh), every minute) notices `live`
+   moved, checks out that version and runs `docker compose pull && docker compose up -d`
+   for each company, the exchange first. Only containers whose image changed restart, and
+   the backend and market-data apply pending migrations as they start. The workflow then
+   waits until https://tradeplatform.dev/version.txt reports the new version.
 5. **What a restart does.** A gateway restart loads the day's snapshot and journal in
    seconds; the broker reconnects and recovers anything it missed by resend, and the
    simulator cancels and re-quotes. A backend restart signs everyone out.
-6. **Roll back** by running `deploy` again with the previous tag. Its images are already
-   built, so nothing is rebuilt.
+6. **Roll back** by running `deploy` again with the previous version. Its images are already
+   built, so nothing is rebuilt; `live` simply moves back.
+
+A pull rather than a push, because the project's AWS organization does not allow the
+identity provider GitHub would need to sign in to AWS, and because pulling is simpler
+anyway: no credentials in GitHub, no inbound connection to the server.
 
 ## Secrets and access
 
-- **No SSH.** Port 22 stays closed. A shell is through Systems Manager's Session Manager,
-  and deploys run through it too.
-- **No stored AWS keys.** GitHub Actions assumes an IAM role through OpenID Connect; the
-  server reaches S3 through its own instance role.
-- **Database passwords** live in GitHub Actions secrets and in a `.env` file per company on
-  the server that only root can read.
+- **No SSH.** Port 22 stays closed. A shell, or a one-off command such as the first seed, is
+  through Systems Manager.
+- **No AWS keys anywhere.** GitHub needs none (the server pulls), and the server reaches AWS
+  through its own instance role.
+- **Database passwords** are generated on the server at first boot and live only in a
+  `.env` file per company there, readable only by root.
 - **Sign-in sessions** are random tokens in the backend's memory, so there is no signing key
   to manage.
 
@@ -243,16 +252,16 @@ In the repo:
 | Five Dockerfiles | done (stage 1): exchange, backend, market-data, simulator, web (with Caddy) |
 | Three compose files and a `Caddyfile` | done (stage 1): `exchange-alpha/deploy/`, `participants/simulator/deploy/`, `broker/deploy/`, `broker/web/Caddyfile` |
 | GitHub Actions: `ci` | done (stage 2): `.github/workflows/ci.yml` |
-| GitHub Actions: `deploy` | images and the server, on a version tag or the "Run workflow" button |
+| GitHub Actions: `deploy` and the deploy agent | done (stage 3): `.github/workflows/deploy.yml`, `hosting/` |
 | Nightly scripts | database dumps, and archiving the exchange's day files |
 
-In AWS, once:
+In AWS, once. The steps, as commands, are in [AWS-SETUP.md](AWS-SETUP.md).
 
 | | |
 |---|---|
-| Account | a billing alarm first; an admin user, not the root account |
-| IAM | a role for GitHub Actions (OpenID Connect); an instance role for the server (Systems Manager, S3) |
-| Server | a `t4g.small` on Amazon Linux 2023 in `us-east-1`, with Docker, a 2 GB swap file and automatic updates; a security group allowing 443 and 80 |
+| Account | done: MFA, and the `trading-platform-monthly` budget |
+| IAM | an instance role for the server (Systems Manager; S3 in stage 4) |
+| Server | a `t4g.small` on Amazon Linux 2023 in `us-east-2`, set up by `hosting/server-setup.sh`; a security group allowing 443 and 80 |
 | S3 | a bucket for backups and archived day files, with lifecycle rules |
 | DNS | in Cloudflare: an `A` record for `tradeplatform.dev` to the server's Elastic IP, "DNS only" |
 | Monitoring | a disk alarm and an uptime checker |
