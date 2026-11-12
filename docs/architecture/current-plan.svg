@@ -163,7 +163,12 @@
 
   <path class="edge flow-2" d="M203,582 L70,582 L70,114 L103,114" marker-end="url(#arr-2)"/>
   <text class="elabel t-flow-2" x="78" y="396">WebSocket · REST</text>
-  <text class="elabel t-flow-2" x="78" y="410">prices · history</text>
+  <text class="elabel t-flow-2" x="78" y="410">prices · history · news</text>
+
+  <path class="edge flow-2" d="M1345,650 L1345,614" marker-end="url(#arr-2)"/>
+  <path class="edge flow-2" d="M1275,676 L430,676 L430,600 L387,600" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="1135" y="652" text-anchor="middle">WebSocket</text>
+  <text class="elabel t-flow-2" x="1135" y="666" text-anchor="middle">headlines · stories</text>
 
   <!-- Nodes -->
   <g class="node"><rect x="105" y="88" width="120" height="52" rx="8"/>
@@ -210,14 +215,17 @@
 
   <g class="node"><rect x="203" y="554" width="180" height="56" rx="8"/>
     <text class="n-title" x="293" y="576" text-anchor="middle">market-data</text>
-    <text class="n-sub" x="293" y="594" text-anchor="middle">live + history</text></g>
+    <text class="n-sub" x="293" y="594" text-anchor="middle">live + history + news</text></g>
   <g class="node"><path d="M247,640 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="293" y="672" text-anchor="middle">md-db</text>
     <text class="n-sub" x="293" y="687" text-anchor="middle">Postgres</text></g>
 
   <g class="node"><rect x="1275" y="554" width="140" height="56" rx="8"/>
     <text class="n-title" x="1345" y="576" text-anchor="middle">simulator</text>
-    <text class="n-sub" x="1345" y="594" text-anchor="middle">agents</text></g>
+    <text class="n-sub" x="1345" y="594" text-anchor="middle">Simulate trades</text></g>
+  <g class="node"><rect x="1275" y="650" width="140" height="56" rx="8"/>
+    <text class="n-title" x="1345" y="672" text-anchor="middle">newswire</text>
+    <text class="n-sub" x="1345" y="690" text-anchor="middle">Simulate news</text></g>
 
   <!-- Badges -->
   <g class="badge" transform="translate(225 88)"><circle r="11"/><text y="4" text-anchor="middle">1</text></g>
@@ -232,4 +240,5 @@
   <g class="badge" transform="translate(622 536)"><circle r="11"/><text y="4" text-anchor="middle">12</text></g>
   <g class="badge" transform="translate(383 554)"><circle r="11"/><text y="4" text-anchor="middle">13</text></g>
   <g class="badge" transform="translate(1415 554)"><circle r="11"/><text y="4" text-anchor="middle">14</text></g>
+  <g class="badge" transform="translate(1415 650)"><circle r="11"/><text y="4" text-anchor="middle">15</text></g>
 </svg>
