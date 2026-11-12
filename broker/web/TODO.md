@@ -195,7 +195,8 @@ Query: discovering one mid-session made it re-bundle and briefly load two copies
 - [x] **Chart:** candles and volume, interval picker (1m, 5m, 1h, 1d), the current candle
       updated by live trades, colours taken from the tokens
 - [x] **Order book:** 10 levels a side, spread, greyed out while stale
-- [x] **Time and sales:** recent prints for the symbol
+- [x] **Time and sales:** recent prints for the symbol; show the latest 5, 10 or 50 (50 by
+      default, remembered in this browser with the other settings)
 Step 5b done. The watchlist shows each starred symbol's last price, change since the
 previous close and a sparkline of today (5m closes, with the previous close as a dashed
 line); click a row to look at it, and star or unstar from the quote in the top bar or the

@@ -10,6 +10,7 @@
 
 import type { BookMessage, LiveMessage, TradeMessage } from "../api/marketData.ts";
 
+/** Trades kept per symbol, and fetched for time and sales: enough for its largest choice. */
 export const RECENT_TRADES = 50;
 
 export interface SymbolMarket {
