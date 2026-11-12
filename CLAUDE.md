@@ -87,7 +87,10 @@ These are architectural commitments, not preferences. Breaking them causes rewri
 `ideal-end-state.html`), embedded in the README as SVGs. Edit the HTML, then regenerate with
 `node docs/architecture/export-svg.mjs`. Keep them current: they are the first thing anyone
 reads, and the picture to reason from
-before changing how services talk to each other.
+before changing how services talk to each other. GitHub Pages publishes `docs/` from `main`,
+so the diagrams are live at `https://snoopy55619819.github.io/trading-platform/architecture/`
+(linked from the README): keep each HTML file self-contained (no external assets), and do not
+move or rename `docs/architecture/` without updating those links.
 
 The rule it encodes: this is not one pipeline, it is two independent planes.
 
