@@ -59,6 +59,19 @@ In the plan's suggested order of value.
       ledger, clearing and surveillance). Replay-driven state rebuild.
 - [ ] **ClickHouse migration.** Move `ticks` and `bars` off Postgres, with a measured before
       and after.
+- [ ] **Closer to real market speed.** At `SIM_ACTIVITY=1` the simulator sends about 18
+      orders and cancels a second across 10 symbols, about 0.2 to 0.4 trades a second per
+      symbol: roughly a quiet to typical mid-cap stock. Busy large caps would be about 5 to
+      10 times that, mega caps like AAPL 50 to 100 times, and the whole US market (millions
+      of messages a second at peaks) is out of reach for this design. `SIM_ACTIVITY` alone
+      will not get there: it only scales the takers, and `SIM_MAX_ORDERS_PER_SEC` caps the
+      simulator at 40 orders a second. A 5 to 10 times step means raising that cap and
+      watching what gives first: the journal's size, the simulator's single FIX session,
+      market-data writing every trade to Postgres (see ClickHouse below), and the server's
+      CPU (2 vCPU; above 20% sustained costs extra). The matching engine itself benchmarks
+      at about 690,000 commands a second, so it is not the limit. Doubles as a load test of
+      the whole pipeline; real markets are also bursty (the open, the close, news), which a
+      steady rate does not show.
 - [ ] **Calmer market makers.** 95% of the exchange's orders are market maker quotes
       cancelled within seconds, replaced each time fair value moves. Wider tolerance before
       re-quoting would cut orders per trade, and with them the journal (about 120 MB a day
