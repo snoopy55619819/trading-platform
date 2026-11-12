@@ -87,6 +87,23 @@ export const DEFAULT_LAYOUTS = {
     ],
     phone: ["chart", "ticket", "book", "tape", "activity", "watchlist"],
   },
+  // Everything at once, tightly: depth and the tape full height beside the chart, so they
+  // show many rows, with the ticket under them.
+  terminal: {
+    fit: "screen",
+    columns: COLUMNS,
+    rows: 12,
+    panels: SECTION_TYPES.map(panel),
+    desktop: [
+      at("watchlist", 0, 0, 2, 12),
+      at("chart", 2, 0, 6, 7),
+      at("activity", 2, 7, 6, 5),
+      at("book", 8, 0, 2, 7),
+      at("tape", 10, 0, 2, 7),
+      at("ticket", 8, 7, 4, 5),
+    ],
+    phone: ["chart", "ticket", "book", "tape", "activity", "watchlist"],
+  },
   // One thing at a time: a single centred column, no depth or tape.
   calm: {
     fit: "flow",

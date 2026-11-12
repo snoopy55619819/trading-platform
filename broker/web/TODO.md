@@ -32,7 +32,7 @@ Every section uses the **same data, hooks and inputs** in every style. A style c
 looks and where it sits, never what it shows or does.
 
 - **Mode:** `light` | `dark`. Defaults to the operating system's setting.
-- **Style:** `pro` | `active` | `calm`. Inspired by kinds of app, not copied from any one:
+- **Style:** `pro` | `active` | `calm` | `terminal`. Inspired by kinds of app, not copied from any one:
   no product names, logos, signature colours or fonts.
 
 | Style | Feel |
@@ -40,6 +40,7 @@ looks and where it sits, never what it shows or does.
 | **Pro** | chart-first, dense, small type, thin borders, everything visible at once |
 | **Active** | data-dense panels, strong green and red, quick buy and sell |
 | **Calm** | spacious, large type, one thing at a time, depth hidden by default |
+| **Terminal** | a market data terminal: black, amber panel titles, monospace everywhere, the densest; always dark |
 
 Both are attributes on the root (`data-mode`, `data-style`) and are saved in `localStorage`.
 A style changes things at three levels; use the cheapest that does the job:
@@ -383,6 +384,16 @@ they read in every style and mode.
   is up, and when the exchange last sent anything (`lastHeardAt`, added to `/status` for
   this). Prices: the live WebSocket's state, for how long, and when its last message
   arrived. The text is built in `features/header/connections.ts`.
+- **Terminal style:** a fourth style in the look of a market data terminal, without copying
+  any one product's name, logo or exact colours. Black, amber labels and a solid amber title
+  bar on each panel, monospace for everything, the tightest spacing. Its layout puts the
+  order book and time and sales full height beside the chart, so both show many rows, with
+  the ticket under them. It has one mode, dark (`FIXED_MODES` in `theme/theme.ts`, repeated
+  in `index.html`'s pre-paint script): Settings says so in place of the mode choice, which is
+  kept for the other styles.
+- **Type anywhere to search:** typing a letter anywhere on the page, outside another field
+  or a dialog and without Ctrl, Cmd or Alt, moves focus to the symbol box, and the letter goes
+  in. Which presses count is a pure function (`startsSearch` in `features/header/search.ts`).
 
 ## Done when
 

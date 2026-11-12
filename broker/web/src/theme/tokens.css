@@ -4,12 +4,14 @@
 
   Two independent settings, as attributes on <html>:
     data-mode   light | dark          colours
-    data-style  pro | active | calm   density, type, shape, layout (and a few colours)
+    data-style  pro | active | calm | terminal   density, type, shape, layout (and a few colours)
 
   The styles are inspired by kinds of app, not copied from any one:
-    pro     chart-first and dense: small type, thin borders, square corners
-    active  data-dense, bold green and red, chunky controls
-    calm    spacious and quiet: large type, soft colours, one thing at a time
+    pro       chart-first and dense: small type, thin borders, square corners
+    active    data-dense, bold green and red, chunky controls
+    calm      spacious and quiet: large type, soft colours, one thing at a time
+    terminal  a market data terminal: black, amber labels, all monospace, the densest.
+              Always dark (FIXED_MODES in theme.ts).
 */
 
 /* ---------- colours: light (the default) ---------- */
@@ -159,6 +161,46 @@
   --accent-text: #12130f;
   --up: #6ccf9a;
   --down: #f08a6e;
+  --shadow: none;
+}
+
+/* Terminal: black, amber labels, monospace everywhere, the tightest spacing. */
+:root[data-style="terminal"] {
+  --font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-numbers: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 11px;
+  --fs-md: 12px;
+  --fs-lg: 14px;
+  --fs-xl: 18px;
+  --space-1: 2px;
+  --space-2: 3px;
+  --space-3: 6px;
+  --space-4: 10px;
+  --space-5: 14px;
+  --gap: 3px;
+  --panel-pad: 6px;
+  --row-h: 19px;
+  --control-h: 24px;
+  --radius: 0px;
+  --border-width: 1px;
+  --weight-strong: 700;
+  color-scheme: dark;
+  --bg: #000000;
+  --surface: #000000;
+  --surface-2: #121212;
+  --border: #333333;
+  --text: #f2f2f2;
+  --text-muted: #ffa028;
+  --accent: #ffa028;
+  --accent-text: #000000;
+  --up: #1ee07f;
+  --down: #ff433d;
+  --up-soft: #062a17;
+  --down-soft: #2e0807;
+  --warn: #ffd23f;
+  --stale: #6f6f6f;
+  --focus: #ffd23f;
   --shadow: none;
 }
 
