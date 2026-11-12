@@ -151,6 +151,33 @@ async fn a_cancel_answers_with_the_cancel_requests_id() {
     let refused = broker.next().await;
     assert_eq!(refused.msg_type(), "9");
     assert_eq!(refused.get(CXL_REJ_REASON), Some("0"));
+    assert_eq!(refused.get(ORD_STATUS), Some("4")); // canceled
+}
+
+#[tokio::test]
+async fn a_cancel_for_a_filled_order_is_too_late_and_says_it_filled() {
+    // The gateway keeps only a small entry for a finished order, not its full record. It must
+    // still answer exactly as before.
+    let journal = TempData::new();
+    let gateway = start_gateway(&journal, MemoryStore::default()).await;
+    let mut broker = Client::logon(gateway.addr, "BROKER").await;
+    let mut sim = Client::logon(gateway.addr, "SIM").await;
+
+    broker.send(limit("o1", "2", "50", "ACME", "42.10")).await;
+    broker.next().await;
+    sim.send(market("s1", "1", "50", "ACME")).await;
+    assert_eq!(exec(&broker.next().await), ("F", "2")); // filled in full
+
+    broker.send(cancel("c1", "o1", "2", "ACME")).await;
+    let refused = broker.next().await;
+    assert_eq!(refused.msg_type(), "9");
+    assert_eq!(refused.get(CXL_REJ_REASON), Some("0")); // too late
+    assert_eq!(refused.get(ORD_STATUS), Some("2")); // filled
+    assert_eq!(refused.get(ORDER_ID), Some("ALPHA-1"));
+
+    // Its ClOrdID is still spent for the day.
+    broker.send(limit("o1", "2", "10", "ACME", "42.10")).await;
+    assert_eq!(broker.next().await.get(ORD_REJ_REASON), Some("6"));
 }
 
 #[tokio::test]

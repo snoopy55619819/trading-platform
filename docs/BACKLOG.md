@@ -59,6 +59,11 @@ In the plan's suggested order of value.
       ledger, clearing and surveillance). Replay-driven state rebuild.
 - [ ] **ClickHouse migration.** Move `ticks` and `bars` off Postgres, with a measured before
       and after.
+- [ ] **Calmer market makers.** 95% of the exchange's orders are market maker quotes
+      cancelled within seconds, replaced each time fair value moves. Wider tolerance before
+      re-quoting would cut orders per trade, and with them the journal (about 120 MB a day
+      even at `SIM_ACTIVITY=0.2`), disk and CPU, without making the market less lively.
+      Check that spreads stay sane (ADR 0005).
 - [ ] **Tick retention without losing data.** market-data keeps every trade in `ticks`
       forever: about 13 MB a day at the simulator's default activity, so years before a 30 GB
       disk fills. Only the latest trades are read (`GET /trades`); charts use candles, which

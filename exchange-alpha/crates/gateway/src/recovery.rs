@@ -35,6 +35,7 @@ impl ExchangeState {
             orders: OrdersState {
                 orders: Vec::new(),
                 used_client_ids: Vec::new(),
+                finished: Vec::new(),
             },
             feed: Sequence::default(),
         }

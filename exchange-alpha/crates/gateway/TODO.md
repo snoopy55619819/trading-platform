@@ -79,6 +79,12 @@ reports for its orders are numbered and stored, and the gap shows up when it log
 Order state for execution reports (`CumQty`, `LeavesQty`, `AvgPx`) is derived purely from
 engine events, so replaying the journal rebuilds it exactly. Nothing extra to persist.
 
+Only a **live** order keeps that full record. When it fills, is cancelled or expires, it
+shrinks to a small entry under its `ClOrdID` (order id and how it ended), which is enough to
+answer a late cancel "too late" with the right status and to keep the `ClOrdID` spent for the
+day. Keeping every order's full record until the roll grew the live gateway to 234 MB by
+mid-day, almost all of it market maker quotes cancelled within seconds (ADR 0005).
+
 ## Decisions
 
 - **Participant = `CompID/Account`.** Self-trade prevention applies per account, so two clients

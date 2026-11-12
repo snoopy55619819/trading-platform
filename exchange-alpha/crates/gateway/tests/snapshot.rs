@@ -163,3 +163,82 @@ fn a_snapshot_survives_being_written_and_read_back() {
     assert_eq!(read_back.orders.orders.len(), 2);
     assert_eq!(read_back.feed.feed_seq, 2);
 }
+
+#[test]
+fn only_live_orders_keep_a_full_record() {
+    let listings = Listings::published();
+    let path = temp_path();
+    let mut exchange = recover(&listings, &path, None).unwrap();
+    let order = |id: &str, side, tif, qty| {
+        Command::New(NewOrder {
+            client_order_id: id.into(),
+            participant: "SIM/MM-1".into(),
+            symbol: "ACME".into(),
+            side,
+            order_type: OrderType::Limit {
+                price: PriceCents(10_000),
+            },
+            time_in_force: tif,
+            qty: Qty(qty),
+        })
+    };
+    // A thousand quotes placed and cancelled, as a market maker does all day, then one that
+    // fills and one that stays on the book.
+    let mut commands = Vec::new();
+    for n in 1..=1000u64 {
+        commands.push(order(&format!("q{n}"), Side::Sell, TimeInForce::Gtc, 10));
+        commands.push(Command::Cancel(CancelOrder {
+            participant: "SIM/MM-1".into(),
+            order_id: OrderId(n),
+        }));
+    }
+    commands.push(order("filled", Side::Sell, TimeInForce::Gtc, 10));
+    commands.push(Command::New(NewOrder {
+        client_order_id: "taker".into(),
+        participant: "BROKER/ACCT-1".into(),
+        symbol: "ACME".into(),
+        side: Side::Buy,
+        order_type: OrderType::Market,
+        time_in_force: TimeInForce::Ioc,
+        qty: Qty(10),
+    }));
+    commands.push(order("resting", Side::Sell, TimeInForce::Gtc, 10));
+    run(&mut exchange, &commands, &listings);
+    let _ = std::fs::remove_file(path);
+
+    let state = state(&exchange).orders;
+    assert_eq!(
+        state.orders.len(),
+        1,
+        "only the resting order keeps its record"
+    );
+    assert_eq!(
+        state.finished.len(),
+        1002,
+        "a small entry for every finished order"
+    );
+    assert_eq!(state.used_client_ids.len(), 1003);
+    assert_eq!(exchange.orders.open_order_count(), 1);
+}
+
+#[test]
+fn a_snapshot_written_before_finished_orders_were_dropped_still_loads() {
+    // The format the live server wrote before: no `finished`, and every order a full record,
+    // even finished ones.
+    let old = r#"{"journal_seq":3,"engine":{"last_order_id":2,"last_trade_id":0,"books":[{"symbol":"ACME","bids":[],"asks":[{"price":10000,"qty":10,"orders":[{"order_id":2,"client_order_id":"live","participant":"SIM/MM-1","remaining":10,"time_in_force":"GTC"}]}]}]},
+      "orders":{"orders":[
+        [1,{"comp_id":"SIM","account":"MM-1","client_order_id":"gone","symbol":"ACME","side":"SELL","order_type":{"kind":"LIMIT","price":10000},"time_in_force":"GTC","qty":10,"cum_qty":0,"notional_cents":0,"open":false}],
+        [2,{"comp_id":"SIM","account":"MM-1","client_order_id":"live","symbol":"ACME","side":"SELL","order_type":{"kind":"LIMIT","price":10000},"time_in_force":"GTC","qty":10,"cum_qty":0,"notional_cents":0,"open":true}]],
+        "used_client_ids":[["SIM","gone"],["SIM","live"]]},
+      "feed":{"feed_seq":1,"symbol_seqs":{"ACME":1}}}"#;
+    let snapshot: ExchangeState = serde_json::from_str(old).unwrap();
+    let listings = Listings::published();
+    let path = temp_path();
+    let exchange = recover(&listings, &path, Some(snapshot)).unwrap();
+    let _ = std::fs::remove_file(path);
+
+    let orders = state(&exchange).orders;
+    assert_eq!(orders.orders.len(), 1);
+    assert_eq!(orders.finished.len(), 1);
+    assert_eq!(orders.finished[0].1, "gone");
+}
