@@ -143,3 +143,35 @@
     justify-content: space-between;
   }
 }
+
+/* Wide screens, full-screen layouts (Pro, Active): one line. When the bar runs short
+   (Active's larger type at 1440px), the company's full name gives way with an ellipsis; the
+   ticker, price and change never do. From 1280px everything else always fits; narrower,
+   the bar wraps as usual rather than squeeze the quote under the buttons. Calm's narrow
+   header stacks its rows, so it is left out. */
+@media (min-width: 1280px) {
+  .fit-screen .topbar {
+    flex-wrap: nowrap;
+  }
+  .fit-screen .topbar > * {
+    flex-shrink: 0;
+  }
+  .fit-screen .topbar > .quote {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-wrap: nowrap;
+  }
+  .fit-screen .quote > * {
+    flex-shrink: 0;
+  }
+  .fit-screen .quote > .quote-name {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .fit-screen .quote-full-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
