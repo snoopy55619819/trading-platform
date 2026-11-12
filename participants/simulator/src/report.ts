@@ -10,9 +10,9 @@ const TAKERS = ["NOISE", "MOMENTUM", "MEANREV"];
 const dollars = (cents: number): string =>
   `${cents < 0 ? "-" : ""}$${formatCents(Math.abs(Math.round(cents)))}`;
 
-export function report(context: Context & { makers: MarketMaker[]; gaps: number }): string {
+export function report(context: Context & { makers: MarketMaker[]; gaps: number; news: number | undefined }): string {
   const { listings, fair, feed, positions, orders } = context;
-  const rows = [["SYMBOL", "FAIR", "BID", "ASK", "SPREAD", "LAST", "MM INV", "MM P&L", "PULLS"]];
+  const rows = [["SYMBOL", "FAIR", "BID", "ASK", "SPREAD", "LAST", "MM INV", "MM P&L", "PULLS", "HEAT"]];
   let makerPnl = 0;
   const takerPnl = new Map(TAKERS.map((name) => [name, 0]));
   for (const [symbol] of listings) {
@@ -36,6 +36,7 @@ export function report(context: Context & { makers: MarketMaker[]; gaps: number 
       String(positions.get(maker, symbol).qty),
       dollars(pnl),
       String(context.makers.find((m) => m.name === maker)?.pulls ?? 0),
+      (fair.get(symbol)?.heat ?? 0).toFixed(2),
     ]);
   }
   const widths = rows[0]!.map((_, i) => Math.max(...rows.map((r) => r[i]!.length)));
@@ -47,6 +48,7 @@ export function report(context: Context & { makers: MarketMaker[]; gaps: number 
     table,
     `market makers ${dollars(makerPnl)}; ${takers} (marked at fair value)`,
     `orders ${sent}, cancels ${cancels}, fills ${fills}, rejects ${rejects}, throttled ${throttled}, ` +
-      `feed gaps ${context.gaps}, activity x${context.activity.toFixed(1)}`,
+      `feed gaps ${context.gaps}, activity x${context.activity.toFixed(1)}, ` +
+      (context.news === undefined ? "news off" : `headlines ${context.news}`),
   ].join("\n");
 }

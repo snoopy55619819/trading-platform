@@ -10,8 +10,12 @@
 //
 // All three are rate-limited by arrival probability (scaled by the time of day), a
 // cooldown per symbol, and a position limit, so none can run away.
+//
+// After a headline a symbol is "hot" (market/news.ts): all three trade it more often, with
+// shorter cooldowns, in bigger sizes. Their position limits stay the same.
 
 import type { Mirror } from "../feed/mirror.ts";
+import { tradeRateMultiplier, tradeSizeMultiplier } from "../market/news.ts";
 import type { Side } from "../orders.ts";
 import { type Agent, type Context, lotFor } from "./context.ts";
 
@@ -55,16 +59,17 @@ export class NoiseTrader implements Agent {
   }
 
   step(now: number, dtSec: number): void {
-    const { listings, feed, orders, positions, rng, activity } = this.context;
+    const { listings, fair, feed, orders, positions, rng, activity } = this.context;
     for (const [symbol, listing] of listings) {
-      if (!rng.chance(this.rate * activity, dtSec)) continue;
+      const heat = fair.get(symbol)?.heat ?? 0;
+      if (!rng.chance(this.rate * activity * tradeRateMultiplier(heat), dtSec)) continue;
       if (!feed.mirrors.get(symbol)?.isLive()) continue;
       const lot = lotFor(listing.referenceCents);
       const held = positions.get(this.name, symbol).qty;
       // Unbiased, except that a large position is more likely to be reduced than grown.
       const lean = Math.max(-0.3, Math.min(0.3, -held / (lot * 40)));
       const side: Side = rng.next() < 0.5 + lean ? "buy" : "sell";
-      const qty = Math.max(1, Math.round(lot * 0.3 * Math.exp(0.7 * rng.normal())));
+      const qty = Math.max(1, Math.round(lot * 0.3 * tradeSizeMultiplier(heat) * Math.exp(0.7 * rng.normal())));
       orders.place({ account: this.name, symbol, side, qty }, now);
     }
   }
@@ -100,8 +105,9 @@ abstract class SignalTrader implements Agent {
   protected abstract decide(fast: number, slow: number, sd: number): Side | undefined;
 
   step(now: number, dtSec: number): void {
-    const { listings, feed, orders, positions, rng, activity } = this.context;
+    const { listings, fair, feed, orders, positions, rng, activity } = this.context;
     for (const [symbol, listing] of listings) {
+      const heat = fair.get(symbol)?.heat ?? 0;
       const mirror = feed.mirrors.get(symbol);
       const price = mirror?.mid() ?? mirror?.lastTradeCents;
       if (!mirror?.isLive() || price === undefined) continue;
@@ -119,7 +125,8 @@ abstract class SignalTrader implements Agent {
       const slow = signal.slow.update(price, dtSec);
       const variance = signal.variance.update((price - slow) ** 2, dtSec);
 
-      if (now < signal.cooldownUntil || !rng.chance(this.rate * activity, dtSec)) continue;
+      const busy = tradeRateMultiplier(heat);
+      if (now < signal.cooldownUntil || !rng.chance(this.rate * activity * busy, dtSec)) continue;
       const side = this.decide(fast, slow, Math.sqrt(variance));
       if (!side) continue;
       const lot = lotFor(listing.referenceCents);
@@ -128,9 +135,9 @@ abstract class SignalTrader implements Agent {
       if ((side === "buy" && held >= limit) || (side === "sell" && held <= -limit)) continue;
       const priceCents = aggressivePrice(mirror, side, listing.tickCents);
       if (priceCents === undefined) continue;
-      const qty = Math.max(1, Math.round(lot * (0.4 + rng.next() * 0.6)));
+      const qty = Math.max(1, Math.round(lot * (0.4 + rng.next() * 0.6) * tradeSizeMultiplier(heat)));
       const order = orders.place({ account: this.name, symbol, side, qty, priceCents, ioc: true }, now);
-      if (order) signal.cooldownUntil = now + (this.cooldownSec * 1000) / Math.max(0.2, activity);
+      if (order) signal.cooldownUntil = now + (this.cooldownSec * 1000) / (Math.max(0.2, activity) * busy);
     }
   }
 }

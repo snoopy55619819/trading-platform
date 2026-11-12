@@ -2,7 +2,8 @@
 //
 //     pnpm start
 //
-// Needs the exchange running (FIX on 9878, market data on 9879; see the repo README).
+// Needs the exchange running (FIX on 9878, market data on 9879; see the repo README), and
+// the newswire for news (9890; without it the market moves, just without headlines).
 // Configuration is by environment variable; see src/config.ts. Ctrl-C cancels every
 // resting order and logs out. Once a day, at the venue's roll, it does the same and logs
 // straight back on with fresh sequence numbers.
@@ -19,7 +20,9 @@ import { FixConnection } from "./fix/connection.ts";
 import { nextSessionReset } from "./fix/daily-reset.ts";
 import { diurnal } from "./market/diurnal.ts";
 import { FairValue } from "./market/fair-value.ts";
+import { newsHeat, newsMove } from "./market/news.ts";
 import { Rng } from "./market/rng.ts";
+import { NewsClient } from "./news/client.ts";
 import { Orders, RateLimit, type SavedOrder } from "./orders.ts";
 import { report } from "./report.ts";
 
@@ -59,6 +62,18 @@ const orders = new Orders(
   (fill) => positions.apply(fill),
 );
 const feed = new FeedClient(config.feedUrl, [...listings.keys()], { onTrade() {} });
+
+// News moves fair value to a new level and starts a burst of trading (market/news.ts).
+const news = config.newsUrl
+  ? new NewsClient(config.newsUrl, (headline) => {
+      const value = fair.get(headline.symbol);
+      if (!value) return; // a symbol we do not trade
+      const move = newsMove(headline, value.profile, rng);
+      value.shock(move, newsHeat(headline));
+      const pct = (Math.exp(move) - 1) * 100;
+      console.log(`news: ${headline.symbol} ${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% ${headline.headline}`);
+    })
+  : undefined;
 
 const context: Context = { listings, fair, feed, orders, positions, rng, activity: 1 };
 const makers = config.listings.map((l) => new MarketMaker(l.ticker, context));
@@ -123,11 +138,12 @@ console.log(
 );
 fix.start();
 feed.start();
+news?.start();
 scheduleSessionReset();
 const stepper = setInterval(step, STEP_MS);
 const saver = setInterval(saveOpenOrders, 1000);
 const reporter = setInterval(
-  () => console.log(report({ ...context, makers, gaps: feed.gaps })),
+  () => console.log(report({ ...context, makers, gaps: feed.gaps, news: news?.received })),
   config.reportSecs * 1000,
 );
 
@@ -143,7 +159,8 @@ async function shutdown(): Promise<void> {
   else saveOpenOrders();
   await fix.stop();
   feed.stop();
-  console.log(report({ ...context, makers, gaps: feed.gaps }));
+  news?.stop();
+  console.log(report({ ...context, makers, gaps: feed.gaps, news: news?.received }));
   process.exit(0);
 }
 process.on("SIGINT", () => void shutdown());

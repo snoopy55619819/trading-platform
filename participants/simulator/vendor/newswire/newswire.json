@@ -1,0 +1,38 @@
+{
+  "$comment": "What the newswire publishes. Fictional companies, fictional news: nothing here is real. The protocol is described in README.md; a headline's shape is headline.schema.json.",
+  "spec_version": "1.0.0",
+  "name": "Newswire",
+  "live": {
+    "protocol": "WS",
+    "host": "127.0.0.1",
+    "port": 9890,
+    "path": "/headlines"
+  },
+  "catch_up": {
+    "protocol": "HTTP",
+    "host": "127.0.0.1",
+    "port": 9890,
+    "path": "/headlines",
+    "query": "since",
+    "kept": 1000
+  },
+  "categories": {
+    "EARNINGS_BEAT": "POSITIVE",
+    "GUIDANCE_RAISED": "POSITIVE",
+    "ANALYST_UPGRADE": "POSITIVE",
+    "CONTRACT_WIN": "POSITIVE",
+    "PRODUCT_APPROVAL": "POSITIVE",
+    "BUYBACK": "POSITIVE",
+    "EARNINGS_MISS": "NEGATIVE",
+    "GUIDANCE_CUT": "NEGATIVE",
+    "ANALYST_DOWNGRADE": "NEGATIVE",
+    "PRODUCT_RECALL": "NEGATIVE",
+    "EXECUTIVE_DEPARTURE": "NEGATIVE",
+    "REGULATORY_PROBE": "NEGATIVE",
+    "CONFERENCE": "NEUTRAL",
+    "DIVIDEND_DECLARED": "NEUTRAL",
+    "EXECUTIVE_APPOINTED": "NEUTRAL",
+    "ANNUAL_MEETING": "NEUTRAL",
+    "INDEX_REVIEW": "NEUTRAL"
+  }
+}

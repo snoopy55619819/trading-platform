@@ -47,19 +47,17 @@ test("fair value wanders rather than flatlining, and HELX moves far more than GR
   const grid = dailyVol(run(new FairValue(listing("GRID", 3312, 10), profileFor("GRID")), 120, 1));
   assert.ok(grid > 0.005, `GRID barely moves: ${grid}`);
   assert.ok(helx > 3 * grid, `HELX ${helx} vs GRID ${grid}`);
-  // Realised volatility is near the configured figure (jumps add a little).
+  // With no news, realised volatility is near the configured figure.
   assert.ok(grid > 0.6 * 0.012 && grid < 2 * 0.012, `GRID realised ${grid}`);
 });
 
-test("jumps happen, at roughly the configured rate", () => {
-  const fair = new FairValue(listing("HELX", 725, 35), profileFor("HELX")); // 4 a day
+test("no jumps of its own: without news, nothing ever gaps", () => {
+  const fair = new FairValue(listing("HELX", 725, 35), profileFor("HELX"));
   const rng = new Rng(3);
-  let jumps = 0;
   for (let minute = 0; minute < 30 * 1440; minute++) {
     fair.step(60, 1, rng);
-    if (fair.jumped) jumps += 1;
+    assert.equal(fair.jumped, false);
   }
-  assert.ok(jumps > 80 && jumps < 160, `${jumps} jumps in 30 days`);
 });
 
 test("the same seed gives the same path", () => {

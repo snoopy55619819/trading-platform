@@ -1,7 +1,7 @@
 # ADR 0006: News comes from a newswire, and moves the simulated market
 
 **Status:** accepted, 2026-11-12. Being built in stages (`participants/newswire/TODO.md`):
-the newswire itself is built; the simulator and the broker do not read it yet. Changes who decides when a symbol's price jumps: today the
+the newswire is built and the simulator trades on it; the broker does not read it yet. Changes who decides when a symbol's price jumps: today the
 simulator does, alone and silently (`market/fair-value.ts`).
 
 ## Context
