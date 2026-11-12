@@ -46,6 +46,14 @@ Layouts are already data (`broker/web/src/layout/layouts.ts`), in the shape grid
       one, reset to the default.
 - [ ] Per-panel settings through `props`: a second chart on another symbol or interval.
 
+## News
+
+- [ ] **A newswire.** A new participant that invents headlines about the listed companies;
+      the simulator trades on them (a new price level and a few minutes of busier trading)
+      and the broker stores them and shows them in a News panel and on the chart. Decided in
+      [ADR 0006](adr/0006-news-from-a-newswire-participant.md); planned in stages in
+      [`participants/newswire/TODO.md`](../participants/newswire/TODO.md).
+
 ## Post-MVP roadmap (`PLAN.md` Part 8)
 
 In the plan's suggested order of value.
