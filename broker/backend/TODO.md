@@ -32,7 +32,8 @@ It has no dependency on the exchange, so it is a good parallel track.
       This belongs in Postgres where it cannot be bypassed, not in application code.
 - [x] `postFill()` — one entry, three balanced pairs: cash, fee, shares into
       `CLIENT_SECURITIES_UNSETTLED`. Idempotent on `fill_id`.
-- [x] `creditCash()` for opening balances — otherwise no order can ever pass risk
+- [x] `creditCash()` for opening balances — otherwise no order can ever pass risk. Sign-up
+      books one too: $10,000.00, as a `DEPOSIT` entry referenced `opening:<account>`.
 - [x] **Positions and cash derived by summing journal lines.** No stored running total.
 - [x] Auto-settle job: `UNSETTLED → SETTLED`, immediate in v1. Post-MVP the same job waits
       for T+1 — the change is *when it fires*, not the schema.

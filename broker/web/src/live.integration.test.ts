@@ -16,13 +16,14 @@ import { newClientOrderId } from "./query/hooks.ts";
 const live = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.LIVE === "1";
 
 describe.skipIf(!live)("against the running services", () => {
-  test("sign up, fund, buy, and see the holding with its cost", async () => {
+  test("sign up (with opening cash), fund, buy, and see the holding with its cost", async () => {
     const email = `web-live-${Date.now()}@example.com`;
     await backend.signUp(email, "correct horse", "Live test");
     session.start((await backend.logIn(email, "correct horse")).token);
     expect((await backend.status()).connected).toBe(true);
     expect(await backend.watchlist()).toHaveLength(5);
 
+    expect((await backend.positions()).cashCents).toBe(1_000_000); // every new account starts with $10,000.00
     await backend.deposit(5_000_000, "opening");
     const order = await backend.placeOrder({
       clientOrderId: newClientOrderId(), symbol: "ACME", side: "BUY", orderType: "MARKET", timeInForce: "IOC", qty: 10,
@@ -40,7 +41,7 @@ describe.skipIf(!live)("against the running services", () => {
     const acme = positions.holdings.find((h) => h.symbol === "ACME")!;
     expect(acme.qtySettled + acme.qtyUnsettled).toBe(10);
     expect(acme.costBasisCents).toBe(filled.filledNotionalCents + filled.feeCents);
-    expect(positions.cashCents).toBe(5_000_000 - acme.costBasisCents);
+    expect(positions.cashCents).toBe(6_000_000 - acme.costBasisCents);
     session.end();
   }, 20_000);
 

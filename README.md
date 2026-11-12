@@ -112,7 +112,7 @@ app.
 pnpm dev
 ```
 
-Then open http://localhost:5173, open an account, add funds and place an order.
+Then open http://localhost:5173, open an account (it starts with $10,000.00 in cash) and place an order.
 
 First-time setup, troubleshooting, running one service on its own, and every shortcut from the
 repo root are in [RUNNING.md](docs/RUNNING.md). The plan for running it publicly is in
