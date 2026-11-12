@@ -42,6 +42,8 @@ flowchart LR
     gateway -->|feed 9879| md
     sim[simulator] -->|FIX 9878| gateway
     gateway -->|feed 9879| sim
+    news[newswire] -->|headlines 9890| sim
+    news -->|headlines 9890| md
     backend --- bdb[(broker db)]
     md --- mdb[(market-data db)]
     gateway --- edb[(exchange db)]
@@ -50,11 +52,11 @@ flowchart LR
 ```
 
 - **Each company deploys itself,** from its own compose file: `exchange-alpha/deploy/`,
-  `participants/simulator/deploy/` and `broker/deploy/`. All three join one shared Docker
-  network, so containers reach each other by name (`gateway:9878`), on the same published
-  ports any client uses.
-- **Nothing private is published.** The gateway, the databases and the simulator have no
-  ports open to the internet; the security group allows only 443 and 80 (for certificate
+  `participants/newswire/deploy/`, `participants/simulator/deploy/` and `broker/deploy/`. All
+  four join one shared Docker network, so containers reach each other by name
+  (`gateway:9878`, `newswire:9890`), on the same published ports any client uses.
+- **Nothing private is published.** The gateway, the databases, the newswire and the
+  simulator have no ports open to the internet; the security group allows only 443 and 80 (for certificate
   renewal).
 
 ## What each process needs
@@ -65,16 +67,17 @@ changes to deploy it.
 | Process | Settings |
 |---|---|
 | gateway | `DATABASE_URL`, `ALPHA_DATA_DIR`, `ALPHA_LISTEN` and `ALPHA_MD_LISTEN` (`0.0.0.0:…` inside its container), `ALPHA_COMP_IDS` |
-| simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_ACTIVITY=1` (as busy as local) |
+| newswire | `NEWS_RATE=1` (one story per company about every 70 minutes) |
+| simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_NEWS_URL=ws://newswire:9890/headlines`, `SIM_ACTIVITY=1` (as busy as local) |
 | backend | `DATABASE_URL`, `FIX_HOST=gateway`, `FIX_PORT=9878`, `BROKER_WEB_ORIGIN=https://tradeplatform.dev` |
-| market-data | `MD_DATABASE_URL`, `MD_FEED_URL=ws://gateway:9879` |
+| market-data | `MD_DATABASE_URL`, `MD_FEED_URL=ws://gateway:9879`, `MD_NEWS_URL=ws://newswire:9890/headlines` |
 | web (at build time) | `VITE_BACKEND_URL=/api`, `VITE_MARKET_DATA_URL=/md`: paths, so the image works on any hostname |
 
 **Health checks**, so compose starts things in order:
 - Postgres: `pg_isready`;
 - gateway: its FIX port accepting connections;
 - backend: `GET /status`;
-- market-data: `GET /health`.
+- market-data and the newswire: `GET /health`.
 
 **Memory**, measured with the whole stack running locally in Docker: about 350 MB at start
 (backend 80 MB, market-data and the simulator about 58 MB each, three Postgres about 40 MB
@@ -84,7 +87,8 @@ kept a full record of every order until the 21:00 roll. Since `v0.3.0` it keeps 
 only for live orders: 37 MB for a day of 180,000 orders, and about 900 MB of the server's
 1.8 GB available ([ADR 0005](adr/0005-gateway-keeps-only-live-orders.md)). That made room for
 `SIM_ACTIVITY=1`. The databases' "memory" in `docker stats` is mostly file cache, which the
-system reclaims when needed; "available" in `free -m` is the number that matters.
+system reclaims when needed; "available" in `free -m` is the number that matters. The
+newswire (ADR 0006) adds one more small Node process, about 50 MB.
 
 ## AWS services and cost
 
@@ -122,11 +126,11 @@ get sign-up credits for the first months.
 
 ## Images
 
-Five Dockerfiles, each in its own folder. There is still no shared build.
+Six Dockerfiles, each in its own folder. There is still no shared build.
 
 - **Exchange** (`exchange-alpha/Dockerfile`): a two-stage build. Compile with the Rust image,
   then copy the binary into a small Debian slim image.
-- **Backend, market-data, simulator:** `node:26.8.1-slim` plus `pnpm install --prod`. No
+- **Backend, market-data, simulator, newswire:** `node:26.8.1-slim` plus `pnpm install --prod`. No
   build step: Node runs `.ts` directly, as it does locally. market-data and the simulator
   generate the feed's types from the vendored proto in a first stage. The backend and
   market-data apply pending migrations each time they start; the backend's security master
@@ -153,6 +157,7 @@ else is published, so it runs alongside `pnpm dev`.
    ```bash
    docker network create trading
    docker compose -f exchange-alpha/deploy/compose.yml up -d --build --wait
+   docker compose -f participants/newswire/deploy/compose.yml up -d --build --wait
    docker compose -f participants/simulator/deploy/compose.yml up -d --build
    docker compose -f broker/deploy/compose.yml up -d --build --wait
    ```
@@ -180,13 +185,13 @@ deploys.
 2. **Deploy when you choose: `deploy`.** Push a version tag (`git tag v0.3.0 && git push
    origin v0.3.0`), or press "Run workflow" on the `deploy` workflow in GitHub and give a
    version. The tag names exactly what is live.
-3. **Build.** The five images are built for that commit on GitHub's ARM runners and pushed,
+3. **Build.** The six images are built for that commit on GitHub's ARM runners and pushed,
    tagged with the version.
 4. **Release.** The workflow moves a git tag, `live`, to that commit. **GitHub never
    connects to the server and holds no AWS credentials.** Instead the server's deploy agent
    ([`hosting/deploy-agent.sh`](../hosting/deploy-agent.sh), every minute) notices `live`
    moved, checks out that version and runs `docker compose pull && docker compose up -d`
-   for each company, the exchange first. Only containers whose image changed restart, and
+   for each company: the exchange and the newswire first, then the simulator, then the broker. Only containers whose image changed restart, and
    the backend and market-data apply pending migrations as they start. The workflow then
    waits until https://tradeplatform.dev/version.txt reports the new version.
 5. **What a restart does.** A gateway restart loads the day's snapshot and journal in
@@ -262,8 +267,8 @@ In the repo:
 
 | | |
 |---|---|
-| Five Dockerfiles | done (stage 1): exchange, backend, market-data, simulator, web (with Caddy) |
-| Three compose files and a `Caddyfile` | done (stage 1): `exchange-alpha/deploy/`, `participants/simulator/deploy/`, `broker/deploy/`, `broker/web/Caddyfile` |
+| Six Dockerfiles | done (stage 1): exchange, backend, market-data, simulator, web (with Caddy); the newswire's with it (ADR 0006) |
+| Four compose files and a `Caddyfile` | done (stage 1): `exchange-alpha/deploy/`, `participants/simulator/deploy/`, `broker/deploy/`, `broker/web/Caddyfile`; `participants/newswire/deploy/` with the newswire |
 | GitHub Actions: `ci` | done (stage 2): `.github/workflows/ci.yml` |
 | GitHub Actions: `deploy` and the deploy agent | done (stage 3): `.github/workflows/deploy.yml`, `hosting/` |
 | Nightly backups and the disk report | done (stage 4): `hosting/backup.sh`, `hosting/disk-metric.sh` and their timers |

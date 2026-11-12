@@ -169,6 +169,7 @@ jobs:
           - broker/market-data
           - broker/web
           - participants/simulator
+          - participants/newswire
     steps:
       - uses: actions/checkout@v5
       - run: docker build ${{ matrix.context }}

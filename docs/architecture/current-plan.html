@@ -11,17 +11,18 @@ components:
   web            | static SPA                         | process  | broker   | BUILT (M8)
   backend        | api + oms + ledger + fix modules   | process  | broker   | BUILT (M5-M6)
   broker-db      | Postgres, broker.securities        | store    | broker   | BUILT (M0)
-  market-data    | live fanout + history              | process  | broker   | BUILT (M7)
+  market-data    | live fanout + history + news       | process  | broker   | BUILT (M7), news after (ADR 0006)
   md-db          | market-data's own database         | store    | broker   | BUILT (M7), port 5434
   exchange-alpha | gateway + engine + md-publisher    | process  | alpha    | BUILT M1-M3 (one binary)
   fix-core       | FIX codec + session state machine  | library  | alpha    | BUILT (M2)
   journal        | append-only command log            | store    | alpha    | BUILT (M1)
   exchange-db    | FIX session state                  | store    | alpha    | BUILT (M2)
   simulator      | synthetic trading firms            | process  | third    | BUILT (M4)
+  newswire       | invented headlines and stories     | process  | third    | BUILT (ADR 0006)
 boundaries:
   broker | web, backend, broker-db, market-data, md-db
   alpha  | exchange-alpha (gateway, matching-engine, md-publisher), fix-core, journal, exchange-db
-  third  | simulator
+  third  | simulator, newswire
 flows:
   order | web -> backend.api                  | HTTP          | orders, positions
   order | backend.fix -> gateway              | FIX 4.4 / TCP | NewOrderSingle 35=D
@@ -32,11 +33,13 @@ flows:
   md    | matching-engine -> md-publisher     | in-process    | BookDelta, Trade
   md    | md-publisher -> market-data         | WebSocket     | Snapshot, Delta
   md    | md-publisher -> simulator           | WebSocket     | Snapshot, Delta
-  md    | market-data -> web                  | WebSocket + REST | prices, history
+  md    | market-data -> web                  | WebSocket + REST | prices, history, news
+  md    | newswire -> simulator               | WebSocket     | headlines
+  md    | newswire -> market-data             | WebSocket     | headlines
 status note: matching-engine and journal BUILT at M1; gateway, fix-core, exchange-db BUILT at M2;
   md-publisher BUILT at M3 (WebSocket on 9879, feed_seq + symbol_seq); simulator BUILT at M4;
   backend BUILT: ledger at M5; oms, fix initiator and api at M6 (all tables in broker-db);
-  market-data and md-db BUILT at M7; web BUILT at M8
+  market-data and md-db BUILT at M7; web BUILT at M8; newswire BUILT after the MVP (ADR 0006)
 omitted on purpose:
   ExecutionReports back to the simulator | same shape as the broker's return path
   every service's own DB migrations      | implementation detail
@@ -219,7 +222,12 @@ omitted on purpose:
 
   <path class="edge flow-2" d="M203,582 L70,582 L70,114 L103,114" marker-end="url(#arr-2)"/>
   <text class="elabel t-flow-2" x="78" y="396">WebSocket · REST</text>
-  <text class="elabel t-flow-2" x="78" y="410">prices · history</text>
+  <text class="elabel t-flow-2" x="78" y="410">prices · history · news</text>
+
+  <path class="edge flow-2" d="M1345,650 L1345,614" marker-end="url(#arr-2)"/>
+  <path class="edge flow-2" d="M1275,676 L430,676 L430,600 L387,600" marker-end="url(#arr-2)"/>
+  <text class="elabel t-flow-2" x="1135" y="652" text-anchor="middle">WebSocket</text>
+  <text class="elabel t-flow-2" x="1135" y="666" text-anchor="middle">headlines · stories</text>
 
   <!-- Nodes -->
   <g class="node"><rect x="105" y="88" width="120" height="52" rx="8"/>
@@ -266,14 +274,17 @@ omitted on purpose:
 
   <g class="node"><rect x="203" y="554" width="180" height="56" rx="8"/>
     <text class="n-title" x="293" y="576" text-anchor="middle">market-data</text>
-    <text class="n-sub" x="293" y="594" text-anchor="middle">live + history</text></g>
+    <text class="n-sub" x="293" y="594" text-anchor="middle">live + history + news</text></g>
   <g class="node"><path d="M247,640 a46,8 0 0,0 92,0 a46,8 0 0,0 -92,0 v46 a46,8 0 0,0 92,0 v-46"/>
     <text class="n-title" x="293" y="672" text-anchor="middle">md-db</text>
     <text class="n-sub" x="293" y="687" text-anchor="middle">Postgres</text></g>
 
   <g class="node"><rect x="1275" y="554" width="140" height="56" rx="8"/>
     <text class="n-title" x="1345" y="576" text-anchor="middle">simulator</text>
-    <text class="n-sub" x="1345" y="594" text-anchor="middle">agents</text></g>
+    <text class="n-sub" x="1345" y="594" text-anchor="middle">Simulate trades</text></g>
+  <g class="node"><rect x="1275" y="650" width="140" height="56" rx="8"/>
+    <text class="n-title" x="1345" y="672" text-anchor="middle">newswire</text>
+    <text class="n-sub" x="1345" y="690" text-anchor="middle">Simulate news</text></g>
 
   <!-- Badges -->
   <g class="badge" transform="translate(225 88)"><circle r="11"/><text y="4" text-anchor="middle">1</text></g>
@@ -288,6 +299,7 @@ omitted on purpose:
   <g class="badge" transform="translate(622 536)"><circle r="11"/><text y="4" text-anchor="middle">12</text></g>
   <g class="badge" transform="translate(383 554)"><circle r="11"/><text y="4" text-anchor="middle">13</text></g>
   <g class="badge" transform="translate(1415 554)"><circle r="11"/><text y="4" text-anchor="middle">14</text></g>
+  <g class="badge" transform="translate(1415 650)"><circle r="11"/><text y="4" text-anchor="middle">15</text></g>
 </svg>
 </div>
 
@@ -319,8 +331,9 @@ omitted on purpose:
     <tr><td class="n"><span>10</span></td><td>ExecutionReport (edge)</td><td>The private result: account, client order id, fill qty and price, fees. Goes only to the order's owner.</td></tr>
     <tr><td class="n"><span>11</span></td><td><code>md-publisher</code></td><td>Broadcasts book changes to every subscriber. Never learns whose order moved the book.</td></tr>
     <tr><td class="n"><span>12</span></td><td>Feed (edge)</td><td>Snapshot, BookDelta, TradePrint, Heartbeat, each stamped with <code>feed_seq</code>. A gap means lost data: resync from a snapshot.</td></tr>
-    <tr><td class="n"><span>13</span></td><td><code>market-data</code></td><td>The broker's market data service: live fanout to <code>web</code> and chart history. Its own database (<code>md-db</code>), separate because the workload is different, not because of an org chart.</td></tr>
-    <tr><td class="n"><span>14</span></td><td><code>simulator</code></td><td>Synthetic trading firms that keep the book alive 24/7. Uses the same public FIX gateway and feed as everyone else: no backdoor.</td></tr>
+    <tr><td class="n"><span>13</span></td><td><code>market-data</code></td><td>The broker's market data service: live fanout to <code>web</code>, chart history, and the newswire's headlines (stored, served and pushed). Its own database (<code>md-db</code>), separate because the workload is different, not because of an org chart.</td></tr>
+    <tr><td class="n"><span>14</span></td><td><code>simulator</code></td><td>Synthetic trading firms that keep the book alive 24/7. Uses the same public FIX gateway and feed as everyone else: no backdoor. Prices gap only on news.</td></tr>
+    <tr><td class="n"><span>15</span></td><td><code>newswire</code></td><td>Invents headlines and short stories about the listed companies and publishes them over its own spec (ADR 0006). The simulator trades on them; <code>market-data</code> stores them and passes them on to <code>web</code>. Public, like market data.</td></tr>
   </tbody>
 </table>
 <p class="notes">Not shown on purpose: ExecutionReports back to the simulator (same shape as #10), and per-service migrations. Cut from the MVP entirely: a second venue, smart order routing, the consolidated tape, and all of post-trade (clearing, custody, settlement). See the ideal end-state diagram.</p>
