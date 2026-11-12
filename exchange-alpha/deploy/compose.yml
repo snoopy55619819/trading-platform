@@ -1,0 +1,52 @@
+# Alpha Exchange in production: the gateway and its own database.
+#
+# Runs beside the other companies' stacks on one shared Docker network, `trading`, made once
+# with `docker network create trading`. Only the gateway joins it; the database stays on the
+# exchange's own network, where nobody else can reach it. Nothing is published to the host:
+# clients reach the gateway as gateway:9878 (FIX) and gateway:9879 (feed).
+#
+#   docker compose -f exchange-alpha/deploy/compose.yml up -d --build
+#
+# Settings come from exchange-alpha/deploy/.env (see .env.example).
+name: exchange-alpha-deploy
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: exchange_alpha
+      POSTGRES_PASSWORD: ${EXCHANGE_DB_PASSWORD:?set it in .env}
+      POSTGRES_DB: exchange_alpha
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U exchange_alpha -d exchange_alpha"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [exchange]
+    restart: unless-stopped
+
+  gateway:
+    build: ..
+    image: ${IMAGE_PREFIX:-local}/exchange-alpha:${TAG:-latest}
+    environment:
+      DATABASE_URL: postgres://exchange_alpha:${EXCHANGE_DB_PASSWORD}@postgres:5432/exchange_alpha
+      ALPHA_COMP_IDS: BROKER,SIM
+    volumes:
+      - days:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [exchange, trading]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  days:
+
+networks:
+  exchange: {}
+  trading:
+    external: true

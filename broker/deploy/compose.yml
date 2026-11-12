@@ -1,0 +1,110 @@
+# The broker in production: backend, market-data, their two databases, and the front door
+# (Caddy with the web client), the only thing published to the host.
+#
+# The backend and market-data also join the shared `trading` network, to reach the exchange
+# at gateway:9878 and gateway:9879. The databases stay on the broker's own network, each
+# reachable only by the service that owns it.
+#
+#   docker compose -f broker/deploy/compose.yml up -d --build
+#
+# Settings come from broker/deploy/.env (see .env.example).
+name: broker-deploy
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: broker
+      POSTGRES_PASSWORD: ${BROKER_DB_PASSWORD:?set it in .env}
+      POSTGRES_DB: broker
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    volumes:
+      - broker-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U broker -d broker"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [backend-db]
+    restart: unless-stopped
+
+  market-data-postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: market_data
+      POSTGRES_PASSWORD: ${MARKET_DATA_DB_PASSWORD:?set it in .env}
+      POSTGRES_DB: market_data
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    volumes:
+      - market-data-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market_data -d market_data"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [market-data-db]
+    restart: unless-stopped
+
+  backend:
+    build: ../backend
+    image: ${IMAGE_PREFIX:-local}/broker-backend:${TAG:-latest}
+    environment:
+      DATABASE_URL: postgres://broker:${BROKER_DB_PASSWORD}@postgres:5432/broker
+      FIX_HOST: gateway
+      FIX_PORT: "9878"
+      BROKER_WEB_ORIGIN: ${SITE_ORIGIN:?set it in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/status').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks: [backend-db, front, trading]
+    restart: unless-stopped
+
+  market-data:
+    build: ../market-data
+    image: ${IMAGE_PREFIX:-local}/broker-market-data:${TAG:-latest}
+    environment:
+      MD_DATABASE_URL: postgres://market_data:${MARKET_DATA_DB_PASSWORD}@market-data-postgres:5432/market_data
+      MD_FEED_URL: ws://gateway:9879
+    depends_on:
+      market-data-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8081/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks: [market-data-db, front, trading]
+    restart: unless-stopped
+
+  web:
+    build: ../web
+    image: ${IMAGE_PREFIX:-local}/broker-web:${TAG:-latest}
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set it in .env}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - caddy-data:/data # certificates: keep them, or Let's Encrypt's rate limits bite
+      - caddy-config:/config
+    depends_on: [backend, market-data]
+    networks: [front]
+    restart: unless-stopped
+
+volumes:
+  broker-pgdata:
+  market-data-pgdata:
+  caddy-data:
+  caddy-config:
+
+networks:
+  backend-db: {}
+  market-data-db: {}
+  front: {}
+  trading:
+    external: true

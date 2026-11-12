@@ -1,0 +1,28 @@
+# The simulated trading firms in production. Another company: it only joins the shared
+# `trading` network and reaches the exchange as any client does, at gateway:9878 and
+# gateway:9879. Nothing is published to the host.
+#
+#   docker compose -f participants/simulator/deploy/compose.yml up -d --build
+name: simulator-deploy
+
+services:
+  simulator:
+    build: ..
+    image: ${IMAGE_PREFIX:-local}/simulator:${TAG:-latest}
+    environment:
+      SIM_FIX_HOST: gateway
+      SIM_FIX_PORT: "9878"
+      SIM_FEED_URL: ws://gateway:9879
+      # A quieter market than local development: about a fifth of the trades.
+      SIM_ACTIVITY: ${SIM_ACTIVITY:-0.2}
+    volumes:
+      - state:/data
+    networks: [trading]
+    restart: unless-stopped
+
+volumes:
+  state:
+
+networks:
+  trading:
+    external: true
