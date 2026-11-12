@@ -1,7 +1,7 @@
 {
-  "venue": "ALPHA",
+  "source": "exchange-alpha",
   "spec_version": "1.1.0",
-  "synced_at": "2026-11-11T17:59:51.638Z",
+  "synced_at": "2026-11-12T21:56:03.266Z",
   "files": {
     "marketdata.proto": "c72cf4103ae0c9f6ebee121fa3976d45830b548e440368668b72be404d035e9f",
     "listings.json": "b24f9f5f8d20dcf6c7b4ebd5fb8b5ac8907ea883e9e515c3eaf083120553b916"

@@ -181,7 +181,8 @@ cd participants/newswire && pnpm start
 About one story per company every 70 minutes, half of them meant to move the price.
 `NEWS_RATE=20` makes it twenty times busier, to watch it work; `NEWS_SEED` repeats the same
 stories. With it running, `curl "localhost:9890/headlines?since=2000-01-01T00:00:00Z"` shows
-what it has published. The simulator trades on it; the broker subscribes in a later stage
+what it has published. The simulator trades on it, and the broker's market-data stores it
+and serves it at `/news`. The web app shows it in a later stage
 (`participants/newswire/TODO.md`).
 
 ### The broker's backend
@@ -233,10 +234,13 @@ cd broker/market-data && pnpm start
 ```bash
 curl -s "localhost:8081/history?symbol=ACME&interval=1m"
 curl -s "localhost:8081/trades?symbol=ACME&limit=10"
+curl -s "localhost:8081/news?limit=10"
 curl -s localhost:8081/health
 ```
 
-Browsers subscribe on `ws://localhost:8081/live` with `{"subscribe": ["ACME"]}`.
+Browsers subscribe on `ws://localhost:8081/live` with `{"subscribe": ["ACME"]}`. With the
+newswire running, market-data also stores its headlines (`/news`) and pushes each new one to
+every browser.
 
 ### The web client
 

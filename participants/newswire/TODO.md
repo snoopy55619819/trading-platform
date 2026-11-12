@@ -5,8 +5,9 @@ publishes them. The simulator trades on them, and the broker stores them and sho
 the web app. Why it is a separate participant, and why news moves prices, is in
 [ADR 0006](../../docs/adr/0006-news-from-a-newswire-participant.md).
 
-Stages 1 to 3 are done: the newswire publishes and the simulator trades on it. The broker
-does not read it yet. Each stage below is one PR.
+Stages 1 to 4 are done: the newswire publishes, the simulator trades on it, and the broker's
+market-data stores and serves it. The web app does not show it yet. Each stage below is one
+PR.
 
 ## The flow
 
@@ -165,12 +166,12 @@ Each stage is one PR, with its tests and docs.
    - unit tests for the catalogue, the scheduler (seeded) and the catch-up;
    - added to `pnpm dev` and `docs/RUNNING.md`;
    - its own CI job (moved here from stage 6: tests should run from the start).
-3. [x] **The simulator follows the wire:**
+3. [x] **The simulator follows the wire:** (PR #44)
    - vendor the newswire spec and subscribe, with catch-up on reconnect;
    - the new level and the burst, as above, replacing `jumpsPerDay`;
    - tests: news moves fair value the right way, heat decays, neutral news moves nothing.
    - **Check:** a run with `NEWS_RATE=20` shows gaps and bursts that line up with headlines.
-4. [ ] **market-data stores and serves news:**
+4. [x] **market-data stores and serves news:**
    - vendor the spec;
    - a migration for `news`;
    - the subscriber with catch-up;
