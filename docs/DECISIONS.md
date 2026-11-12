@@ -142,7 +142,8 @@ both never resetting and never skipping:
 - A subscriber that sees `symbol_seq` skip has lost data and must recover via a fresh
   snapshot (`ResyncRequest`). It must not silently continue.
 - Both are assigned by the md-publisher, not the matching engine, and depend only on the
-  journal, so a restart replays them back to where they were.
+  journal, so a restart replays them back to where they were. A day's snapshot carries
+  them over from the day before (§10).
 
 Why two numbers rather than one: [ADR 0001](adr/0001-per-symbol-feed-sequence.md).
 
@@ -220,3 +221,34 @@ that share only the dictionary. Neither may import the other's parsing code — 
 independence is the point, and it is why conformance is tested against QuickFIX rather
 than against ourselves. Why FIX 4.4 rather than FIX 5.0:
 [ADR 0002](adr/0002-fix-4-4-for-order-entry.md).
+
+---
+
+## 10. Business days and recovery
+
+Alpha Exchange runs 24/7 but closes a **business day** at its published
+`business_date_roll_utc`, 21:00 UTC (after the New York close). A moment belongs to the
+business date current there: 20:59 UTC on the 12th is the 12th; 21:00 is the 13th. The
+broker's daily candles use the same boundary.
+
+At the roll the gateway journals an `EndOfDay` command:
+
+- Resting `Day` orders expire; each owner gets an `ExecutionReport` with `ExecType=C`.
+  `GTC` orders stay.
+- The engine then emits `DayClosed`, and the gateway forgets the day's finished orders and
+  used `ClOrdID`s. Uniqueness of a `ClOrdID` is per FIX session per business date (§3).
+- A **snapshot** of everything replay would rebuild is written (the books, the order
+  tracker, the feed's sequence numbers), and the journal continues in the next day's file.
+  Sequence numbers carry on across files, because execution ids are built from them.
+
+**Recovery is the newest snapshot plus that day's journal**, never all of history. The close
+is a journaled command and the clearing follows an event, not a clock, so a full replay of
+every journal and a snapshot-based start reach the same state byte for byte; a randomised
+test holds them to it. Anything that makes matching non-deterministic still breaks this.
+
+The simulator resets its FIX session at the roll, after cancelling what it has resting, so
+the exchange can drop the messages it keeps for resends. The broker never resets: it
+recovers missed fills by resend.
+
+Why daily snapshots rather than a bigger disk or an empty book every morning:
+[ADR 0004](adr/0004-business-days-and-daily-snapshots.md).

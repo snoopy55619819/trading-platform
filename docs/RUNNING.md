@@ -70,6 +70,10 @@ databases keep running.
 - **Start the databases again from empty.** `pnpm db:reset` deletes the broker's two
   volumes, migrates and re-seeds. Every account, order and candle is lost. It does not touch
   the exchange's database.
+- **Start the exchange again from empty.** Stop `pnpm dev` and delete the files in
+  `exchange-alpha/data/`, then `pnpm db:reset` as well: the broker's records of orders
+  must not outlive the exchange's. The gateway refuses to start on an old single
+  `alpha.journal` from before business days, for the same reason.
 - **A spec changed under you.** `pnpm spec:check` names any vendored copy that is behind;
   `pnpm spec:sync` updates them, then run `proto:gen` again.
 
@@ -118,9 +122,14 @@ cd exchange-alpha && cargo run -p gateway
 ```
 
 It listens for FIX 4.4 on `127.0.0.1:9878`, publishes market data over WebSocket on
-`127.0.0.1:9879`, and journals to `exchange-alpha/data/`. CompIDs allowed to log on:
-`BROKER`, `SIM`, `QFGO1`, `QFGO2` (set `ALPHA_COMP_IDS` to change). The other settings are
-listed at the top of `exchange-alpha/crates/gateway/src/main.rs`.
+`127.0.0.1:9879`, and keeps each business day's snapshot and journal in
+`exchange-alpha/data/`. CompIDs allowed to log on: `BROKER`, `SIM`, `QFGO1`, `QFGO2` (set
+`ALPHA_COMP_IDS` to change). The other settings are listed at the top of
+`exchange-alpha/crates/gateway/src/main.rs`.
+
+The business day closes at 21:00 UTC: day orders expire and a new snapshot and journal
+begin. To watch a roll sooner, set `ALPHA_ROLL_EVERY_SECS` on the gateway, and
+`SIM_SESSION_RESET_EVERY_SECS` for the simulator's daily session reset.
 
 **Watch the feed**: a live depth ladder for one symbol, rebuilt from the public feed alone.
 Kill it and start it again and it carries on from a snapshot with no gap. `--log` prints
@@ -134,8 +143,8 @@ cd exchange-alpha && cargo run -p md-publisher --bin md-watch -- ACME
 spec. Two sessions trade, then the gateway is killed with `kill -9` and restarted, and a fill
 that happened while a client was away must reach it by resend. It needs Go, the exchange's
 database, and port 9878 free, so stop `pnpm dev` first. It builds and starts its own
-gateway on a fresh journal, and it drops the exchange database's FIX session tables before
-it starts:
+gateway on a fresh data directory, and it drops the exchange database's FIX session tables
+before it starts:
 
 ```bash
 pnpm exchange:conformance

@@ -108,6 +108,12 @@ start replayed all of history. The plan, in steps across the exchange:
       start loads the newest snapshot, finishes a roll it was stopped in, or closes the day
       if it was down at the roll time. Tests in `gateway/tests/roll.rs`, including a crash
       between the close and the next day's snapshot.
+- [x] **Step 4. The simulator's daily session reset**, so the exchange can drop the FIX
+      messages it keeps for it (`participants/simulator/TODO.md`).
+- **Step 5. Tick retention in market-data: skipped.** Ticks grow about 13 MB a day, years
+  from mattering, and old ones should be moved rather than deleted. In `docs/BACKLOG.md`.
+- [x] **Step 6. Docs.** [ADR 0004](../../../docs/adr/0004-business-days-and-daily-snapshots.md),
+      `CLAUDE.md`, `docs/DECISIONS.md` §10, `docs/RUNNING.md`.
 
 ## Done when
 
@@ -144,8 +150,8 @@ power; surviving power loss needs an fsync, which is far slower, so batching fsy
 
 ## Decisions to revisit later
 
-- **DAY behaves like GTC.** There is no session clock yet, so nothing expires day orders.
-  That arrives with the clock service post-MVP.
+- **DAY expiry** (resolved). Day orders expire at the business-date roll; see section 8 and
+  ADR 0004.
 - **No ids in the journal.** Ids are recomputed by replay rather than stored, which is only
   sound because matching is deterministic. Anything that makes it non-deterministic (a
   clock read, a random choice, iterating a `HashMap`) breaks recovery. The property tests
