@@ -1,0 +1,26 @@
+# The newswire in production. Another company: it only joins the shared `trading` network,
+# where its two subscribers, the simulator and the broker's market-data, reach it at
+# newswire:9890. Nothing is published to the host. It keeps no state: recent headlines live
+# in memory, and the broker stores what it needs.
+#
+#   docker compose -f participants/newswire/deploy/compose.yml up -d --build
+name: newswire-deploy
+
+services:
+  newswire:
+    build: ..
+    image: ${IMAGE_PREFIX:-local}/newswire:${TAG:-latest}
+    environment:
+      # One story per company about every 70 minutes; set NEWS_RATE to make it busier.
+      NEWS_RATE: ${NEWS_RATE:-1}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:9890/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks: [trading]
+    restart: unless-stopped
+
+networks:
+  trading:
+    external: true
