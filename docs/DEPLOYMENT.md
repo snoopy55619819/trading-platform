@@ -65,7 +65,7 @@ changes to deploy it.
 | Process | Settings |
 |---|---|
 | gateway | `DATABASE_URL`, `ALPHA_DATA_DIR`, `ALPHA_LISTEN` and `ALPHA_MD_LISTEN` (`0.0.0.0:…` inside its container), `ALPHA_COMP_IDS` |
-| simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_ACTIVITY=0.2` for a quieter market |
+| simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_ACTIVITY=1` (as busy as local) |
 | backend | `DATABASE_URL`, `FIX_HOST=gateway`, `FIX_PORT=9878`, `BROKER_WEB_ORIGIN=https://tradeplatform.dev` |
 | market-data | `MD_DATABASE_URL`, `MD_FEED_URL=ws://gateway:9879` |
 | web (at build time) | `VITE_BACKEND_URL=/api`, `VITE_MARKET_DATA_URL=/md`: paths, so the image works on any hostname |
@@ -81,9 +81,10 @@ changes to deploy it.
 each, Caddy 30 MB, the gateway 4 MB), with a 2 GB swap file as a safety net. Live, the
 gateway grew through each business day: 234 MB by mid-day at `SIM_ACTIVITY=0.2`, because it
 kept a full record of every order until the 21:00 roll. Since `v0.3.0` it keeps a full record
-only for live orders ([ADR 0005](adr/0005-gateway-keeps-only-live-orders.md)). The
-databases' "memory" in `docker stats` is mostly file cache, which the system reclaims when
-needed.
+only for live orders: 37 MB for a day of 180,000 orders, and about 900 MB of the server's
+1.8 GB available ([ADR 0005](adr/0005-gateway-keeps-only-live-orders.md)). That made room for
+`SIM_ACTIVITY=1`. The databases' "memory" in `docker stats` is mostly file cache, which the
+system reclaims when needed; "available" in `free -m` is the number that matters.
 
 ## AWS services and cost
 
@@ -220,7 +221,7 @@ installs with every release (steps in [AWS-SETUP.md](AWS-SETUP.md), section 7):
   - Archive the exchange's finished day files (every snapshot and journal except the
     current pair) there, gzipped, then delete local copies that are archived and over a week
     old. The gateway only ever reads the newest pair and never deletes anything itself.
-    Measured live, the journal grows about 120 MB a day even at `SIM_ACTIVITY=0.2` (the
+    Measured live, the journal grew about 120 MB a day even at `SIM_ACTIVITY=0.2` (the
     market makers' re-quoting dominates, and that setting only slows the takers); gzipped,
     about a tenth of that. A bucket rule deletes archived days after a year.
   - Report a finished backup to CloudWatch.
