@@ -5,7 +5,7 @@ import type { Bar } from "../../api/marketData.ts";
 import type { SymbolMarket } from "../../market/store.ts";
 import { type ConnectionFacts, ago, connectionDetails, duration } from "./connections.ts";
 import { quoteFrom } from "./quote.ts";
-import { matchSymbols } from "./search.ts";
+import { matchSymbols, startsSearch } from "./search.ts";
 
 const security = (symbol: string, name: string): Security => ({
   symbol, name, venue: "ALPHA", tickSizeCents: 1, lotSize: 1, status: "ACTIVE", referencePriceCents: 1000, priceBandPct: 20,
@@ -26,6 +26,21 @@ describe("symbol search", () => {
     expect(matchSymbols("logistics", symbols).map((s) => s.symbol)).toEqual(["BLTZ"]);
     expect(matchSymbols("", symbols, 2).map((s) => s.symbol)).toEqual(["ACME", "BLTZ"]);
     expect(matchSymbols("zzz", symbols)).toEqual([]);
+  });
+
+  test("a letter typed anywhere starts a search, unless it is meant for something else", () => {
+    const press = (key: string, held: Partial<{ ctrlKey: boolean; metaKey: boolean; altKey: boolean }> = {}) => ({
+      key, ctrlKey: false, metaKey: false, altKey: false, ...held,
+    });
+    const page = { editable: false, dialogOpen: false };
+    expect(startsSearch(press("a"), page)).toBe(true);
+    expect(startsSearch(press("G"), page)).toBe(true); // with Shift
+    for (const key of ["1", " ", "Enter", "Escape", "ArrowDown", "Tab", "/"]) expect(startsSearch(press(key), page), key).toBe(false);
+    expect(startsSearch(press("c", { metaKey: true }), page)).toBe(false); // copy
+    expect(startsSearch(press("r", { ctrlKey: true }), page)).toBe(false);
+    expect(startsSearch(press("a", { altKey: true }), page)).toBe(false);
+    expect(startsSearch(press("a"), { editable: true, dialogOpen: false })).toBe(false); // typing in a field
+    expect(startsSearch(press("a"), { editable: false, dialogOpen: true })).toBe(false);
   });
 });
 
