@@ -15,5 +15,10 @@ ENV VITE_BACKEND_URL=/api \
 RUN pnpm build
 
 FROM caddy:2.10-alpine
+LABEL org.opencontainers.image.source=https://github.com/snoopy55619819/trading-platform
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /app/dist /srv
+# Which release this is, at /version.txt: the deploy workflow waits until the live site
+# reports the version it just released.
+ARG VERSION=dev
+RUN echo "$VERSION" > /srv/version.txt
