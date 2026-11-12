@@ -23,7 +23,12 @@ export const marketStore = new MarketStore();
 // The feed's connection state, as a tiny store of its own.
 let feedState: ConnectionState = "closed";
 const feedStateListeners = new Set<() => void>();
+// When the state last changed and when the last message arrived, for the header's
+// connection details. Not reactive: the details re-read them on their own clock.
+let feedSince = Date.now();
+let feedLastMessageAt: number | undefined;
 function setFeedState(next: ConnectionState): void {
+  if (next !== feedState) feedSince = Date.now();
   feedState = next;
   if (next === "closed") marketStore.markAllStale();
   for (const listener of feedStateListeners) listener();
@@ -34,7 +39,13 @@ let feed: LiveFeed | undefined;
 /** Opens the live feed. Called once, at startup. */
 export function startMarketData(): void {
   if (feed) return;
-  feed = new LiveFeed({ onMessage: (message) => marketStore.apply(message), onState: setFeedState });
+  feed = new LiveFeed({
+    onMessage: (message) => {
+      feedLastMessageAt = Date.now();
+      marketStore.apply(message);
+    },
+    onState: setFeedState,
+  });
   marketStore.attach(feed);
   feed.start();
 }
@@ -47,6 +58,11 @@ export function useFeedState(): ConnectionState {
     },
     () => feedState,
   );
+}
+
+/** When the feed's state last changed, and when its last message arrived (if any has). */
+export function feedTimes(): { since: number; lastMessageAt: number | undefined } {
+  return { since: feedSince, lastMessageAt: feedLastMessageAt };
 }
 
 /** Live book, recent trades and last price for one symbol. Subscribes while mounted. */

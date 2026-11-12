@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import type { Security } from "../../api/backend.ts";
 import type { Bar } from "../../api/marketData.ts";
 import type { SymbolMarket } from "../../market/store.ts";
+import { type ConnectionFacts, ago, connectionDetails, duration } from "./connections.ts";
 import { quoteFrom } from "./quote.ts";
 import { matchSymbols } from "./search.ts";
 
@@ -64,5 +65,63 @@ describe("quote", () => {
     const quote = quoteFrom(market(4250), [bar("2026-11-11T21:00:00.000Z", 4250)], TODAY);
     expect(quote.changeCents).toBeUndefined();
     expect(quote.lastCents).toBe(4250);
+  });
+});
+
+describe("connection details", () => {
+  const NOW = 1_000_000;
+  const facts = (over: Partial<ConnectionFacts> = {}): ConnectionFacts => ({
+    backend: { reachable: true, checkedAt: NOW - 3000, everyMs: 5000 },
+    exchange: { venue: "ALPHA", connected: true, lastHeardAt: NOW - 12_000 },
+    prices: { state: "open", since: NOW - 125_000, lastMessageAt: NOW - 400 },
+    ...over,
+  });
+
+  test("all up: what each is, and when it was last heard from", () => {
+    expect(connectionDetails(facts(), NOW)).toEqual({
+      backend: ["Broker backend: reachable.", "Last checked 3s ago.", "Checked every 5s."],
+      exchange: ["Exchange: FIX session to ALPHA up.", "Last message from the exchange 12s ago (heartbeats included)."],
+      prices: ["Prices: live WebSocket connected for 2m.", "Last message just now."],
+    });
+  });
+
+  test("backend unreachable: says why, and that the exchange is unknown", () => {
+    const details = connectionDetails(
+      facts({
+        backend: { reachable: false, error: "Failed to fetch", checkedAt: NOW - 1000, everyMs: 5000 },
+        exchange: { connected: undefined },
+      }),
+      NOW,
+    );
+    expect(details.backend[0]).toBe("Broker backend: not reachable (Failed to fetch).");
+    expect(details.exchange).toEqual(["Exchange: unknown, the broker backend cannot be reached."]);
+  });
+
+  test("FIX session down, never heard from; prices down and retrying", () => {
+    const details = connectionDetails(
+      facts({
+        exchange: { venue: "ALPHA", connected: false },
+        prices: { state: "closed", since: NOW - 7_200_000 },
+      }),
+      NOW,
+    );
+    expect(details.exchange).toEqual(["Exchange: FIX session to ALPHA down.", "Nothing heard from the exchange yet."]);
+    expect(details.prices).toEqual(["Prices: live WebSocket down for 2h, retrying.", "No messages yet."]);
+  });
+
+  test("before the first answer: checking", () => {
+    const details = connectionDetails(
+      facts({ backend: { reachable: undefined, checkedAt: 0, everyMs: 5000 }, exchange: { connected: undefined } }),
+      NOW,
+    );
+    expect(details.backend).toEqual(["Broker backend: checking.", "Checked every 5s."]);
+    expect(details.exchange).toEqual(["Exchange: checking."]);
+  });
+
+  test("times read as rough durations", () => {
+    expect([ago(0), ago(999), ago(1000), ago(59_999), ago(60_000), ago(3_600_000)]).toEqual([
+      "just now", "just now", "1s ago", "59s ago", "1m ago", "1h ago",
+    ]);
+    expect(duration(-5)).toBe("0s");
   });
 });
