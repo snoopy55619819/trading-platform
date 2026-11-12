@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "newswire/headline.schema.json",
+  "title": "Headline",
+  "description": "One headline, as sent on the WebSocket and in GET /headlines. Spec 1.0.0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "ts",
+    "symbol",
+    "headline",
+    "category",
+    "tone",
+    "severity"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "A ULID, unique. Clients drop ids they have already seen."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When it was published: ISO 8601, UTC, milliseconds."
+    },
+    "symbol": {
+      "type": "string",
+      "pattern": "^[A-Z]{1,8}$",
+      "description": "A ticker Alpha Exchange lists."
+    },
+    "headline": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "One sentence, no trailing full stop."
+    },
+    "category": {
+      "enum": [
+        "EARNINGS_BEAT",
+        "GUIDANCE_RAISED",
+        "ANALYST_UPGRADE",
+        "CONTRACT_WIN",
+        "PRODUCT_APPROVAL",
+        "BUYBACK",
+        "EARNINGS_MISS",
+        "GUIDANCE_CUT",
+        "ANALYST_DOWNGRADE",
+        "PRODUCT_RECALL",
+        "EXECUTIVE_DEPARTURE",
+        "REGULATORY_PROBE",
+        "CONFERENCE",
+        "DIVIDEND_DECLARED",
+        "EXECUTIVE_APPOINTED",
+        "ANNUAL_MEETING",
+        "INDEX_REVIEW"
+      ]
+    },
+    "tone": {
+      "enum": [
+        "POSITIVE",
+        "NEGATIVE",
+        "NEUTRAL"
+      ],
+      "description": "The wire's own reading. Fixed by the category: see newswire.json."
+    },
+    "severity": {
+      "enum": [
+        "MINOR",
+        "MAJOR"
+      ],
+      "description": "How big a surprise. Always MINOR when the tone is NEUTRAL."
+    }
+  }
+}

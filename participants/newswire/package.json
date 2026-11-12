@@ -1,0 +1,22 @@
+{
+  "name": "newswire",
+  "private": true,
+  "type": "module",
+  "description": "A newswire for the synthetic market: invents headlines about the companies Alpha Exchange lists and publishes them to anyone who subscribes.",
+  "engines": { "node": ">=26" },
+  "scripts": {
+    "start": "node src/main.ts",
+    "test": "node --test",
+    "typecheck": "tsc --noEmit",
+    "spec:sync": "node scripts/sync-spec.mjs",
+    "spec:check": "node scripts/sync-spec.mjs --check"
+  },
+  "dependencies": {
+    "ws": "^8.22.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "@types/ws": "^8.18.2",
+    "typescript": "^5.9.3"
+  }
+}
