@@ -1,0 +1,30 @@
+{
+  "$comment": "Instruments listed on Alpha Exchange, and Alpha's fee schedule. Published as part of the venue's public spec: this is what a broker downloads to build its security master. Fictional instruments - nothing here is real market data.",
+  "spec_version": "1.1.0",
+  "venue": {
+    "code": "ALPHA",
+    "name": "Alpha Exchange",
+    "maker_fee_bps": -2,
+    "taker_fee_bps": 3,
+    "order_entry": { "protocol": "FIX.4.4", "host": "127.0.0.1", "port": 9878 },
+    "market_data": { "protocol": "WS", "host": "127.0.0.1", "port": 9879 }
+  },
+  "market": {
+    "mode": "CONTINUOUS_24_7",
+    "timezone": "America/New_York",
+    "business_date_roll_utc": "21:00:00",
+    "settlement_cycle_days": 1
+  },
+  "symbols": [
+    { "ticker": "ACME", "name": "Acme Industrial Corp",    "tick_size_cents": 1, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 4210,  "price_band_pct": 20 },
+    { "ticker": "BLTZ", "name": "Blitzen Logistics Inc",   "tick_size_cents": 1, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 1875,  "price_band_pct": 20 },
+    { "ticker": "CRUX", "name": "Crux Semiconductor Ltd",  "tick_size_cents": 5, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 28650, "price_band_pct": 15 },
+    { "ticker": "DYNE", "name": "Dyne Energy Partners",    "tick_size_cents": 1, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 903,   "price_band_pct": 25 },
+    { "ticker": "ECHO", "name": "Echo Communications Co",  "tick_size_cents": 1, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 6420,  "price_band_pct": 20 },
+    { "ticker": "FLUX", "name": "Flux Materials Group",    "tick_size_cents": 5, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 15530, "price_band_pct": 20 },
+    { "ticker": "GRID", "name": "Gridline Utilities Corp", "tick_size_cents": 1, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 3312,  "price_band_pct": 10 },
+    { "ticker": "HELX", "name": "Helix Biosciences Inc",   "tick_size_cents": 1, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 725,   "price_band_pct": 35 },
+    { "ticker": "IONX", "name": "Ionex Chemical Holdings", "tick_size_cents": 1, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 5108,  "price_band_pct": 20 },
+    { "ticker": "JOLT", "name": "Jolt Beverages Ltd",      "tick_size_cents": 1, "lot_size": 1, "currency": "USD", "status": "ACTIVE", "reference_price_cents": 2244,  "price_band_pct": 20 }
+  ]
+}

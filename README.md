@@ -59,6 +59,7 @@ One set of components, four styles, each in light and dark (Terminal is dark onl
 | `broker/market-data/` | TypeScript (Node) | live price fan-out to browsers, candle history |
 | `broker/web/` | TypeScript (React, Vite) | the trading app |
 | `participants/simulator/` | TypeScript (Node) | simulated trading firms |
+| `participants/newswire/` | TypeScript (Node) | invented headlines about the listed companies (ADR 0006) |
 | Postgres | SQL | one database per service, never shared |
 
 Each top-level folder is a separate business: the exchange, the broker, and the simulated
