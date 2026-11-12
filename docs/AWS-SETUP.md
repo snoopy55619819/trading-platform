@@ -4,7 +4,7 @@ The one-time setup behind [DEPLOYMENT.md](DEPLOYMENT.md): every AWS resource, th
 record and the first release, in order. Each step is an AWS CLI command, so the setup can
 be repeated exactly; the console works too.
 
-**Where:** the "Trading Platform" project (AWS account `077815499810`), region `us-east-2`
+**Where:** the "Trading Platform" project (its own AWS account), region `us-east-2`
 (Ohio). The project's organization only allows `us-east-2`: elsewhere even listing servers
 is refused. Every resource is tagged `Project=trading-platform`.
 
@@ -107,9 +107,74 @@ aws ssm send-command --instance-ids "$instance" --document-name AWS-RunShellScri
 For an interactive shell, `aws ssm start-session --target "$instance"` (it needs AWS's
 Session Manager plugin installed locally).
 
+## 7. Backups and alarms: about $1 a month
+
+Nightly at 22:30 UTC, after the exchange's 21:00 roll,
+[`hosting/backup.sh`](../hosting/backup.sh) dumps the three databases to S3 and archives
+the exchange's finished day files there, gzipped, then deletes local day files that are
+archived and over a week old. Hourly, [`hosting/disk-metric.sh`](../hosting/disk-metric.sh)
+reports disk use. Both run from systemd timers that the deploy agent installs with each
+release; they do nothing until the server's settings file exists.
+
+A private bucket that deletes database dumps after 30 days and archived day files after a
+year:
+
+```bash
+bucket=tradeplatform-dev-backups
+aws s3api create-bucket --bucket "$bucket" --create-bucket-configuration LocationConstraint=us-east-2
+aws s3api put-public-access-block --bucket "$bucket" --public-access-block-configuration \
+  BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+aws s3api put-bucket-tagging --bucket "$bucket" --tagging 'TagSet=[{Key=Project,Value=trading-platform}]'
+aws s3api put-bucket-lifecycle-configuration --bucket "$bucket" --lifecycle-configuration '{"Rules":[
+  {"ID":"database-dumps-30-days","Status":"Enabled","Filter":{"Prefix":"databases/"},"Expiration":{"Days":30}},
+  {"ID":"exchange-days-1-year","Status":"Enabled","Filter":{"Prefix":"exchange-days/"},"Expiration":{"Days":365}}]}'
+```
+
+The server's role may write to that bucket and report its own metrics, nothing more:
+
+```bash
+aws iam put-role-policy --role-name trading-platform-server --policy-name backups-and-metrics \
+  --policy-document '{"Version":"2012-10-17","Statement":[
+    {"Effect":"Allow","Action":["s3:PutObject","s3:GetObject"],"Resource":"arn:aws:s3:::tradeplatform-dev-backups/*"},
+    {"Effect":"Allow","Action":"s3:ListBucket","Resource":"arn:aws:s3:::tradeplatform-dev-backups"},
+    {"Effect":"Allow","Action":"cloudwatch:PutMetricData","Resource":"*",
+     "Condition":{"StringEquals":{"cloudwatch:namespace":"TradingPlatform"}}}]}'
+```
+
+The settings file on the server, written through Systems Manager:
+
+```bash
+aws ssm send-command --instance-ids "$instance" --document-name AWS-RunShellScript --parameters \
+  'commands=["mkdir -p /etc/trading-platform","printf \"BACKUP_BUCKET=tradeplatform-dev-backups\\nAWS_REGION=us-east-2\\n\" > /etc/trading-platform/aws.env"]'
+```
+
+Alarms, emailed through a topic. The subscription sends one email to confirm first. The
+disk alarm also fires if the hourly reports stop, which means the server is down; the
+backup alarm fires if a night passes without a finished backup.
+
+```bash
+topic=$(aws sns create-topic --name trading-platform-alerts --tags Key=Project,Value=trading-platform \
+  --query TopicArn --output text)
+aws sns subscribe --topic-arn "$topic" --protocol email --notification-endpoint <your email>
+aws cloudwatch put-metric-alarm --alarm-name trading-platform-disk \
+  --alarm-description "Server disk over 80% full, or the server stopped reporting (down?)" \
+  --namespace TradingPlatform --metric-name DiskUsedPercent --dimensions Name=Server,Value=trading-platform \
+  --statistic Maximum --period 3600 --evaluation-periods 2 --threshold 80 \
+  --comparison-operator GreaterThanThreshold --treat-missing-data breaching --alarm-actions "$topic"
+aws cloudwatch put-metric-alarm --alarm-name trading-platform-backup \
+  --alarm-description "No finished backup in the last day" \
+  --namespace TradingPlatform --metric-name BackupCompleted --dimensions Name=Server,Value=trading-platform \
+  --statistic Sum --period 86400 --evaluation-periods 1 --threshold 1 \
+  --comparison-operator LessThanThreshold --treat-missing-data breaching --alarm-actions "$topic"
+```
+
+To run a backup now rather than wait for the night:
+`sudo systemctl start backup.service`, then `journalctl -u backup` on the server.
+
 ## Checking on it
 
 - The site: https://tradeplatform.dev, and https://tradeplatform.dev/version.txt for the
   live version.
-- The deploy agent: `journalctl -u deploy-agent` on the server.
+- The deploy agent: `journalctl -u deploy-agent` on the server; backups: `journalctl -u backup`.
+- Alarms: CloudWatch, Alarms, in `us-east-2`.
 - First boot: `/var/log/cloud-init-output.log` on the server.
