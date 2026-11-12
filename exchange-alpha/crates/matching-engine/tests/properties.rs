@@ -60,7 +60,10 @@ fn command() -> impl Strategy<Value = Command> {
             order_id: OrderId(id),
         })
     });
-    prop_oneof![4 => new_order, 1 => cancel]
+    let end_of_day = Just(Command::EndOfDay(EndOfDay {
+        business_date: "2026-11-12".into(),
+    }));
+    prop_oneof![40 => new_order, 10 => cancel, 1 => end_of_day]
 }
 
 fn temp_journal() -> PathBuf {
@@ -99,6 +102,77 @@ proptest! {
         let recovered_bytes = serde_json::to_vec(&recovered.engine().snapshot()).unwrap();
         prop_assert_eq!(live_bytes, recovered_bytes);
         prop_assert_eq!(live.engine(), recovered.engine());
+    }
+
+    /// Straight after a close, nothing on any book is a day order.
+    #[test]
+    fn no_day_order_survives_the_close(commands in prop::collection::vec(command(), 0..300)) {
+        let mut engine = Engine::default();
+        for command in commands {
+            engine.apply(command);
+        }
+        engine.apply(Command::EndOfDay(EndOfDay { business_date: "2026-11-12".into() }));
+        for book in engine.snapshot().books {
+            for level in book.bids.iter().chain(&book.asks) {
+                for order in &level.orders {
+                    prop_assert_ne!(order.time_in_force, TimeInForce::Day);
+                }
+            }
+        }
+    }
+
+    /// A restored engine is the engine that took the snapshot, and carries on identically.
+    #[test]
+    fn a_restored_engine_is_the_same_engine(
+        before in prop::collection::vec(command(), 0..200),
+        after in prop::collection::vec(command(), 0..100),
+    ) {
+        let mut original = Engine::default();
+        for command in before {
+            original.apply(command);
+        }
+        let mut restored = Engine::restore(original.snapshot()).unwrap();
+        prop_assert_eq!(&restored, &original);
+        for command in after {
+            prop_assert_eq!(restored.apply(command.clone()), original.apply(command));
+        }
+        prop_assert_eq!(restored, original);
+    }
+
+    /// Recovery from a snapshot plus the journal since, against replaying everything: the
+    /// same engine, byte for byte.
+    #[test]
+    fn snapshot_plus_the_next_journal_equals_a_full_replay(
+        day1 in prop::collection::vec(command(), 0..200),
+        day2 in prop::collection::vec(command(), 0..200),
+    ) {
+        let (everything, first, second) = (temp_journal(), temp_journal(), temp_journal());
+        let mut full = JournaledEngine::open(&everything).unwrap();
+        let mut live = JournaledEngine::open(&first).unwrap();
+        for command in &day1 {
+            full.submit(command.clone()).unwrap();
+            live.submit(command.clone()).unwrap();
+        }
+        let (snapshot, seq) = (live.engine().snapshot(), live.last_seq());
+        let engine = Engine::restore(snapshot.clone()).unwrap();
+        let mut live = JournaledEngine::resume_observing(&second, engine, seq, |_| {}).unwrap();
+        for command in &day2 {
+            full.submit(command.clone()).unwrap();
+            live.submit(command.clone()).unwrap();
+        }
+
+        let replayed = JournaledEngine::open(&everything).unwrap();
+        let engine = Engine::restore(snapshot).unwrap();
+        let recovered = JournaledEngine::resume_observing(&second, engine, seq, |_| {}).unwrap();
+        for path in [everything, first, second] {
+            let _ = std::fs::remove_file(path);
+        }
+
+        let replayed_bytes = serde_json::to_vec(&replayed.engine().snapshot()).unwrap();
+        let recovered_bytes = serde_json::to_vec(&recovered.engine().snapshot()).unwrap();
+        prop_assert_eq!(replayed_bytes, recovered_bytes);
+        prop_assert_eq!(recovered.engine(), live.engine());
+        prop_assert_eq!(recovered.last_seq(), replayed.last_seq());
     }
 
     /// Same input, same output: two engines given the same commands emit identical events.

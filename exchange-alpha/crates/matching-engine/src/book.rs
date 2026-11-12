@@ -10,7 +10,7 @@ use std::collections::btree_map::{BTreeMap, OccupiedEntry};
 
 use serde::{Deserialize, Serialize};
 
-use crate::types::{OrderId, PriceCents, Qty, Side};
+use crate::types::{OrderId, PriceCents, Qty, Side, TimeInForce};
 
 /// An order waiting in the book. Its side and price are implied by where it sits.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -20,6 +20,8 @@ pub struct RestingOrder {
     pub participant: String,
     /// Quantity still waiting to trade. Never zero: a fully filled order leaves the book.
     pub remaining: Qty,
+    /// `Day` or `Gtc`, the only two that rest. End of day expires the `Day` ones.
+    pub time_in_force: TimeInForce,
 }
 
 /// A summary of one price level: what the public market data feed shows.

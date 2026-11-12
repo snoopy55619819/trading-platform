@@ -189,3 +189,85 @@ fn opening_can_observe_the_replayed_events() {
         "sequence numbering resumes, not restarts"
     );
 }
+
+#[test]
+fn a_continuing_journal_numbers_on_from_the_day_before() {
+    let day1 = TempJournal::new();
+    let day2 = TempJournal::new();
+    let mut live = JournaledEngine::open(&day1.0).unwrap();
+    live.submit(sell("alice", 100, 4210)).unwrap();
+    live.submit(sell("bob", 50, 4211)).unwrap();
+    let snapshot = live.engine().snapshot();
+
+    let engine = Engine::restore(snapshot).unwrap();
+    let mut next = JournaledEngine::resume_observing(&day2.0, engine, 2, |_| {}).unwrap();
+    next.submit(sell("carol", 10, 4212)).unwrap();
+
+    assert_eq!(next.last_seq(), 3);
+    assert!(
+        fs::read_to_string(&day2.0)
+            .unwrap()
+            .starts_with(r#"{"seq":3,"#)
+    );
+}
+
+#[test]
+fn a_continuing_journal_that_does_not_follow_on_refuses_to_start() {
+    let journal = TempJournal::new();
+    fs::write(
+        &journal.0,
+        concat!(
+            r#"{"seq":1,"command":{"type":"CANCEL","participant":"a","order_id":1}}"#,
+            "\n",
+        ),
+    )
+    .unwrap();
+
+    let error = JournaledEngine::resume_observing(&journal.0, Engine::default(), 7, |_| {})
+        .err()
+        .expect("must refuse");
+    assert!(
+        error.to_string().contains("expected seq 8, found 1"),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_snapshot_that_does_not_add_up_is_refused() {
+    let mut engine = Engine::default();
+    engine.apply(sell("alice", 100, 4210));
+    let mut snapshot = engine.snapshot();
+    snapshot.books[0].asks[0].qty = Qty(99);
+
+    let error = Engine::restore(snapshot).expect_err("must refuse");
+    assert!(error.contains("level total 99"), "{error}");
+}
+
+#[test]
+fn a_snapshot_with_an_order_above_the_id_counter_is_refused() {
+    let mut engine = Engine::default();
+    engine.apply(sell("alice", 100, 4210));
+    let mut snapshot = engine.snapshot();
+    snapshot.last_order_id = 0;
+
+    assert!(Engine::restore(snapshot).is_err());
+}
+
+#[test]
+fn a_new_days_journal_continues_the_numbering() {
+    let day1 = TempJournal::new();
+    let day2 = TempJournal::new();
+    let mut live = JournaledEngine::open(&day1.0).unwrap();
+    live.submit(sell("alice", 100, 4210)).unwrap();
+
+    live.continue_in(&day2.0).unwrap();
+    live.submit(sell("bob", 50, 4211)).unwrap();
+
+    assert_eq!(live.last_seq(), 2);
+    assert!(
+        fs::read_to_string(&day2.0)
+            .unwrap()
+            .starts_with(r#"{"seq":2,"#)
+    );
+    assert_eq!(fs::read_to_string(&day1.0).unwrap().lines().count(), 1);
+}

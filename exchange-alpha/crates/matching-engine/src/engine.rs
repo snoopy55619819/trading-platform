@@ -65,6 +65,12 @@ impl Engine {
         match command {
             Command::New(order) => self.new_order(order, &mut events),
             Command::Cancel(cancel) => self.cancel(cancel, &mut events),
+            Command::EndOfDay(close) => {
+                self.end_of_day(&mut events);
+                events.push(Event::DayClosed {
+                    business_date: close.business_date,
+                });
+            }
         }
         events
     }
@@ -91,6 +97,57 @@ impl Engine {
 
     pub fn resting_order_count(&self) -> usize {
         self.locations.len()
+    }
+
+    /// Rebuilds an engine from a [`Snapshot`]: the same state as the engine that took it.
+    ///
+    /// Refuses a snapshot that does not add up (a level's total disagrees with its orders,
+    /// an empty order, an order id seen twice or above the id counter), the same way the
+    /// journal refuses to replay one it cannot trust.
+    pub fn restore(snapshot: Snapshot) -> Result<Engine, String> {
+        let mut engine = Engine {
+            ids: Ids {
+                last_order: snapshot.last_order_id,
+                last_trade: snapshot.last_trade_id,
+            },
+            ..Engine::default()
+        };
+        for book_snapshot in snapshot.books {
+            let symbol = book_snapshot.symbol;
+            let book = engine.books.entry(symbol.clone()).or_default();
+            let sides = [
+                (Side::Buy, book_snapshot.bids),
+                (Side::Sell, book_snapshot.asks),
+            ];
+            for (side, levels) in sides {
+                for level in levels {
+                    let total = Qty(level.orders.iter().map(|order| order.remaining.0).sum());
+                    if total != level.qty {
+                        return Err(format!(
+                            "{symbol} {side} {}: level total {} but its orders sum to {total}",
+                            level.price, level.qty
+                        ));
+                    }
+                    for order in level.orders {
+                        let order_id = order.order_id;
+                        if order.remaining <= Qty::ZERO || order_id.0 > snapshot.last_order_id {
+                            return Err(format!("{symbol} order #{order_id} is not valid"));
+                        }
+                        let location = Location {
+                            symbol: symbol.clone(),
+                            side,
+                            price: level.price,
+                            participant: order.participant.clone(),
+                        };
+                        if engine.locations.insert(order_id, location).is_some() {
+                            return Err(format!("order #{order_id} appears twice"));
+                        }
+                        book.rest(side, level.price, order);
+                    }
+                }
+            }
+        }
+        Ok(engine)
     }
 
     /// The full state as plain data, in a deterministic order. Two engines are in the same
@@ -186,6 +243,7 @@ impl Engine {
                             client_order_id: order.client_order_id.clone(),
                             participant: order.participant.clone(),
                             remaining: taken.remaining,
+                            time_in_force: order.time_in_force,
                         },
                     );
                     self.locations.insert(
@@ -240,6 +298,42 @@ impl Engine {
         });
         let touched = BTreeSet::from([(location.side, location.price)]);
         push_book_deltas(&location.symbol, book, &touched, events);
+    }
+}
+
+impl Engine {
+    /// Expires every resting `Day` order. Books in symbol order, bids before asks, best price
+    /// first, oldest first: the same events in the same order on every run.
+    fn end_of_day(&mut self, events: &mut Vec<Event>) {
+        for (symbol, book) in &mut self.books {
+            let mut expiring = Vec::new();
+            for side in [Side::Buy, Side::Sell] {
+                for (price, level) in book.levels_best_first(side) {
+                    for order in &level.orders {
+                        if order.time_in_force == TimeInForce::Day {
+                            expiring.push((side, price, order.order_id));
+                        }
+                    }
+                }
+            }
+
+            let mut touched = BTreeSet::new();
+            for (side, price, order_id) in expiring {
+                let order = book
+                    .remove(side, price, order_id)
+                    .expect("the order was just found in this book");
+                self.locations.remove(&order_id);
+                events.push(Event::Canceled {
+                    order_id,
+                    participant: order.participant,
+                    symbol: symbol.clone(),
+                    remaining: order.remaining,
+                    reason: CancelReason::Expired,
+                });
+                touched.insert((side, price));
+            }
+            push_book_deltas(symbol, book, &touched, events);
+        }
     }
 }
 

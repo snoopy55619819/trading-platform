@@ -14,6 +14,7 @@ use crate::types::{OrderId, OrderType, Qty, Side, TimeInForce};
 pub enum Command {
     New(NewOrder),
     Cancel(CancelOrder),
+    EndOfDay(EndOfDay),
 }
 
 /// An incoming order. By the time it reaches the engine the gateway has already checked the
@@ -37,4 +38,15 @@ pub struct NewOrder {
 pub struct CancelOrder {
     pub participant: String,
     pub order_id: OrderId,
+}
+
+/// The close of a business day: every resting `Day` order expires; `Gtc` orders stay.
+///
+/// A command like any other, so it is journaled and replay reproduces the close exactly.
+/// The engine has no clock: the gateway decides when the day ends and sends this.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EndOfDay {
+    /// The business day that is closing, `YYYY-MM-DD`. Recorded for whoever reads the
+    /// journal; the engine does not interpret it.
+    pub business_date: String,
 }

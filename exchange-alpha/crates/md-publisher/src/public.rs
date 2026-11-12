@@ -67,7 +67,8 @@ impl PublicEvent {
             Event::Accepted { .. }
             | Event::Rejected { .. }
             | Event::Canceled { .. }
-            | Event::CancelRejected { .. } => None,
+            | Event::CancelRejected { .. }
+            | Event::DayClosed { .. } => None,
         }
     }
 

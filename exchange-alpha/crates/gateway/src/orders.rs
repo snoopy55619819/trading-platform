@@ -16,6 +16,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use serde::{Deserialize, Serialize};
+
 use fix_core::Message;
 use fix_core::decimal::{format_scaled, parse_scaled};
 use fix_core::tags::{msg_type, *};
@@ -30,6 +32,7 @@ use crate::listings::Listings;
 mod code {
     pub const EXEC_NEW: &str = "0";
     pub const EXEC_CANCELED: &str = "4";
+    pub const EXEC_EXPIRED: &str = "C";
     pub const EXEC_REJECTED: &str = "8";
     pub const EXEC_TRADE: &str = "F";
 
@@ -37,6 +40,7 @@ mod code {
     pub const STATUS_PARTIALLY_FILLED: &str = "1";
     pub const STATUS_FILLED: &str = "2";
     pub const STATUS_CANCELED: &str = "4";
+    pub const STATUS_EXPIRED: &str = "C";
     pub const STATUS_REJECTED: &str = "8";
 
     pub const REJECT_UNKNOWN_SYMBOL: &str = "1";
@@ -62,8 +66,9 @@ pub struct Report {
     pub message: Message,
 }
 
-#[derive(Debug, Clone)]
-struct TrackedOrder {
+/// What the gateway knows about one order beyond the engine: enough to write its reports.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TrackedOrder {
     comp_id: String,
     account: String,
     client_order_id: String,
@@ -81,6 +86,16 @@ struct TrackedOrder {
 struct PendingCancel {
     cancel_client_order_id: String,
     orig_client_order_id: String,
+}
+
+/// The tracker's state as plain data, sorted, for a snapshot. Two trackers are in the same
+/// state exactly when these serialise to the same bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OrdersState {
+    /// Every order still tracked, by id.
+    pub orders: Vec<(OrderId, TrackedOrder)>,
+    /// Every (CompID, ClOrdID) used.
+    pub used_client_ids: Vec<(String, String)>,
 }
 
 pub struct OrderTracker {
@@ -104,6 +119,51 @@ impl OrderTracker {
             used_client_ids: HashSet::new(),
             pending_cancels: HashMap::new(),
         }
+    }
+
+    /// Rebuilds a tracker from [`state`](Self::state). The lookup by `ClOrdID` is rebuilt from
+    /// the orders themselves, in id order, which is the order replay would have built it in.
+    pub fn restore(listings: &Listings, state: OrdersState) -> Self {
+        let mut tracker = OrderTracker::new(listings);
+        for (order_id, order) in state.orders {
+            let key = (order.comp_id.clone(), order.client_order_id.clone());
+            tracker.by_client_id.insert(key, order_id);
+            tracker.orders.insert(order_id, order);
+        }
+        tracker.used_client_ids = state.used_client_ids.into_iter().collect();
+        tracker
+    }
+
+    /// The state to snapshot. Taken between commands, when no cancel is ever pending: a
+    /// cancel request is answered by the very command it becomes.
+    pub fn state(&self) -> OrdersState {
+        debug_assert!(
+            self.pending_cancels.is_empty(),
+            "snapshot taken mid-command"
+        );
+        let mut orders: Vec<_> = self
+            .orders
+            .iter()
+            .map(|(id, order)| (*id, order.clone()))
+            .collect();
+        orders.sort_by_key(|(id, _)| *id);
+        let mut used_client_ids: Vec<_> = self.used_client_ids.iter().cloned().collect();
+        used_client_ids.sort();
+        OrdersState {
+            orders,
+            used_client_ids,
+        }
+    }
+
+    /// A new business day: forget every finished order and every used `ClOrdID`, keeping
+    /// only the orders still resting (good-till-cancelled ones) and their ids. A `ClOrdID` is
+    /// unique per session and business day, so the next day may use any other id again.
+    fn start_next_day(&mut self) {
+        self.orders.retain(|_, order| order.open);
+        let orders = &self.orders;
+        self.by_client_id
+            .retain(|_, order_id| orders.contains_key(order_id));
+        self.used_client_ids = self.by_client_id.keys().cloned().collect();
     }
 
     pub fn open_order_count(&self) -> usize {
@@ -370,12 +430,11 @@ impl OrderTracker {
                 };
                 order.open = false;
                 let order = order.clone();
-                let mut report = self.report(
-                    *order_id,
-                    &order,
-                    code::EXEC_CANCELED,
-                    code::STATUS_CANCELED,
-                );
+                let (exec_type, status) = match reason {
+                    CancelReason::Expired => (code::EXEC_EXPIRED, code::STATUS_EXPIRED),
+                    _ => (code::EXEC_CANCELED, code::STATUS_CANCELED),
+                };
+                let mut report = self.report(*order_id, &order, exec_type, status);
                 if let Some(pending) = pending.filter(|_| *reason == CancelReason::Requested) {
                     // The report answers the cancel request, so it carries that request's id.
                     report
@@ -413,6 +472,10 @@ impl OrderTracker {
                     .with(CXL_REJ_REASON, why)
                     .with(TEXT, reason.to_string());
                 vec![Report { comp_id, message }]
+            }
+            Event::DayClosed { .. } => {
+                self.start_next_day();
+                Vec::new()
             }
             Event::Rejected { .. } => {
                 // Unreachable in practice: the engine only rejects a non-positive quantity or

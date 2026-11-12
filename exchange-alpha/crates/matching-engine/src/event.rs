@@ -55,6 +55,12 @@ pub enum Event {
         reason: RejectReason,
     },
     BookDelta(BookDelta),
+    /// The business day closed. Always the last event of an `EndOfDay` command, after every
+    /// expiry. Carries nothing about any order: it tells layers above that keep per-day
+    /// state (the gateway's order tracker) to start the next day, in replay as in real time.
+    DayClosed {
+        business_date: String,
+    },
 }
 
 /// One execution between an incoming order and one resting order.
@@ -143,6 +149,8 @@ pub enum CancelReason {
     /// trade with itself. Policy: cancel the *incoming* order's remainder and leave the
     /// resting order where it is.
     SelfTradePrevention,
+    /// A `Day` order still resting when the business day closed.
+    Expired,
 }
 
 impl fmt::Display for CancelReason {
@@ -153,6 +161,7 @@ impl fmt::Display for CancelReason {
             CancelReason::FillOrKill => "FOK: not enough liquidity, nothing traded",
             CancelReason::NoLiquidity => "market order ran out of book",
             CancelReason::SelfTradePrevention => "self-trade prevention",
+            CancelReason::Expired => "day order expired at end of day",
         })
     }
 }

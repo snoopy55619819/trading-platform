@@ -151,4 +151,44 @@ proptest! {
             }
         }
     }
+
+    /// A feed restored from its numbering and the engine's book is the feed that kept
+    /// running: the same snapshots now, and the same messages from then on.
+    #[test]
+    fn a_restored_feed_carries_on_as_if_it_never_stopped(
+        before in prop::collection::vec(command(), 0..200),
+        after in prop::collection::vec(command(), 0..100),
+    ) {
+        let mut engine = Engine::default();
+        let mut running = Feed::new("ALPHA", SYMBOLS.map(String::from));
+        for command in before {
+            for event in engine.apply(command) {
+                if let Some(public) = PublicEvent::from_event(&event) {
+                    running.publish(&public, 0);
+                }
+            }
+        }
+
+        let mut restored = Feed::restore(
+            "ALPHA",
+            SYMBOLS.map(String::from),
+            running.sequence().clone(),
+            &engine.snapshot(),
+        );
+        prop_assert_eq!(restored.sequence(), running.sequence());
+        for symbol in SYMBOLS {
+            prop_assert_eq!(snapshot_message(&restored, symbol), snapshot_message(&running, symbol));
+        }
+
+        for command in after {
+            for event in engine.apply(command) {
+                if let Some(public) = PublicEvent::from_event(&event) {
+                    prop_assert_eq!(restored.publish(&public, 0), running.publish(&public, 0));
+                }
+            }
+        }
+        for symbol in SYMBOLS {
+            prop_assert_eq!(snapshot_message(&restored, symbol), snapshot_message(&running, symbol));
+        }
+    }
 }

@@ -10,8 +10,8 @@ use std::io::{self, BufRead, BufReader, IsTerminal, Write};
 use std::process::ExitCode;
 
 use matching_engine::{
-    CancelOrder, Command, Engine, Event, JournaledEngine, NewOrder, OrderBook, OrderId, OrderType,
-    PriceCents, Qty, Side, TimeInForce, Trade,
+    CancelOrder, Command, EndOfDay, Engine, Event, JournaledEngine, NewOrder, OrderBook, OrderId,
+    OrderType, PriceCents, Qty, Side, TimeInForce, Trade,
 };
 
 const USAGE: &str = "\
@@ -22,6 +22,7 @@ Reads instructions from SCENARIO, or from stdin if none is given.
   <who> buy|sell <qty> <SYMBOL> @ <price> [day|gtc|ioc|fok]   limit order (default gtc)
   <who> buy|sell <qty> <SYMBOL> market [ioc|fok]               market order (default ioc)
   <who> cancel <order-id>
+  end-of-day [YYYY-MM-DD]                                      close the day: day orders expire
   book <SYMBOL> [depth]                                        show the book
   tape [SYMBOL]                                                trades so far
   help | quit
@@ -249,6 +250,8 @@ impl Session {
             ["tape", symbol] => Instruction::Tape {
                 symbol: Some(symbol.to_uppercase()),
             },
+            ["end-of-day"] => Instruction::Submit(end_of_day("unspecified")),
+            ["end-of-day", date] => Instruction::Submit(end_of_day(date)),
             [who, "cancel", id] => Instruction::Submit(Command::Cancel(CancelOrder {
                 participant: who.to_string(),
                 order_id: OrderId(id.parse().map_err(|_| format!("not an order id: {id}"))?),
@@ -373,6 +376,7 @@ fn describe(event: &Event, verbose: bool) -> Option<String> {
             delta.symbol, delta.side, delta.price, delta.qty, delta.order_count
         ),
         Event::BookDelta(_) => return None,
+        Event::DayClosed { business_date } => format!("day closed {business_date}"),
     })
 }
 
@@ -411,4 +415,10 @@ fn print_book(symbol: &str, book: Option<&OrderBook>, depth: usize) {
     for level in book.depth(Side::Buy).take(depth) {
         row("BID", level.price, level.qty, level.order_count);
     }
+}
+
+fn end_of_day(business_date: &str) -> Command {
+    Command::EndOfDay(EndOfDay {
+        business_date: business_date.to_string(),
+    })
 }

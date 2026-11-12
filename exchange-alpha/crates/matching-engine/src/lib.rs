@@ -48,7 +48,7 @@ mod journal;
 mod types;
 
 pub use book::{LevelView, OrderBook, RestingOrder};
-pub use command::{CancelOrder, Command, NewOrder};
+pub use command::{CancelOrder, Command, EndOfDay, NewOrder};
 pub use engine::{BookSnapshot, Engine, LevelSnapshot, Snapshot};
 pub use event::{BookDelta, CancelReason, Event, RejectReason, Trade};
 pub use journal::{Journal, JournaledEngine};
