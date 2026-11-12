@@ -25,7 +25,7 @@ echo '/swapfile swap swap defaults 0 0' >> /etc/fstab
 sed -i 's/^apply_updates = .*/apply_updates = yes/' /etc/dnf/automatic.conf
 systemctl enable --now dnf-automatic.timer
 
-# The three companies' stacks meet only on this network.
+# The companies' stacks meet only on this network.
 docker network create trading
 
 git clone https://github.com/snoopy55619819/trading-platform.git /opt/trading-platform

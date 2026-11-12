@@ -63,6 +63,7 @@ jobs:
         include:
           - { name: exchange-alpha, context: exchange-alpha }
           - { name: simulator, context: participants/simulator }
+          - { name: newswire, context: participants/newswire }
           - { name: broker-backend, context: broker/backend }
           - { name: broker-market-data, context: broker/market-data }
           - { name: broker-web, context: broker/web }

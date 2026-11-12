@@ -2,7 +2,7 @@
 # (Caddy with the web client), the only thing published to the host.
 #
 # The backend and market-data also join the shared `trading` network, to reach the exchange
-# at gateway:9878 and gateway:9879. The databases stay on the broker's own network, each
+# at gateway:9878 and gateway:9879 (and market-data the newswire at newswire:9890). The databases stay on the broker's own network, each
 # reachable only by the service that owns it.
 #
 #   docker compose -f broker/deploy/compose.yml up -d --build
@@ -70,6 +70,7 @@ services:
     environment:
       MD_DATABASE_URL: postgres://market_data:${MARKET_DATA_DB_PASSWORD}@market-data-postgres:5432/market_data
       MD_FEED_URL: ws://gateway:9879
+      MD_NEWS_URL: ws://newswire:9890/headlines
     depends_on:
       market-data-postgres:
         condition: service_healthy

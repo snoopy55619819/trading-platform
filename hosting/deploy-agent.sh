@@ -32,9 +32,9 @@ main() {
   git checkout --quiet --force --detach "$target"
   install_units
   export IMAGE_PREFIX=$registry TAG=$version
-  # The exchange first, then the firms that trade on it, then the broker.
+  # The exchange and the newswire first, then the firms that trade on them, then the broker.
   local stack
-  for stack in exchange-alpha/deploy participants/simulator/deploy broker/deploy; do
+  for stack in exchange-alpha/deploy participants/newswire/deploy participants/simulator/deploy broker/deploy; do
     docker compose -f "$stack/compose.yml" pull --quiet
     docker compose -f "$stack/compose.yml" up -d --no-build --remove-orphans
   done
