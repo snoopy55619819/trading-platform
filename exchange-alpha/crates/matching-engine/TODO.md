@@ -7,7 +7,7 @@ Status: **done**
 
 ```
 cargo run -p matching-engine -- crates/matching-engine/scenarios/demo.txt   # walkthrough
-cargo test -p matching-engine                                              # 38 tests
+cargo test -p matching-engine                                              # 53 tests
 cargo bench -p matching-engine                                             # latency
 ```
 
@@ -15,7 +15,7 @@ cargo bench -p matching-engine                                             # lat
 
 | | |
 |---|---|
-| **In** | `Command` — `NewOrder`, `Cancel`. One at a time, single-threaded, ordered. |
+| **In** | `Command` — `NewOrder`, `Cancel`, `EndOfDay`. One at a time, single-threaded, ordered. |
 | **Out** | `Event` — `Accepted`, `Rejected`, `Trade`, `Canceled`, `BookDelta`. Emitted in the order they occur, one command producing zero or more. |
 | **Owns** | The book (RAM) and the journal (append-only file). Nothing else. |
 | **Knows nothing about** | networks, FIX, protobuf, SQL, accounts, money beyond integer cents. |
@@ -81,6 +81,33 @@ engine does not know or care — it emits both and lets the layers above route t
 - [x] **Property:** no order ever fills more than its quantity
 - [x] **Property:** the book never crosses — `best_bid < best_ask` after every command
 - [x] Benchmark: p50/p99/p99.9 match latency, and orders/sec
+
+### 8. Daily roll (post-MVP, before deployment)
+
+Without an end of day, `Day` orders never expired and the journal grew forever, so every
+start replayed all of history. The plan, in steps across the exchange:
+
+- [x] **Step 1. End of day.** `Command::EndOfDay { business_date }` expires every resting
+      `Day` order (`CancelReason::Expired`); `Gtc` orders stay. Resting orders now carry
+      their time in force. Journaled like any command, so replay reproduces the close.
+      Tests in `tests/end_of_day.rs`, and the property tests now generate closes too.
+- [x] **Step 2. Snapshot and restore.** `Engine::restore` rebuilds an engine from its
+      snapshot (and refuses one that does not add up); a journal can continue an earlier
+      one's numbering (`Journal::open_after`, `JournaledEngine::resume_observing`). The
+      gateway's `recovery` module captures and restores the engine, the order tracker and
+      the feed's numbering (`ExchangeState`); the feed's levels are rebuilt from the engine's
+      book rather than stored twice. **Done-test** (`gateway/tests/snapshot.rs`): over random
+      order flow with closes, a snapshot plus the next journal gives byte-identical state to
+      a full replay, and so does the exchange that kept running. Checked by breaking the
+      restore on purpose (dropping the feed numbering, then the used `ClOrdID`s): it fails.
+- [x] **Step 3. The roll in the gateway.** At the business-date roll the gateway journals
+      `EndOfDay`, sends `ExecType=C` (Expired) reports, and the order tracker forgets the
+      day's finished orders and `ClOrdID`s (on the engine's `DayClosed` event, so replay does
+      the same). Then it writes the snapshot and continues in the next day's journal
+      (`gateway/src/days.rs`: `alpha-<date>.<first seq>.snapshot.json` and `.journal`). A
+      start loads the newest snapshot, finishes a roll it was stopped in, or closes the day
+      if it was down at the roll time. Tests in `gateway/tests/roll.rs`, including a crash
+      between the close and the next day's snapshot.
 
 ## Done when
 
