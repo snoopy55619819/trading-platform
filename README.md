@@ -61,11 +61,9 @@ One set of components, three styles, each in light and dark:
 
 ## Architecture
 
-### Current plan (MVP)
+### Current Implementation (MVP)
 
-What we are building through milestone 8. To keep scope manageable the broker runs as one
-backend process and the exchange as one binary. Every box shows the milestone that builds it;
-the ones tagged BUILT exist today.
+To keep scope manageable the broker runs as one backend process and the exchange as one binary. 
 
 [![Current MVP plan: broker backend and exchange binary, connected by FIX for orders and WebSocket for market data](docs/architecture/current-plan.svg)](https://snoopy55619819.github.io/trading-platform/architecture/current-plan.html)
 
