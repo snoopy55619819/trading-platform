@@ -1,0 +1,111 @@
+# Releases a version to tradeplatform.dev. Runs when a version tag is pushed
+# (git tag v0.1.0 && git push origin v0.1.0), or from the "Run workflow" button with a
+# version, which is also how to roll back.
+#
+# GitHub never connects to the server and holds no AWS credentials. This workflow builds
+# the images and moves the `live` tag; the server's deploy agent (hosting/deploy-agent.sh)
+# notices within a minute and pulls them. The last job waits until the site reports the
+# new version.
+
+name: deploy
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version tag to release, for example v0.1.0. An older one rolls back.
+        required: true
+
+permissions:
+  contents: read
+
+# One release at a time, and never cancelled half way.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  VERSION: ${{ inputs.version || github.ref_name }}
+  IMAGE_PREFIX: ghcr.io/snoopy55619819/trading-platform
+
+jobs:
+  version:
+    name: check the version
+    runs-on: ubuntu-24.04
+    outputs:
+      commit: ${{ steps.commit.outputs.commit }}
+    steps:
+      - name: Version is a tag like v1.2.3
+        run: |
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::not a version tag: $VERSION"
+            exit 1
+          fi
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.VERSION }}
+      - id: commit
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  images:
+    name: image ${{ matrix.name }}
+    needs: version
+    # The server is ARM, so the images are built on ARM.
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: exchange-alpha, context: exchange-alpha }
+          - { name: simulator, context: participants/simulator }
+          - { name: broker-backend, context: broker/backend }
+          - { name: broker-market-data, context: broker/market-data }
+          - { name: broker-web, context: broker/web }
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.version.outputs.commit }}
+      - name: Sign in to GitHub's registry
+        run: echo "$TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push, unless this version is already built (a rollback)
+        run: |
+          image="$IMAGE_PREFIX/${{ matrix.name }}:$VERSION"
+          if docker manifest inspect "$image" > /dev/null 2>&1; then
+            echo "$image already exists"
+            exit 0
+          fi
+          docker build --build-arg VERSION="$VERSION" --tag "$image" "${{ matrix.context }}"
+          docker push "$image"
+
+  release:
+    name: make it live
+    needs: [version, images]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Point the live tag at this version
+        run: |
+          git tag --force live "${{ needs.version.outputs.commit }}"
+          git push --force origin refs/tags/live
+      - name: Wait until tradeplatform.dev reports it
+        run: |
+          for attempt in $(seq 1 40); do
+            running=$(curl --silent --fail --max-time 10 https://tradeplatform.dev/version.txt || true)
+            if [ "$running" = "$VERSION" ]; then
+              echo "live: $VERSION"
+              exit 0
+            fi
+            echo "waiting: the site reports '${running:-nothing}'"
+            sleep 15
+          done
+          echo "::error::$VERSION was not live after 10 minutes; check the server's deploy agent (journalctl -u deploy-agent)"
+          exit 1
