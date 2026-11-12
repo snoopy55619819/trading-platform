@@ -12,7 +12,7 @@
 
 Entirely synthetic: no real market data, no real money.
 
-![The trading screen in the Active style: watchlist, live candlestick chart with a hover legend, quick Buy and Sell buttons, order book, positions with book cost and P&L, and time and sales](docs/images/trading-screen-active-dark.png)
+![The trading screen in the Active style: watchlist, news with a story open, live candlestick chart with news dots and the high and low marked, quick Buy and Sell buttons, order book, positions with book cost and P&L, and time and sales](docs/images/trading-screen-active-dark.png)
 
 ## What it is
 
