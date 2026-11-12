@@ -46,11 +46,11 @@ start_gateway
 echo; echo "== trade";   go run . trade
 echo; echo "== rest";    go run . rest
 
-echo; echo "== kill -9 the gateway, then restart it on the same journal and database"
+echo; echo "== kill -9 the gateway, then restart it on the same data directory and database"
 kill -9 "$GATEWAY_PID"
 wait "$GATEWAY_PID" 2>/dev/null || true
 start_gateway
-grep -o 'recovered from journal.*' "$WORK/gateway.log" | tail -1 | sed 's/\x1b\[[0-9;]*m//g'
+grep -o 'recovered from.*' "$WORK/gateway.log" | tail -1 | sed 's/\x1b\[[0-9;]*m//g'
 
 echo; echo "== take";    go run . take
 echo; echo "== collect"; go run . collect
