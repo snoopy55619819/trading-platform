@@ -17,11 +17,11 @@
     "db:status": "node scripts/migrate.mjs --status"
   },
   "dependencies": {
+    "@bufbuild/protobuf": "^2.14.1",
     "pg": "^8.23.1",
     "ws": "^8.22.2"
   },
   "devDependencies": {
-    "@bufbuild/protobuf": "^2.14.1",
     "@bufbuild/protoc-gen-es": "^2.2.3",
     "@types/node": "^26.0.0",
     "@types/pg": "^8.23.1",
