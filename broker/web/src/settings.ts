@@ -1,22 +1,33 @@
-// Trading preferences that are not about looks: for now, the ticket's default quantity.
-// Saved in localStorage per browser, like the theme. (Mode and style live in theme.ts.)
+// Trading preferences that are not about looks: the ticket's default quantity and how many
+// trades time and sales shows. Saved in localStorage per browser, like the theme. (Mode and
+// style live in theme.ts.)
 
 import { useSyncExternalStore } from "react";
+
+/** The choices for time and sales. The store and the first fetch keep enough for the largest. */
+export const TAPE_ROWS = [5, 10, 50] as const;
+export type TapeRows = (typeof TAPE_ROWS)[number];
 
 export interface Settings {
   /** Shares the ticket starts with. A positive whole number. */
   defaultQty: number;
+  /** How many of the latest trades time and sales shows. */
+  tapeRows: TapeRows;
 }
 
 const KEY = "broker.settings";
-export const DEFAULT_SETTINGS: Settings = { defaultQty: 1 };
+export const DEFAULT_SETTINGS: Settings = { defaultQty: 1, tapeRows: 50 };
 
 /** A saved value, checked: anything unreadable or out of range falls back to the default. */
 export function parseSettings(raw: string | null): Settings {
   try {
     const saved = JSON.parse(raw ?? "{}") as Partial<Settings>;
     const qty = saved.defaultQty;
-    return { defaultQty: typeof qty === "number" && Number.isSafeInteger(qty) && qty > 0 ? qty : DEFAULT_SETTINGS.defaultQty };
+    const rows = saved.tapeRows;
+    return {
+      defaultQty: typeof qty === "number" && Number.isSafeInteger(qty) && qty > 0 ? qty : DEFAULT_SETTINGS.defaultQty,
+      tapeRows: TAPE_ROWS.includes(rows as TapeRows) ? (rows as TapeRows) : DEFAULT_SETTINGS.tapeRows,
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }

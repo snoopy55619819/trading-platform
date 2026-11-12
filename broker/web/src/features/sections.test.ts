@@ -5,7 +5,9 @@ import { describe, expect, test } from "vitest";
 
 import type { Bar, TradeMessage } from "../api/marketData.ts";
 import { foldTrade } from "../market/candles.ts";
+import { RECENT_TRADES } from "../market/store.ts";
 import { mergeTrades } from "../market/tape.ts";
+import { TAPE_ROWS } from "../settings.ts";
 import { ladder } from "./book/ladder.ts";
 import { chartChange } from "./chart/updates.ts";
 import { baselineY, sparklinePath, todaysCloses } from "./watchlist/sparkline.ts";
@@ -115,5 +117,9 @@ describe("time and sales", () => {
     expect(mergeTrades(live, stored, 10).map((t) => t.tradeId)).toEqual(["c", "b", "a"]);
     expect(mergeTrades(live, stored, 2).map((t) => t.tradeId)).toEqual(["c", "b"]);
     expect(mergeTrades([], [], 5)).toEqual([]);
+  });
+
+  test("the store and the first fetch keep enough trades for the largest row choice", () => {
+    expect(RECENT_TRADES).toBeGreaterThanOrEqual(Math.max(...TAPE_ROWS));
   });
 });

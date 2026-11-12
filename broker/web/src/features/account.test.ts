@@ -114,9 +114,17 @@ describe("connection notices", () => {
 
 describe("settings", () => {
   test("a saved default quantity, checked", () => {
-    expect(parseSettings('{"defaultQty":25}')).toEqual({ defaultQty: 25 });
+    expect(parseSettings('{"defaultQty":25}')).toEqual({ defaultQty: 25, tapeRows: 50 });
     for (const bad of [null, "not json", '{"defaultQty":0}', '{"defaultQty":1.5}', '{"defaultQty":"10"}']) {
-      expect(parseSettings(bad)).toEqual({ defaultQty: 1 });
+      expect(parseSettings(bad)).toEqual({ defaultQty: 1, tapeRows: 50 });
+    }
+  });
+
+  test("a saved number of time and sales rows, one of the choices", () => {
+    expect(parseSettings('{"tapeRows":5}')).toEqual({ defaultQty: 1, tapeRows: 5 });
+    expect(parseSettings('{"defaultQty":3,"tapeRows":10}')).toEqual({ defaultQty: 3, tapeRows: 10 });
+    for (const bad of ['{"tapeRows":7}', '{"tapeRows":"10"}', '{"tapeRows":0}', '{"tapeRows":null}']) {
+      expect(parseSettings(bad).tapeRows).toBe(50);
     }
   });
 });
