@@ -13,6 +13,7 @@
 // quantity, never sent anywhere: every price that leaves it is rounded to integer cents
 // on the symbol's tick first.
 
+import { WALK_DAY_SECONDS } from "./diurnal.ts";
 import type { Moment } from "./model/layer.ts";
 import { type StandardLayers, standardLayers } from "./model/layers.ts";
 import type { Rng } from "./rng.ts";
@@ -31,7 +32,6 @@ export interface Listing {
   bandPct: number;
 }
 
-const SECONDS_PER_DAY = 86_400;
 /** Fair value stays inside this share of the band, so quotes around it do too. */
 const BAND_USE = 0.75;
 
@@ -77,7 +77,7 @@ export class FairValue {
   }
 
   private modelVolPerSec(activity: number): number {
-    let vol = (this.profile.dailyVol / Math.sqrt(SECONDS_PER_DAY)) * activity;
+    let vol = (this.profile.dailyVol / Math.sqrt(WALK_DAY_SECONDS)) * activity;
     for (const layer of this.layers.all) if (layer.volatility) vol *= layer.volatility();
     return vol;
   }
@@ -97,11 +97,11 @@ export class FairValue {
   }
 
   /**
-   * News arrived: move fair value by `logMove` now (0 for neutral news) and heat the symbol
-   * up to `heat` (model/news-layer.ts).
+   * News arrived: fair value moves by `logMove` (0 for neutral news), part now and the rest
+   * over the next minutes, and the symbol heats up to `heat` (model/news-layer.ts).
    */
-  shock(logMove: number, heat: number): void {
-    const move = this.layers.news.headline(logMove, heat);
+  shock(logMove: number, heat: number, rng: Rng): void {
+    const move = this.layers.news.headline(logMove, heat, rng);
     if (move !== 0) {
       this.move(move);
       this.shocked = true;
