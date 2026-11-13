@@ -13,9 +13,9 @@ Fair value is a random walk in log price. Layers on top each add one thing a rea
 
 | Layer | File | Since | What it does |
 |---|---|---|---|
-| Pull to reference | `pull.ts` | M4 | a weak pull back toward the reference price (half-life 3 days), so prices stay in the venue's fixed band |
+| Pull to reference | `pull.ts` | M4, soft band in stage 5 | a pull back toward the reference price: weak in the middle of the band (half-life 3 days), up to 9 times as strong at its edge, so prices stay in the venue's fixed band without lying flat against it |
 | News | `news-layer.ts` | ADR 0006, reshaped in stage 4 | half a headline's move at once and the rest over about 4 minutes, with an overshoot given back in 30% of stories; heats the symbol up for about 15 minutes, which speeds the walk and the agents |
-| Volatility memory | `memory.ts` | stage 3 | GARCH(1,1) once a minute: a minute that moved more than the walk alone would (news, trading, a big candle) makes the next ones jumpier, fading over about an hour |
+| Volatility memory | `memory.ts` | stage 3, normalised in stage 5 | GARCH(1,1) once a minute: a minute that moved more than the walk alone would (news, trading, a big candle) makes the next ones jumpier, fading over about an hour; divided by its own day-long average, so it averages 1 |
 | Fat tails | `tails.ts` | stage 3 | each minute draws a variance multiplier (mean 1) that makes the minute's move Student-t with 5 degrees of freedom: big candles without news |
 | Trading impact | `impact.ts` | stage 2 | every trade on the public tape nudges fair value toward the side that took liquidity, by the square-root law; 40% stays, the rest fades over minutes. `SIM_IMPACT` scales it, `0` turns it off |
 
@@ -146,11 +146,41 @@ fair comparison.
       | One-minute volatility, over 24 hours | 14.6 bps | 19.3 bps | |
 - [ ] On the live site after release: the same with `pnpm realism --compare`.
 
-### 5. A soft band
+### 5. A soft band, and the overall level
 
-- [ ] Replace the hard clamp with a pull that grows near the edges,
-      `κ(x) = κ₀ · (1 + (x / b)⁴)`, and scale moves down by the room left.
-- [ ] Final measurement over a full day against the baseline; update ADR 0008 with it.
+- [x] The pull grows near the edges: `κ(x) = κ₀ · (1 + 8 · (x / b)⁴)`, from a 3-day
+      half-life in the middle to about 8 hours at the edge. A move toward the nearer edge is
+      scaled by the room left, `1 − (x / b)⁴`. The hard limit stays as a last resort.
+- [x] Measured over two simulated years with the time-of-day curve: time pinned at the
+      band's edge went from 0.11% of minutes (CRUX, up to 10 minutes at a time) to none,
+      for HELX, CRUX and DYNE.
+- [x] Found while measuring: every symbol moved about a fifth less than its profile. The
+      volatility memory averaged 0.70, not 1: with its long memory (α + β = 0.99) a slight
+      shortfall in the average surprise (the fat tails' cap makes it 0.987) compounds, and
+      its own caps add to it (with no caps it still averaged 0.81). Fixed by dividing by a
+      day-long running average of its own state, so it averages 1 whatever trims it. Daily
+      volatility of a symbol with no news went from about 80% of its profile to about 93%
+      (DYNE: 2.83% to 3.25%, profile 3.5%).
+- [x] The whole model, 20 simulated days of ACME with the newswire's real schedule,
+      stage 4 against stage 5:
+
+      | | Stage 4 | Stage 5 | Real stock |
+      |---|---|---|---|
+      | One-minute volatility over 24 hours | 19.3 bps | 9.6 bps | |
+      | Share of movement in the 5 min after news | 11% | 23% | a minority |
+      | Excess kurtosis | 21 | 32 | 5 to 20 |
+      | \|return\| autocorrelation at 1, 15, 60 min | 0.34, 0.29, 0.21 | 0.37, 0.29, 0.14 | positive, fading slowly |
+      | Average move after news at 1, 5, 30 min | 35, 63, 69 bps | 36, 60, 71 bps | builds over minutes |
+
+      Stage 4's numbers were inflated by the memory's bias the other way: news surprises fed
+      it, so the walk ran at about twice its designed volatility and news looked small. Now
+      the walk delivers the profile and news about as much again, as stage 4 intended.
+      Kurtosis is above the usual range: with a quieter walk, news jumps stand out more.
+      If the live numbers agree, lower it with one constant (fewer degrees of fat tails, or
+      smaller MAJOR moves).
+- [ ] Final measurement on the live site, a full day including market hours, against the
+      baseline (`pnpm realism --compare realism/baselines/2026-11-13-before.json`); record
+      it in ADR 0008.
 
 ## Sources
 
