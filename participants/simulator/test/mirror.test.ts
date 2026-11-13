@@ -40,3 +40,14 @@ test("a skipped symbol_seq makes the book stale until the next snapshot", () => 
   mirror.apply(snapshot(8n, 4199n));
   assert.equal(mirror.bestBid(), 4199);
 });
+
+test("a trade print says which side took liquidity", () => {
+  const mirror = new Mirror("ACME");
+  mirror.apply(snapshot(1n, 4200n));
+  const print = (symbolSeq: bigint, aggressorSide: number): FeedMessage =>
+    create(FeedMessageSchema, {
+      payload: { case: "tradePrint", value: { symbol: "ACME", symbolSeq, priceCents: 4201n, qty: 30n, aggressorSide } },
+    });
+  assert.deepEqual(mirror.apply(print(2n, 1)), { kind: "trade", priceCents: 4201, qty: 30, buyerAggressed: true });
+  assert.deepEqual(mirror.apply(print(3n, 2)), { kind: "trade", priceCents: 4201, qty: 30, buyerAggressed: false });
+});

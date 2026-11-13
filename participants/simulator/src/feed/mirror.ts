@@ -16,7 +16,8 @@ const BUY = 1; // Side.BUY in the published schema
 export type Applied =
   | { kind: "snapshot" }
   | { kind: "applied" }
-  | { kind: "trade"; priceCents: number; qty: number }
+  /** `buyerAggressed`: the buyer took liquidity (the aggressor); false when the seller did. */
+  | { kind: "trade"; priceCents: number; qty: number; buyerAggressed: boolean }
   | { kind: "gap"; expected: bigint; received: bigint }
   | { kind: "ignored" };
 
@@ -81,7 +82,12 @@ export class Mirror {
         const step = this.sequence(trade.symbolSeq);
         if (step.kind !== "applied") return step;
         this.lastTradeCents = Number(trade.priceCents);
-        return { kind: "trade", priceCents: this.lastTradeCents, qty: Number(trade.qty) };
+        return {
+          kind: "trade",
+          priceCents: this.lastTradeCents,
+          qty: Number(trade.qty),
+          buyerAggressed: trade.aggressorSide === BUY,
+        };
       }
       default:
         return { kind: "ignored" };

@@ -8,8 +8,11 @@ import { ClientMessageSchema, FeedMessageSchema } from "../../gen/marketdata_pb.
 import { Mirror } from "./mirror.ts";
 
 export interface FeedEvents {
-  /** A trade print for `symbol`, applied in sequence. */
-  onTrade(symbol: string, priceCents: number, qty: number): void;
+  /**
+   * A trade print for `symbol`, applied in sequence. `buyerAggressed` says which side took
+   * liquidity, which the feed publishes for every trade (but never who traded).
+   */
+  onTrade(symbol: string, priceCents: number, qty: number, buyerAggressed: boolean): void;
 }
 
 export class FeedClient {
@@ -46,7 +49,7 @@ export class FeedClient {
       for (const mirror of this.mirrors.values()) {
         const applied = mirror.apply(message);
         if (applied.kind === "trade") {
-          this.events.onTrade(mirror.symbol, applied.priceCents, applied.qty);
+          this.events.onTrade(mirror.symbol, applied.priceCents, applied.qty, applied.buyerAggressed);
         } else if (applied.kind === "gap") {
           this.gaps += 1;
           console.warn(
