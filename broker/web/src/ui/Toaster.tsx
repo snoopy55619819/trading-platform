@@ -12,6 +12,18 @@ export function Toaster() {
           <div className="toast-text">
             <strong>{t.title}</strong>
             {t.text && <span>{t.text}</span>}
+            {t.action && (
+              <button
+                type="button"
+                className="button primary toast-action"
+                onClick={() => {
+                  dismiss(t.id);
+                  t.action!.run();
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
           </div>
           <button type="button" className="toast-close" onClick={() => dismiss(t.id)} aria-label="Dismiss">
             ×

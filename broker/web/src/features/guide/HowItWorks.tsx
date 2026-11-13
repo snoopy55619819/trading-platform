@@ -1,6 +1,6 @@
 // "How it works?": a dialog with one tab per flow (ADR 0007). Each tab steps through a
 // diagram, by Back and Next or by Play, with a line of live data under it that ties the
-// diagram to what is on the screen.
+// diagram to what is on the screen. Opened and closed through the guide store.
 
 import { useEffect, useState } from "react";
 
@@ -10,30 +10,33 @@ import { usePositions } from "../../query/hooks.ts";
 import { Dialog } from "../../ui/Dialog.tsx";
 import { FLOWS, type FlowId, flowById } from "./flows.ts";
 import { FlowDiagram } from "./FlowDiagram.tsx";
+import { guide, useGuideOpen } from "./store.ts";
 import "./guide.css";
 
 /** How long Play stays on each step. */
 const PLAY_MS = 4000;
 
-export function HowItWorks({ open, onClose, symbol }: { open: boolean; onClose: () => void; symbol: string | undefined }) {
+/** `live` is false before signing in: no account and no prices to show yet. */
+export function HowItWorks({ symbol, live = true }: { symbol?: string | undefined; live?: boolean }) {
+  const open = useGuideOpen();
   return (
     <Dialog
       open={open}
       title="How it works"
       wide
-      onClose={onClose}
+      onClose={guide.close}
       actions={
-        <button type="button" className="button primary" onClick={onClose}>
+        <button type="button" className="button primary" onClick={guide.close}>
           Close
         </button>
       }
     >
-      <Guide symbol={symbol} />
+      <Guide symbol={symbol} live={live} />
     </Dialog>
   );
 }
 
-function Guide({ symbol }: { symbol: string | undefined }) {
+function Guide({ symbol, live }: { symbol: string | undefined; live: boolean }) {
   const [flowId, setFlowId] = useState<FlowId>("market");
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -114,7 +117,7 @@ function Guide({ symbol }: { symbol: string | undefined }) {
         </button>
       </div>
 
-      <LiveLine flowId={flowId} symbol={symbol} />
+      {live && <LiveLine flowId={flowId} symbol={symbol} />}
     </div>
   );
 }

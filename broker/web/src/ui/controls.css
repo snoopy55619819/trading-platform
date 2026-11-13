@@ -236,6 +236,10 @@ button {
 .toast-text span {
   color: var(--text-muted);
 }
+.toast-action {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+}
 .toast-close {
   border: 0;
   background: none;

@@ -7,6 +7,8 @@ import { useState } from "react";
 import type { Security } from "../../api/backend.ts";
 import { signOut } from "../../query/hooks.ts";
 import { HowItWorks } from "../guide/HowItWorks.tsx";
+import { guide } from "../guide/store.ts";
+import { useSettings } from "../../settings.ts";
 import { SettingsDialog } from "../settings/SettingsDialog.tsx";
 import { ConnectionStatus } from "./ConnectionStatus.tsx";
 import { QuoteHeader } from "./QuoteHeader.tsx";
@@ -27,7 +29,7 @@ export function TopBar({
 }) {
   const security = symbols.find((s) => s.symbol === selected);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
+  const { guideSeen } = useSettings();
   return (
     <div className="topbar">
       <span className="brand">Trading Platform</span>
@@ -36,10 +38,12 @@ export function TopBar({
       {symbolsFailed && symbols.length === 0 && <span className="hint">Could not load the symbol list. Retrying…</span>}
       <div className="topbar-end">
         <ConnectionStatus />
-        <button type="button" className="button" onClick={() => setGuideOpen(true)}>
+        {/* Accent coloured, with a dot until this browser has opened it once. */}
+        <button type="button" className="button guide-button" onClick={guide.open}>
           How it works?
+          {!guideSeen && <span className="guide-dot" aria-label="new" />}
         </button>
-        <HowItWorks open={guideOpen} onClose={() => setGuideOpen(false)} symbol={selected} />
+        <HowItWorks symbol={selected} />
         <button type="button" className="button" onClick={() => setSettingsOpen(true)}>
           Settings
         </button>

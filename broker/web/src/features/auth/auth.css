@@ -40,3 +40,6 @@
 .auth-theme {
   opacity: 0.8;
 }
+.auth-guide {
+  font-weight: var(--weight-strong);
+}
