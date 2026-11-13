@@ -20,6 +20,7 @@ import { FixConnection } from "./fix/connection.ts";
 import { nextSessionReset } from "./fix/daily-reset.ts";
 import { diurnal } from "./market/diurnal.ts";
 import { FairValue } from "./market/fair-value.ts";
+import { standardLayers } from "./market/model/layers.ts";
 import { newsHeat, newsMove } from "./market/news.ts";
 import { Rng } from "./market/rng.ts";
 import { NewsClient } from "./news/client.ts";
@@ -32,7 +33,12 @@ const config = loadConfig();
 const rng = new Rng(config.seed);
 const positions = new Positions();
 const listings = new Map(config.listings.map((l) => [l.ticker, l]));
-const fair = new Map(config.listings.map((l) => [l.ticker, new FairValue(l, profileFor(l.ticker), config.speed)]));
+const fair = new Map(
+  config.listings.map((l) => {
+    const profile = profileFor(l.ticker);
+    return [l.ticker, new FairValue(l, profile, config.speed, standardLayers(profile, config.impact))];
+  }),
+);
 
 const fix = new FixConnection(
   config.fixHost,
@@ -61,7 +67,13 @@ const orders = new Orders(
   new RateLimit(config.maxOrdersPerSec, Date.now()),
   (fill) => positions.apply(fill),
 );
-const feed = new FeedClient(config.feedUrl, [...listings.keys()], { onTrade() {} });
+// Every trade on the tape nudges that symbol's fair value toward the side that took
+// liquidity (market/model/impact.ts; ADR 0008).
+const feed = new FeedClient(config.feedUrl, [...listings.keys()], {
+  onTrade(symbol, _priceCents, qty, buyerAggressed) {
+    fair.get(symbol)?.trade(qty, buyerAggressed);
+  },
+});
 
 // News moves fair value to a new level and starts a burst of trading (market/news.ts).
 const news = config.newsUrl
@@ -134,7 +146,7 @@ async function resetSession(): Promise<void> {
 
 console.log(
   `simulator: ${config.listings.length} symbols, spec ${config.specVersion}, seed ${config.seed}, ` +
-    `up to ${config.maxOrdersPerSec} orders/s, activity x${config.activity}, speed x${config.speed}`,
+    `up to ${config.maxOrdersPerSec} orders/s, activity x${config.activity}, impact x${config.impact}, speed x${config.speed}`,
 );
 fix.start();
 feed.start();
