@@ -15,6 +15,7 @@ Fair value is a random walk in log price. Layers on top each add one thing a rea
 |---|---|---|---|
 | Pull to reference | `pull.ts` | M4 | a weak pull back toward the reference price (half-life 3 days), so prices stay in the venue's fixed band |
 | News | `news-layer.ts` | ADR 0006 | a headline moves fair value at once and heats the symbol up; heat speeds the walk and the agents |
+| Trading impact | `impact.ts` | stage 2 | every trade on the public tape nudges fair value toward the side that took liquidity, by the square-root law; 40% stays, the rest fades over minutes. `SIM_IMPACT` scales it, `0` turns it off |
 
 Each step, every layer may:
 
@@ -78,13 +79,18 @@ fair comparison.
 
 ### 2. Trading moves the price
 
-- [ ] After each of the simulator's own taker fills, nudge fair value toward the side that
-      traded: about `λ · sign · √(qty / typical daily volume) · daily volatility`, λ around
-      0.3 to 1.
-- [ ] About 40% permanent; the rest fades with a half-life of 2 to 10 minutes (a decaying
-      drift).
-- [ ] Target: trading explains a large share of movement (30 to 60%); news share falls;
-      momentum traders now produce trends and mean-reversion traders pull back.
+- [x] Every trade on the public tape (the simulator's and real users' alike) nudges fair
+      value toward the aggressor's side: `λ · sign · √(qty / daily volume) · daily
+      volatility`, λ = 0.5, capped at one day's volatility a trade. The feed already
+      publishes each trade's aggressor side, so nothing private is needed.
+- [x] Daily volume estimated from the tape (a 30-minute average, 3 minutes' warm-up), so it
+      follows activity and the time of day; a thin market moves more per share.
+- [x] 40% permanent; the rest fades with a 5-minute half-life (a decaying drift). Wall-clock
+      time, like the trading it follows.
+- [x] `SIM_IMPACT` scales it (0 is off), for tuning and as a switch.
+- [ ] Target, to check on the live server over a full day after release: trading explains a
+      large share of movement (30 to 60%); news share falls; momentum traders now produce
+      trends and mean-reversion traders pull back.
 
 ### 3. Volatility with memory
 

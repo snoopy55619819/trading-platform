@@ -60,6 +60,8 @@ export interface Config {
   maxOrdersPerSec: number;
   /** Multiplies how often the takers trade. 0.2 for a quiet deployed instance. */
   activity: number;
+  /** How hard trading moves the price, as a multiple of the model's own (model/impact.ts); 0 is off. */
+  impact: number;
   /** Runs fair value this many times faster than the clock, to see hours in minutes. */
   speed: number;
   /** Seconds between status reports. */
@@ -112,6 +114,7 @@ export function loadConfig(): Config {
     seed: number("SIM_SEED", Date.now() % 2 ** 31),
     maxOrdersPerSec: number("SIM_MAX_ORDERS_PER_SEC", 40),
     activity: number("SIM_ACTIVITY", 1),
+    impact: number("SIM_IMPACT", 1),
     speed: number("SIM_SPEED", 1),
     reportSecs: number("SIM_REPORT_SECS", 30),
     stateFile: env("SIM_STATE_FILE", new URL("../data/open-orders.json", import.meta.url).pathname),

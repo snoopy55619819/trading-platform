@@ -75,11 +75,11 @@ test("prices round to the symbol's tick, never below one tick", () => {
 test("the price is built from layers, and a new one plugs in without touching the rest", async () => {
   const { standardLayers } = await import("../src/market/model/layers.ts");
   const ref = listing("ACME", 4210, 20);
-  assert.deepEqual(new FairValue(ref, profileFor("ACME")).layerNames, ["pull to reference", "news"]);
+  assert.deepEqual(new FairValue(ref, profileFor("ACME")).layerNames, ["pull to reference", "news", "trading impact"]);
 
   // A layer that stops the walk and drifts up a fixed amount each step: fair value then
   // follows the drift alone.
-  const layers = standardLayers();
+  const layers = standardLayers(profileFor("ACME"));
   layers.all.push({ name: "test", volatility: () => 0, drift: () => 0.001 });
   const fair = new FairValue(ref, profileFor("ACME"), 1, layers);
   const rng = new Rng(1);

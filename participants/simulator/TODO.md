@@ -3,7 +3,7 @@
 **Makes the market look alive when nobody is using the app.** Without it, v1 is an empty
 book and a flat chart.
 
-Status: **done** · 51 tests, plus behaviour runs against the real exchange. Trades on the
+Status: **done** · 56 tests, plus behaviour runs against the real exchange. Trades on the
 newswire's headlines since stage 3 of the news plan (ADR 0006).
 
 ```
@@ -34,6 +34,7 @@ All optional, by environment variable (`src/config.ts`):
 |---|---|---|
 | `SIM_MAX_ORDERS_PER_SEC` | `40` | ceiling on orders and cancels, every agent together (the deployed instance uses `80`) |
 | `SIM_ACTIVITY` | `1` | how often the takers trade; below 1 for a quieter market (the deployed instance ran at `0.2` until ADR 0005, then `1`, now `2`) |
+| `SIM_IMPACT` | `1` | how hard trading moves the price, as a multiple of the model's (`src/market/model/impact.ts`, ADR 0008); `0` turns it off |
 | `SIM_SPEED` | `1` | fair value runs this many times faster than the clock, to see hours in minutes |
 | `SIM_SEED` | the clock | the same seed replays the same price paths |
 | `SIM_REPORT_SECS` | `30` | how often the status table prints |
@@ -62,7 +63,8 @@ All optional, by environment variable (`src/config.ts`):
       0006 these come only from the newswire's headlines: see "News" below
 - [x] Diurnal multiplier on volume and volatility, so there are quiet and busy hours
 - [ ] More realistic prices, in layers and measured (ADR 0008): the plan and its stages are
-      in [PRICE-MODEL.md](PRICE-MODEL.md). Stage 1, the layered structure and a baseline, is built.
+      in [PRICE-MODEL.md](PRICE-MODEL.md). Stages 1 (layers, measurement, baseline) and 2
+      (trading moves the price) are built.
 
 ### 3. Agents
 - [x] **Market maker** — quotes both sides around fair value; spread widens with

@@ -2,11 +2,12 @@
 // quote around and everyone else can only infer from prices.
 //
 // A random walk in log price (geometric Brownian motion), with layers on top that each add
-// one thing a real price does (ADR 0008; market/model/). Today: a weak pull back toward
-// the reference price, so it stays inside the venue's price band (model/pull.ts), and news,
-// which moves it to a new level and heats it up (model/news-layer.ts; ADR 0006). There are
-// no jumps of its own: every gap has a headline behind it. Whatever the layers do, fair
-// value never leaves the part of the band it may use.
+// one thing a real price does (ADR 0008; market/model/): a weak pull back toward the
+// reference price, so it stays inside the venue's price band (model/pull.ts); news, which
+// moves it to a new level and heats it up (model/news-layer.ts; ADR 0006); and trading,
+// which nudges it toward whichever side takes liquidity (model/impact.ts). There are no
+// jumps of its own: every gap has a headline behind it. Whatever the layers do, fair value
+// never leaves the part of the band it may use.
 //
 // This is the one place the simulator uses floating point for a price. It is a model
 // quantity, never sent anywhere: every price that leaves it is rounded to integer cents
@@ -46,7 +47,7 @@ export class FairValue {
   jumped = false;
   private shocked = false;
 
-  constructor(listing: Listing, profile: Profile, speed = 1, layers: StandardLayers = standardLayers()) {
+  constructor(listing: Listing, profile: Profile, speed = 1, layers: StandardLayers = standardLayers(profile)) {
     this.listing = listing;
     this.profile = profile;
     this.speed = speed;
@@ -101,6 +102,14 @@ export class FairValue {
       this.move(move);
       this.shocked = true;
     }
+  }
+
+  /**
+   * A trade on the public tape: nudges fair value toward the side that took liquidity
+   * (model/impact.ts). Small, so the market makers follow it as ordinary movement.
+   */
+  trade(qty: number, buyerAggressed: boolean): void {
+    this.move(this.layers.impact.trade(qty, buyerAggressed));
   }
 
   /** Moves log fair value, staying inside the part of the band it may use. */
