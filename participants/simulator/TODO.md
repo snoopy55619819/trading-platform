@@ -3,13 +3,14 @@
 **Makes the market look alive when nobody is using the app.** Without it, v1 is an empty
 book and a flat chart.
 
-Status: **done** · 45 tests, plus behaviour runs against the real exchange. Trades on the
+Status: **done** · 51 tests, plus behaviour runs against the real exchange. Trades on the
 newswire's headlines since stage 3 of the news plan (ADR 0006).
 
 ```
 pnpm install && pnpm proto:gen      # once: dependencies, and TypeScript from the vendored proto
 pnpm start                          # needs the exchange running (FIX 9878, feed 9879); news from the newswire (9890)
 pnpm test                           # FIX codec and session, mirror, price model, agents, orders
+pnpm realism                        # how realistic the live market's prices are (ADR 0008)
 ```
 
 ## Inputs / outputs
@@ -60,6 +61,8 @@ All optional, by environment variable (`src/config.ts`):
 - [x] Occasional jumps ("news"), or charts look like noise around a flat line. Since ADR
       0006 these come only from the newswire's headlines: see "News" below
 - [x] Diurnal multiplier on volume and volatility, so there are quiet and busy hours
+- [ ] More realistic prices, in layers and measured (ADR 0008): the plan and its stages are
+      in [PRICE-MODEL.md](PRICE-MODEL.md). Stage 1, the layered structure and a baseline, is built.
 
 ### 3. Agents
 - [x] **Market maker** — quotes both sides around fair value; spread widens with
@@ -135,7 +138,9 @@ about 15,000 commands (21 a second).
 - `src/feed/` subscribes to every symbol and keeps a `Mirror` per symbol, following the
   spec's rules: snapshot first, `symbol_seq + 1` applied, a skip makes the book stale and
   asks for a resync.
-- `src/market/fair-value.ts` is the price model; `diurnal.ts` the time of day.
+- `src/market/fair-value.ts` is the price model: a random walk with layers on top
+  (`src/market/model/`, ADR 0008); `diurnal.ts` the time of day. `realism/` measures how
+  real the resulting prices look.
 - `src/agents/` holds the four agent kinds. Only market makers see fair value (it stands
   in for their information); the others trade on public prices.
 - `src/orders.ts` tracks the firm's own orders by ClOrdID, routes fills to the owning
