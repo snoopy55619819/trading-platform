@@ -1,7 +1,8 @@
 # ADR 0008: Realistic prices, from a layered model and measured against real markets
 
 **Status:** accepted, 2026-11-13. Being built in stages (`participants/simulator/PRICE-MODEL.md`):
-stage 1 (the layered structure, the measurement tool and a baseline) is built. Changes how the
+stage 1 (the layered structure, the measurement tool and a baseline) and stage 2 (trading
+moves the price) are built. Changes how the
 simulator's fair value moves (`participants/simulator/src/market/`), not who decides it: the
 simulator is still the only firm with a fair value, and nothing about the exchange, the
 broker or the protocols changes.
@@ -101,6 +102,7 @@ moves the price.
   (stays in the band, wanders, clusters), not exact paths.
 - **The market makers and takers are unchanged by stage 1.** They read fair value, its
   volatility and its heat exactly as before.
-- **Stage 2 changes what the simulator's fills mean.** Today a fill only changes an agent's
-  position; after it, a fill also moves the symbol's fair value. The simulator still has no
-  backdoor: it learns of fills from its own execution reports, as any FIX client does.
+- **Since stage 2, trades move fair value.** The impact layer reads every trade from the
+  public feed, which already publishes the aggressor's side, so it needs no private data
+  and counts real users' trades as well as the simulator's: a large order from the web app
+  moves the price. The simulator still has no backdoor.
