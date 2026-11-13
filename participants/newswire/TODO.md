@@ -123,6 +123,12 @@ HELX is at 2 times the base, GRID and JOLT at half. A quarter of moving stories 
 The rates and the weights per category are constants in `src/schedule.ts` and
 `src/catalogue.ts`.
 
+**Time of day** (ADR 0008, stage 4; `src/hours.ts`): the rates follow New York time, the way
+companies announce: about 2.3 times the average before the open (06:00 to 09:30) and just
+after the close (16:00 to 18:00), about 1.1 while the market trades, and 0.2 to 0.5
+overnight and in the evening. It averages 1 over a day, so the number of stories a day is
+unchanged.
+
 ## How the simulator reacts
 
 On each headline for a symbol it trades:

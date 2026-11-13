@@ -14,6 +14,7 @@
 // OMEGA = 1 - ALPHA - BETA keeps h's average at 1, so a symbol's daily volatility stays
 // about what its profile says.
 
+import { WALK_DAY_SECONDS } from "../diurnal.ts";
 import type { Layer, Moment } from "./layer.ts";
 
 /** How much the last minute's surprise raises volatility. */
@@ -26,7 +27,6 @@ export const SURPRISE_CAP = 20;
 /** Volatility never goes beyond this many times normal (its square root, in variance). */
 export const MAX_VARIANCE = 9;
 const MINUTE_SEC = 60;
-const SECONDS_PER_DAY = 86_400;
 
 export class VolatilityMemory implements Layer {
   readonly name = "volatility memory";
@@ -48,7 +48,7 @@ export class VolatilityMemory implements Layer {
 
   advance(moment: Moment, moved: number): void {
     this.moved2 += moved * moved;
-    this.expected2 += (this.dailyVol * moment.activity) ** 2 * (moment.dtSec / SECONDS_PER_DAY);
+    this.expected2 += (this.dailyVol * moment.activity) ** 2 * (moment.dtSec / WALK_DAY_SECONDS);
     this.elapsed += moment.dtSec;
     if (this.elapsed < MINUTE_SEC) return;
     const surprise = this.expected2 > 0 ? Math.min(SURPRISE_CAP, this.moved2 / this.expected2) : 1;

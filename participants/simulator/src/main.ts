@@ -81,7 +81,7 @@ const news = config.newsUrl
       const value = fair.get(headline.symbol);
       if (!value) return; // a symbol we do not trade
       const move = newsMove(headline, value.profile, rng);
-      value.shock(move, newsHeat(headline));
+      value.shock(move, newsHeat(headline), rng);
       const pct = (Math.exp(move) - 1) * 100;
       console.log(`news: ${headline.symbol} ${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% ${headline.headline}`);
     })

@@ -1,10 +1,12 @@
 // When each company has news, and what kind. Each symbol has two independent Poisson
 // processes: stories that should move the price, and neutral ones that should not. The
-// rates are per company, so the biotech is in the news far more than the utility.
+// rates are per company, so the biotech is in the news far more than the utility, and
+// follow the time of day (hours.ts): busiest around the open and the close, quiet overnight.
 //
 // Seeded, so the same seed gives the same stories at the same model times.
 
 import { type Category, type Severity, type Tone, pickCategory, write } from "./catalogue.ts";
+import { newsHours } from "./hours.ts";
 import type { Rng } from "./rng.ts";
 
 const SECONDS_PER_DAY = 86_400;
@@ -57,13 +59,14 @@ export class Schedule {
   }
 
   /**
-   * The stories that happen in the next `dtSec` seconds, in no particular order. `now` only
-   * decides which quarter an earnings story reports.
+   * The stories that happen in the next `dtSec` seconds, in no particular order. `now` sets
+   * how busy the time of day is, and which quarter an earnings story reports.
    */
   step(dtSec: number, now = new Date()): Story[] {
     const stories: Story[] = [];
+    const hours = newsHours(now);
     for (const company of this.companies) {
-      const perSec = (newsworthiness(company.ticker) * this.rate) / SECONDS_PER_DAY;
+      const perSec = (newsworthiness(company.ticker) * this.rate * hours) / SECONDS_PER_DAY;
       if (this.rng.chance(MOVING_PER_DAY * perSec, dtSec)) stories.push(this.moving(company, now));
       if (this.rng.chance(NEUTRAL_PER_DAY * perSec, dtSec)) stories.push(this.story(company, "NEUTRAL", "MINOR", now));
     }

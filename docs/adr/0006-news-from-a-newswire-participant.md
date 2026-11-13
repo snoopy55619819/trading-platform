@@ -1,6 +1,8 @@
 # ADR 0006: News comes from a newswire, and moves the simulated market
 
-**Status:** accepted, 2026-11-12. Being built in stages (`participants/newswire/TODO.md`):
+**Status:** accepted, 2026-11-12. How the simulator reacts was reshaped by ADR 0008 (stage 4,
+2026-11-13): moves now play out over minutes, are smaller, bursts last about 15 minutes,
+and the newswire follows the time of day. Being built in stages (`participants/newswire/TODO.md`):
 all six stages are built, and the newswire deploys with the rest from the next release. Changes who decides when a symbol's price jumps: today the
 simulator does, alone and silently (`market/fair-value.ts`).
 

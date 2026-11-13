@@ -35,3 +35,22 @@ export function diurnal(date: Date): number {
   if (minutes >= close && minutes < 20 * 60) return 0.4; // after hours
   return 0.2; // overnight
 }
+
+/**
+ * The average of the squared multiplier over a day, so the walk can be scaled to deliver a
+ * symbol's whole daily volatility however the day is shaped (ADR 0008, stage 4). About 0.42:
+ * without it, a symbol configured to move 3% a day moved about 2%, and news made up the rest.
+ */
+export const DAY_MEAN_SQUARE = (() => {
+  let sum = 0;
+  const start = Date.parse("2026-11-12T00:00:00Z"); // any ordinary weekday
+  for (let m = 0; m < 1440; m++) sum += diurnal(new Date(start + m * 60_000)) ** 2;
+  return sum / 1440;
+})();
+
+/**
+ * The walk's variance per second at activity 1 is a day's variance divided by this: a day
+ * of seconds scaled by the day's average squared activity, so a whole day of the time-of-day
+ * curve adds up to the profile's daily volatility.
+ */
+export const WALK_DAY_SECONDS = 86_400 * DAY_MEAN_SQUARE;
