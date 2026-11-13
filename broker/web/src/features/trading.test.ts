@@ -3,9 +3,9 @@
 import { describe, expect, test } from "vitest";
 
 import type { Holding, Order, OrderEvent, Security } from "../api/backend.ts";
-import { availableToSell, eventText, positionValue, splitOrders } from "./activity/orders.ts";
+import { availableToSell, eventText, positionValue, sharesOwned, splitOrders } from "./activity/orders.ts";
 import type { Draft } from "./ticket/draft.ts";
-import { bandCeilingCents, checkTicket, parseQty, type TicketContext } from "./ticket/ticket.ts";
+import { bandCeilingCents, checkTicket, ownedText, parseQty, type TicketContext } from "./ticket/ticket.ts";
 
 const ACME: Security = {
   symbol: "ACME",
@@ -98,6 +98,13 @@ describe("ticket", () => {
     expect(checkTicket("ACME", draft({ side: "SELL", qtyText: "60" }), ctx()).hints).toEqual(["Only 50 shares available to sell."]);
     expect(checkTicket("ACME", draft({ side: "SELL" }), ctx({ availableToSell: 0 })).hints).toEqual(["No ACME shares to sell."]);
   });
+
+  test("shares owned line", () => {
+    expect(ownedText(0, 0)).toBe("None");
+    expect(ownedText(25, 25)).toBe("25");
+    expect(ownedText(1500, 1200)).toBe("1,500 (1,200 available)");
+    expect(ownedText(25, 0)).toBe("25 (0 available)");
+  });
 });
 
 const order = (change: Partial<Order>): Order => ({
@@ -154,6 +161,7 @@ describe("activity", () => {
     ];
     expect(availableToSell([holding({})], orders, "ACME")).toBe(80);
     expect(availableToSell([], orders, "ACME")).toBe(0);
+    expect(sharesOwned([holding({}), holding({ symbol: "CRUX" })], "ACME")).toBe(100);
   });
 
   test("position value and P&L at a price, and without one", () => {
