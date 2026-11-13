@@ -45,7 +45,7 @@ const RIGHT = 542;
 const TOP = 60;
 const BOTTOM = 190;
 
-const you: FlowNode = { id: "you", name: "You", sub: "this web app", x: LEFT, y: TOP };
+const you: FlowNode = { id: "you", name: "You", sub: "Trading Platform", x: LEFT, y: TOP };
 
 export const FLOWS: readonly Flow[] = [
   {
@@ -56,14 +56,14 @@ export const FLOWS: readonly Flow[] = [
       { id: "firms", name: "Trading firms", sub: "simulated traders", x: LEFT, y: BOTTOM },
       { id: "exchange", name: "Exchange", sub: "Rust matching engine", x: MIDDLE, y: BOTTOM },
       { id: "md", name: "Market data", sub: "the broker's service", x: RIGHT, y: BOTTOM },
-      { id: "mddb", name: "Price history", sub: "its own database", x: MIDDLE, y: TOP },
+      { id: "mddb", name: "Price history", sub: "stored in database", x: MIDDLE, y: TOP },
       { ...you, x: RIGHT },
     ],
     steps: [
       {
         to: "firms",
         title: "Firms send orders",
-        text: "Simulated trading firms buy and sell all day. They connect to the exchange the same way any broker does, with no shortcut.",
+        text: "Simulated trading firms buy and sell all day. They connect to the exchange the same way any broker does, and place orders just like you do here.",
       },
       {
         from: "firms",
@@ -75,7 +75,7 @@ export const FLOWS: readonly Flow[] = [
         from: "exchange",
         to: "md",
         title: "Every change is published",
-        text: "Each trade and order book change goes out on a public feed to everyone, with no names on it. Every message is numbered, so a missed one is noticed and recovered.",
+        text: "Each trade and order book change goes out on a public feed to everyone, with no names on it.",
       },
       {
         from: "md",
@@ -87,7 +87,7 @@ export const FLOWS: readonly Flow[] = [
         from: "md",
         to: "you",
         title: "Your screen updates",
-        text: "It pushes each change to your browser over a WebSocket as it happens. The chart's history comes from the saved candles.",
+        text: "It pushes each change to your browser over a WebSocket as it happens. The chart's history comes from the price history.",
       },
     ],
   },
