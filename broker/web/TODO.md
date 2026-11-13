@@ -391,6 +391,17 @@ they read in every style and mode.
   the ticket under them. It has one mode, dark (`FIXED_MODES` in `theme/theme.ts`, repeated
   in `index.html`'s pre-paint script): Settings says so in place of the mode choice, which is
   kept for the other styles.
+- **Friendlier order ticket:**
+  - In Pro and Terminal (the "form" ticket), a market order keeps the Limit price box,
+    disabled and reading "Market", so Shares and price always sit side by side and nothing
+    jumps when switching type. It never touches the draft's price, so nothing extra is sent.
+  - Every style shows **Shares owned** under Buying power: "None", "25", or "25 (20
+    available)" when working sells already promise some (`ownedText` in `ticket.ts`,
+    `sharesOwned` beside `availableToSell`). On the Sell side, and always in Active (which
+    picks its side last), the number is a link that fills Shares with what is available, so
+    selling everything is one click.
+  - Checked against the real stack in Pro dark and light, Terminal, Active dark and light,
+    and Calm light and dark.
 - **Type anywhere to search:** typing a letter anywhere on the page, outside another field
   or a dialog and without Ctrl, Cmd or Alt, moves focus to the symbol box, and the letter goes
   in. Which presses count is a pure function (`startsSearch` in `features/header/search.ts`).
