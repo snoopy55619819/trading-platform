@@ -82,6 +82,11 @@ In the plan's suggested order of value.
       at about 690,000 commands a second, so it is not the limit. Doubles as a load test of
       the whole pipeline; real markets are also bursty (the open, the close, news), which a
       steady rate does not show.
+- [ ] **Reclaim space in the exchange's `fix_outbound`.** On 13 Nov 2026 it took 114 MB for
+      about 2,000 rows: almost certainly space left by rows deleted at each daily session
+      reset, which Postgres reuses but never hands back. Harmless now, but it grows with
+      activity. Check with `pgstattuple`, then a periodic `VACUUM` or a cleanup that keeps it
+      small.
 - [ ] **Calmer market makers.** 95% of the exchange's orders are market maker quotes
       cancelled within seconds, replaced each time fair value moves. Wider tolerance before
       re-quoting would cut orders per trade, and with them the journal (about 120 MB a day

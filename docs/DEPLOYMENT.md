@@ -68,7 +68,7 @@ changes to deploy it.
 |---|---|
 | gateway | `DATABASE_URL`, `ALPHA_DATA_DIR`, `ALPHA_LISTEN` and `ALPHA_MD_LISTEN` (`0.0.0.0:…` inside its container), `ALPHA_COMP_IDS` |
 | newswire | `NEWS_RATE=1` (one story per company about every 70 minutes) |
-| simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_NEWS_URL=ws://newswire:9890/headlines`, `SIM_ACTIVITY=1` (as busy as local) |
+| simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_NEWS_URL=ws://newswire:9890/headlines`, `SIM_ACTIVITY=2` and `SIM_MAX_ORDERS_PER_SEC=80` (twice as busy as local) |
 | backend | `DATABASE_URL`, `FIX_HOST=gateway`, `FIX_PORT=9878`, `BROKER_WEB_ORIGIN=https://tradeplatform.dev` |
 | market-data | `MD_DATABASE_URL`, `MD_FEED_URL=ws://gateway:9879`, `MD_NEWS_URL=ws://newswire:9890/headlines` |
 | web (at build time) | `VITE_BACKEND_URL=/api`, `VITE_MARKET_DATA_URL=/md`: paths, so the image works on any hostname |
@@ -86,7 +86,12 @@ gateway grew through each business day: 234 MB by mid-day at `SIM_ACTIVITY=0.2`,
 kept a full record of every order until the 21:00 roll. Since `v0.3.0` it keeps a full record
 only for live orders: 37 MB for a day of 180,000 orders, and about 900 MB of the server's
 1.8 GB available ([ADR 0005](adr/0005-gateway-keeps-only-live-orders.md)). That made room for
-`SIM_ACTIVITY=1`. The databases' "memory" in `docker stats` is mostly file cache, which the
+`SIM_ACTIVITY=1`. Measured at 1 on 13 Nov 2026 (01:00 UTC, the overnight lull): load 0.08
+on 2 vCPUs, every container under 1% CPU, 825 MB available, the gateway 46 MB, disk 31% of
+30 GB, the journal about 82 MB for the first day and market-data's database 19 MB in all,
+with about 6,000 trades an hour in New York market hours. So the simulator went to
+`SIM_ACTIVITY=2`, with its cap raised from 40 to 80 orders a second so the opening rush is
+not flattened. The databases' "memory" in `docker stats` is mostly file cache, which the
 system reclaims when needed; "available" in `free -m` is the number that matters. The
 newswire (ADR 0006) adds one more small Node process, about 50 MB.
 

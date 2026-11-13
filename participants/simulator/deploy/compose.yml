@@ -15,9 +15,13 @@ services:
       SIM_FEED_URL: ws://gateway:9879
       # Prices gap only on news (ADR 0006). Without the newswire they still move, without gaps.
       SIM_NEWS_URL: ws://newswire:9890/headlines
-      # As busy as local development. Ran at 0.2 until the gateway stopped keeping a full
-      # record of every finished order (ADR 0005); set SIM_ACTIVITY to override.
-      SIM_ACTIVITY: ${SIM_ACTIVITY:-1}
+      # Twice as busy as local development. Ran at 0.2 until the gateway stopped keeping a
+      # full record of every finished order (ADR 0005), then at 1. Measured at 1 on 13 Nov
+      # 2026, the server was nowhere near its limits (docs/DEPLOYMENT.md). This setting only
+      # scales the traders who take prices, so the cap on orders a second goes up with it:
+      # at 40 the opening rush would flatten against it. Set either to override.
+      SIM_ACTIVITY: ${SIM_ACTIVITY:-2}
+      SIM_MAX_ORDERS_PER_SEC: ${SIM_MAX_ORDERS_PER_SEC:-80}
     volumes:
       - state:/data
     networks: [trading]
