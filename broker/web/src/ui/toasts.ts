@@ -10,6 +10,10 @@ export interface Toast {
   tone: Tone;
   title: string;
   text?: string | undefined;
+  /** A button in the toast. Pressing it runs `run` and dismisses the toast. */
+  action?: { label: string; run: () => void } | undefined;
+  /** How long it stays, when not the tone's usual time. */
+  lifetimeMs?: number | undefined;
 }
 
 const MAX = 4;
@@ -30,7 +34,7 @@ export function notify(toast: Omit<Toast, "id">): void {
   // Newest last; the oldest go when there are too many.
   toasts = [...toasts, { ...toast, id }].slice(-MAX);
   emit();
-  setTimeout(() => dismiss(id), LIFETIME_MS[toast.tone]);
+  setTimeout(() => dismiss(id), toast.lifetimeMs ?? LIFETIME_MS[toast.tone]);
 }
 
 export function useToasts(): Toast[] {

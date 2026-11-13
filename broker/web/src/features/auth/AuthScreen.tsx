@@ -5,6 +5,9 @@ import { type FormEvent, useState } from "react";
 import { ApiError } from "../../api/backend.ts";
 import { useLogIn, useSignUp } from "../../query/hooks.ts";
 import { ThemeSwitcher } from "../../theme/ThemeSwitcher.tsx";
+import { notify } from "../../ui/toasts.ts";
+import { HowItWorks } from "../guide/HowItWorks.tsx";
+import { WELCOME, guide } from "../guide/store.ts";
 import "./auth.css";
 
 type Mode = "signIn" | "signUp";
@@ -12,7 +15,7 @@ type Mode = "signIn" | "signUp";
 export function AuthScreen() {
   const [mode, setMode] = useState<Mode>("signIn");
   const logIn = useLogIn();
-  const signUp = useSignUp();
+  const signUp = useSignUp(() => notify(WELCOME));
   const active = mode === "signIn" ? logIn : signUp;
   return (
     <AuthView
@@ -105,6 +108,11 @@ export function AuthView({ mode, pending, error, onModeChange, onSubmit }: AuthV
           {signUp ? "I already have an account" : "New here? Open an account"}
         </button>
       </form>
+      {/* For a visitor deciding whether to sign up: the guide works without an account. */}
+      <button type="button" className="link auth-guide" onClick={guide.open}>
+        How does this work? See what happens behind the screen
+      </button>
+      <HowItWorks live={false} />
       <div className="auth-theme">
         <ThemeSwitcher />
       </div>

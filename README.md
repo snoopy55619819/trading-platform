@@ -45,6 +45,7 @@ by published protocols, the way real market infrastructure is.
   same FIX session as any other client.
 - **Trading app:** React App with live prices, charts, order book, order confirmations, positions with P&L, and news, in four styles with light and dark modes.
 - **News that moves the market:** a newswire invents headlines about the listed companies; the simulated traders react to them, and the app shows each story and marks it on the chart (ADR 0006).
+- **The app explains itself:** a "How it works?" button walks through market data, news, your holdings and placing a trade, one step at a time on animated diagrams (ADR 0007).
 
 One set of components, four styles, each in light and dark (Terminal is dark only):
 

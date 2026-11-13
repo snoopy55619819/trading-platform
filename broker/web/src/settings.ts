@@ -1,5 +1,6 @@
 // Trading preferences that are not about looks: the ticket's default quantity, how many
-// trades time and sales shows, and whether the news panel shows one symbol or all. Saved in localStorage per browser, like the theme. (Mode and
+// trades time and sales shows, whether the news panel shows one symbol or all, and whether
+// the "How it works?" guide has been opened. Saved in localStorage per browser, like the theme. (Mode and
 // style live in theme.ts.)
 
 import { useSyncExternalStore } from "react";
@@ -18,12 +19,14 @@ export interface Settings {
   /** How many of the latest trades time and sales shows. */
   tapeRows: TapeRows;
   newsScope: NewsScope;
+  /** Has this browser opened "How it works?" yet? Until it has, the button carries a dot. */
+  guideSeen: boolean;
 }
 
 const KEY = "broker.settings";
 // Every symbol's news by default: there is a story somewhere every few minutes, but one
 // company's can be an hour apart.
-export const DEFAULT_SETTINGS: Settings = { defaultQty: 1, tapeRows: 50, newsScope: "all" };
+export const DEFAULT_SETTINGS: Settings = { defaultQty: 1, tapeRows: 50, newsScope: "all", guideSeen: false };
 
 /** A saved value, checked: anything unreadable or out of range falls back to the default. */
 export function parseSettings(raw: string | null): Settings {
@@ -35,6 +38,7 @@ export function parseSettings(raw: string | null): Settings {
       defaultQty: typeof qty === "number" && Number.isSafeInteger(qty) && qty > 0 ? qty : DEFAULT_SETTINGS.defaultQty,
       tapeRows: TAPE_ROWS.includes(rows as TapeRows) ? (rows as TapeRows) : DEFAULT_SETTINGS.tapeRows,
       newsScope: NEWS_SCOPES.includes(saved.newsScope as NewsScope) ? (saved.newsScope as NewsScope) : DEFAULT_SETTINGS.newsScope,
+      guideSeen: saved.guideSeen === true,
     };
   } catch {
     return DEFAULT_SETTINGS;

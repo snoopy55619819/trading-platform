@@ -55,12 +55,14 @@ export function useLogIn() {
   });
 }
 
-export function useSignUp() {
+/** `onOpened` runs once the new account is open and signed in: to welcome the user. */
+export function useSignUp(onOpened?: () => void) {
   return useMutation({
     mutationFn: async ({ email, password, name }: { email: string; password: string; name: string }) => {
       await backend.signUp(email, password, name);
       const { token } = await backend.logIn(email, password);
       session.start(token);
+      onOpened?.();
     },
   });
 }

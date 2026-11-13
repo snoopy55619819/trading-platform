@@ -114,15 +114,15 @@ describe("connection notices", () => {
 
 describe("settings", () => {
   test("a saved default quantity, checked", () => {
-    expect(parseSettings('{"defaultQty":25}')).toEqual({ defaultQty: 25, tapeRows: 50, newsScope: "all" });
+    expect(parseSettings('{"defaultQty":25}')).toEqual({ defaultQty: 25, tapeRows: 50, newsScope: "all", guideSeen: false });
     for (const bad of [null, "not json", '{"defaultQty":0}', '{"defaultQty":1.5}', '{"defaultQty":"10"}']) {
-      expect(parseSettings(bad)).toEqual({ defaultQty: 1, tapeRows: 50, newsScope: "all" });
+      expect(parseSettings(bad)).toEqual({ defaultQty: 1, tapeRows: 50, newsScope: "all", guideSeen: false });
     }
   });
 
   test("a saved number of time and sales rows, one of the choices", () => {
-    expect(parseSettings('{"tapeRows":5}')).toEqual({ defaultQty: 1, tapeRows: 5, newsScope: "all" });
-    expect(parseSettings('{"defaultQty":3,"tapeRows":10}')).toEqual({ defaultQty: 3, tapeRows: 10, newsScope: "all" });
+    expect(parseSettings('{"tapeRows":5}')).toEqual({ defaultQty: 1, tapeRows: 5, newsScope: "all", guideSeen: false });
+    expect(parseSettings('{"defaultQty":3,"tapeRows":10}')).toEqual({ defaultQty: 3, tapeRows: 10, newsScope: "all", guideSeen: false });
     for (const bad of ['{"tapeRows":7}', '{"tapeRows":"10"}', '{"tapeRows":0}', '{"tapeRows":null}']) {
       expect(parseSettings(bad).tapeRows).toBe(50);
     }
@@ -131,5 +131,10 @@ describe("settings", () => {
   test("a saved news scope, one of the choices; every symbol's news by default", () => {
     expect(parseSettings('{"newsScope":"symbol"}').newsScope).toBe("symbol");
     for (const bad of [null, '{"newsScope":"mine"}', '{"newsScope":1}']) expect(parseSettings(bad).newsScope).toBe("all");
+  });
+
+  test("the guide counts as seen only when saved as exactly true", () => {
+    expect(parseSettings('{"guideSeen":true}').guideSeen).toBe(true);
+    for (const other of [null, '{"guideSeen":false}', '{"guideSeen":"yes"}', '{"guideSeen":1}']) expect(parseSettings(other).guideSeen).toBe(false);
   });
 });

@@ -207,3 +207,27 @@
     white-space: nowrap;
   }
 }
+
+/* ---------- "How it works?" ---------- */
+.guide-button {
+  position: relative;
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: var(--weight-strong);
+}
+/* Calm draws no borders, so the outline is drawn inside instead. */
+:root[data-style="calm"] .guide-button {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  color: var(--accent);
+}
+/* Until the guide has been opened once in this browser. */
+.guide-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+}
