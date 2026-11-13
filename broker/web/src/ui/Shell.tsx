@@ -58,9 +58,20 @@ export function Shell({
 }
 
 /** The card every section sits in. */
-export function Panel({ title, actions, children }: { title?: ReactNode; actions?: ReactNode; children: ReactNode }) {
+export function Panel({
+  title,
+  actions,
+  children,
+  className,
+}: {
+  title?: ReactNode;
+  actions?: ReactNode;
+  children: ReactNode;
+  /** Added to the panel's own class, for a panel that needs something only it does. */
+  className?: string;
+}) {
   return (
-    <div className="panel">
+    <div className={className ? `panel ${className}` : "panel"}>
       {title !== undefined && (
         <header className="panel-head">
           <span>{title}</span>
