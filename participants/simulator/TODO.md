@@ -3,7 +3,7 @@
 **Makes the market look alive when nobody is using the app.** Without it, v1 is an empty
 book and a flat chart.
 
-Status: **done** · 56 tests, plus behaviour runs against the real exchange. Trades on the
+Status: **done** · 59 tests, plus behaviour runs against the real exchange. Trades on the
 newswire's headlines since stage 3 of the news plan (ADR 0006).
 
 ```
@@ -63,8 +63,8 @@ All optional, by environment variable (`src/config.ts`):
       0006 these come only from the newswire's headlines: see "News" below
 - [x] Diurnal multiplier on volume and volatility, so there are quiet and busy hours
 - [ ] More realistic prices, in layers and measured (ADR 0008): the plan and its stages are
-      in [PRICE-MODEL.md](PRICE-MODEL.md). Stages 1 (layers, measurement, baseline) and 2
-      (trading moves the price) are built.
+      in [PRICE-MODEL.md](PRICE-MODEL.md). Stages 1 (layers, measurement, baseline), 2
+      (trading moves the price) and 3 (volatility with memory, fat tails) are built.
 
 ### 3. Agents
 - [x] **Market maker** — quotes both sides around fair value; spread widens with
