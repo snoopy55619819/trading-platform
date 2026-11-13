@@ -9,6 +9,20 @@
   flex-wrap: wrap;
   align-self: flex-start;
 }
+/* A line between tabs: with four, some of two words, the names otherwise run together
+   (worst in Terminal, where an unselected tab has no background). None beside the
+   selected tab, whose own background already marks its edges. */
+.guide-tabs .segment + .segment {
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+}
+.guide-tabs .segment.selected,
+.guide-tabs .segment.selected + .segment {
+  border-left-color: transparent;
+}
+.guide-tabs .segment.selected {
+  border-radius: calc(var(--radius) * 0.75);
+}
 .guide-summary {
   margin: 0;
   color: var(--text-muted);
