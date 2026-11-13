@@ -5,9 +5,9 @@ import { parseSaved, resolveMode } from "./theme.ts";
 describe("theme settings", () => {
   test("saved settings are read back; anything unknown or corrupt is the default", () => {
     expect(parseSaved(JSON.stringify({ modeChoice: "dark", style: "calm" }))).toEqual({ modeChoice: "dark", style: "calm" });
-    expect(parseSaved(JSON.stringify({ modeChoice: "purple", style: "webull" }))).toEqual({ modeChoice: "system", style: "active" });
-    expect(parseSaved("{not json")).toEqual({ modeChoice: "system", style: "active" });
-    expect(parseSaved(null)).toEqual({ modeChoice: "system", style: "active" });
+    expect(parseSaved(JSON.stringify({ modeChoice: "purple", style: "webull" }))).toEqual({ modeChoice: "system", style: "terminal" });
+    expect(parseSaved("{not json")).toEqual({ modeChoice: "system", style: "terminal" });
+    expect(parseSaved(null)).toEqual({ modeChoice: "system", style: "terminal" });
   });
 
   test("the mode follows the system until one is chosen", () => {

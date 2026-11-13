@@ -59,7 +59,7 @@
 /* ---------- styles: shape, density and type ---------- */
 
 /* Pro: dense, small, square, monospaced numbers. Also the base every style starts from,
-   so these apply if data-style is ever missing. (The style a first visit gets is Active:
+   so these apply if data-style is ever missing. (The style a first visit gets is Terminal:
    DEFAULT_STYLE in theme.ts.) */
 :root,
 :root[data-style="pro"] {
