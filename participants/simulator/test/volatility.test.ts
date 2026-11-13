@@ -51,7 +51,7 @@ test("the tail multiplier averages 1, so daily volatility is unchanged", () => {
 test("a big move makes the next minutes jumpier, fading over about half an hour", () => {
   const memory = new VolatilityMemory(0.03);
   const rng = new Rng(1);
-  const minute = { dtSec: 60, wallSec: 60, activity: 1, logRatio: 0, rng };
+  const minute = { dtSec: 60, wallSec: 60, activity: 1, logRatio: 0, band: { floor: -0.2, limit: 0.2 }, rng };
   const expected = 0.03 * Math.sqrt(60 / WALK_DAY_SECONDS);
   memory.advance(minute, 5 * expected); // a minute 25 times its usual variance
   const after = memory.volatility();

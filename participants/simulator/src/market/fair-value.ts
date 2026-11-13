@@ -84,7 +84,7 @@ export class FairValue {
 
   /** Advances by `wallSec` of real time. `activity` scales volatility. */
   step(wallSec: number, activity: number, rng: Rng): void {
-    const moment: Moment = { dtSec: wallSec * this.speed, wallSec, activity, logRatio: this.logRatio, rng };
+    const moment: Moment = { dtSec: wallSec * this.speed, wallSec, activity, logRatio: this.logRatio, band: this.band(), rng };
     const vol = this.modelVolPerSec(activity);
     let drift = 0;
     for (const layer of this.layers.all) if (layer.drift) drift += layer.drift(moment);
@@ -116,11 +116,26 @@ export class FairValue {
     this.move(this.layers.impact.trade(qty, buyerAggressed));
   }
 
-  /** Moves log fair value, staying inside the part of the band it may use. */
+  /** The part of the venue's band fair value may use, in log price. */
+  private band(): { floor: number; limit: number } {
+    return {
+      floor: Math.log(1 - (this.listing.bandPct / 100) * BAND_USE),
+      limit: Math.log(1 + (this.listing.bandPct / 100) * BAND_USE),
+    };
+  }
+
+  /**
+   * Moves log fair value. A move toward the nearer edge of the band shrinks as the room
+   * left runs out (ADR 0008, stage 5): barely in the middle, to nothing at the edge, so the
+   * price eases up to the edge instead of hitting it and lying flat against it. The hard
+   * limit stays, as a last resort.
+   */
   private move(logMove: number): void {
-    const limit = Math.log(1 + (this.listing.bandPct / 100) * BAND_USE);
-    const floor = Math.log(1 - (this.listing.bandPct / 100) * BAND_USE);
-    this.logRatio = Math.min(limit, Math.max(floor, this.logRatio + logMove));
+    const { floor, limit } = this.band();
+    const edge = logMove > 0 ? limit : floor;
+    const used = this.logRatio / edge; // 0 at the reference price, 1 at this edge
+    const room = used > 0 ? Math.max(0, 1 - used ** 4) : 1;
+    this.logRatio = Math.min(limit, Math.max(floor, this.logRatio + logMove * room));
   }
 }
 
