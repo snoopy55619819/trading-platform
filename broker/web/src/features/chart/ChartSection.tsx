@@ -76,6 +76,7 @@ export function ChartSection({ symbol }: { symbol: string | undefined }) {
   const viewKey = `${symbol}/${interval}`;
   return (
     <Panel
+      className="chart-panel"
       title={symbol ?? "Chart"}
       actions={<Segmented label="Interval" options={INTERVALS.map((i) => ({ value: i, label: i }))} value={interval} onChange={chooseInterval} />}
     >

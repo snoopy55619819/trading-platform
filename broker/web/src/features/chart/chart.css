@@ -1,3 +1,10 @@
+/* On a touch screen, a pinch that just misses the chart (its title bar, buttons or legend)
+   would zoom the whole page. Anywhere on the chart's panel, a pinch does nothing but the
+   chart's own zoom; one-finger scrolling still works, and the rest of the page can still be
+   zoomed. */
+.chart-panel {
+  touch-action: pan-x pan-y;
+}
 /* The chart above its range buttons, filling the panel. */
 .chart-section {
   display: flex;

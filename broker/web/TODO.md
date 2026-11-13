@@ -450,6 +450,13 @@ they read in every style and mode.
     with a button that opens it; toasts can now carry one action button. Open or closed is
     a small store (`features/guide/store.ts`), so any of these can open it.
 
+- **No page zoom around the chart on touch screens:** a pinch that just missed the chart (its
+  title bar, interval or range buttons, legend) zoomed the whole page. The chart's panel
+  now has `touch-action: pan-x pan-y`, so a pinch there does nothing but the chart's own
+  zoom; one-finger scrolling still works, and the rest of the page can still be zoomed
+  (turning zoom off for the whole page would take it from people who need it, and iPhone
+  Safari ignores `user-scalable=no` anyway).
+
 ## Done when
 
 Click "Buy 100" in the browser, watch the order fill in the blotter, the book move, and
