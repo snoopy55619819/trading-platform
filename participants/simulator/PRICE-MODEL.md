@@ -14,7 +14,7 @@ Fair value is a random walk in log price. Layers on top each add one thing a rea
 | Layer | File | Since | What it does |
 |---|---|---|---|
 | Pull to reference | `pull.ts` | M4 | a weak pull back toward the reference price (half-life 3 days), so prices stay in the venue's fixed band |
-| News | `news-layer.ts` | ADR 0006 | a headline moves fair value at once and heats the symbol up; heat speeds the walk and the agents |
+| News | `news-layer.ts` | ADR 0006, reshaped in stage 4 | half a headline's move at once and the rest over about 4 minutes, with an overshoot given back in 30% of stories; heats the symbol up for about 15 minutes, which speeds the walk and the agents |
 | Volatility memory | `memory.ts` | stage 3 | GARCH(1,1) once a minute: a minute that moved more than the walk alone would (news, trading, a big candle) makes the next ones jumpier, fading over about an hour |
 | Fat tails | `tails.ts` | stage 3 | each minute draws a variance multiplier (mean 1) that makes the minute's move Student-t with 5 degrees of freedom: big candles without news |
 | Trading impact | `impact.ts` | stage 2 | every trade on the public tape nudges fair value toward the side that took liquidity, by the square-root law; 40% stays, the rest fades over minutes. `SIM_IMPACT` scales it, `0` turns it off |
@@ -121,13 +121,30 @@ fair comparison.
 
 ### 4. News over minutes
 
-- [ ] 40 to 60% of a headline's move at once, the rest arriving over 2 to 8 minutes.
-- [ ] In about 30% of stories, an overshoot of 10 to 30% that reverts over 15 to 30 minutes.
-- [ ] Bursts last longer: heat half-life from 2 minutes to 15 to 45.
-- [ ] Rebalance: news's share of daily variance well below today's roughly 90%; fewer or smaller
-      moves overnight, when the rest of the market is slow.
-- [ ] Optional: stories cluster (a Hawkes process: one story raises the chance of another).
-- [ ] Target: the average path after news builds over minutes; news share a minority.
+- [x] Half of a headline's move at once; the rest arrives with a 4-minute time constant.
+- [x] In 30% of stories, an overshoot of 10 to 30% of the move, arriving with the rest and
+      given back with a 20-minute half-life.
+- [x] Bursts last longer: heat half-life from 2 minutes to 15. Its multipliers are gentler
+      (walk 2.5x, takers 3.5x as often and 1.5x the size, quotes 60% the size at full heat),
+      since bursts last seven times as long and the volatility memory carries the tail.
+- [x] Rebalance: news moves are smaller (0.12 of a day's volatility times the jump size for
+      MINOR, 0.35 for MAJOR, was 0.3 and 0.75), and the walk now delivers the profile's
+      whole daily volatility: it was scaled by the time-of-day curve, which averages 0.42
+      in its square, so a 3% symbol moved about 2% a day and news made up the rest.
+- [x] The newswire follows the time of day (`participants/newswire/src/hours.ts`): busiest
+      before the open and after the close, quiet overnight, the same number a day.
+- [ ] Optional, not built: stories that cluster (a Hawkes process).
+- [x] Measured on the whole model (walk, layers and the newswire's real schedule, with the
+      real time-of-day curve), 20 simulated days of ACME, same seeds, `main` against stage 4:
+
+      | | Before | After | Real stock |
+      |---|---|---|---|
+      | Excess kurtosis | 205 | 21 | 5 to 20 |
+      | Average move after news at 1, 2, 5, 10, 30 min | 145, 147, 150, 149, 156 bps | 35, 42, 63, 73, 69 bps | builds over minutes |
+      | Share of movement in the 5 min after news | 78% | 11% | a minority |
+      | \|return\| autocorrelation at 1, 15, 60 min | 0.09, 0.05, 0.03 | 0.34, 0.29, 0.21 | positive, fading slowly |
+      | One-minute volatility, over 24 hours | 14.6 bps | 19.3 bps | |
+- [ ] On the live site after release: the same with `pnpm realism --compare`.
 
 ### 5. A soft band
 

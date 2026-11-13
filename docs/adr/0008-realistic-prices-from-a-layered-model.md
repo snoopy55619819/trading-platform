@@ -1,8 +1,10 @@
 # ADR 0008: Realistic prices, from a layered model and measured against real markets
 
 **Status:** accepted, 2026-11-13. Being built in stages (`participants/simulator/PRICE-MODEL.md`):
-stage 1 (the layered structure, the measurement tool and a baseline), stage 2 (trading
-moves the price) and stage 3 (volatility with memory and fat tails) are built. Changes how the
+stages 1 (the layered structure, the measurement tool and a baseline), 2 (trading moves
+the price), 3 (volatility with memory and fat tails) and 4 (news over minutes, rebalanced,
+and following the time of day) are built. Stage 4 also changes the newswire: when news
+happens during the day is its business. Changes how the
 simulator's fair value moves (`participants/simulator/src/market/`), not who decides it: the
 simulator is still the only firm with a fair value, and nothing about the exchange, the
 broker or the protocols changes.
