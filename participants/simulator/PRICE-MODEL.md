@@ -15,13 +15,17 @@ Fair value is a random walk in log price. Layers on top each add one thing a rea
 |---|---|---|---|
 | Pull to reference | `pull.ts` | M4 | a weak pull back toward the reference price (half-life 3 days), so prices stay in the venue's fixed band |
 | News | `news-layer.ts` | ADR 0006 | a headline moves fair value at once and heats the symbol up; heat speeds the walk and the agents |
+| Volatility memory | `memory.ts` | stage 3 | GARCH(1,1) once a minute: a minute that moved more than the walk alone would (news, trading, a big candle) makes the next ones jumpier, fading over about an hour |
+| Fat tails | `tails.ts` | stage 3 | each minute draws a variance multiplier (mean 1) that makes the minute's move Student-t with 5 degrees of freedom: big candles without news |
 | Trading impact | `impact.ts` | stage 2 | every trade on the public tape nudges fair value toward the side that took liquidity, by the square-root law; 40% stays, the rest fades over minutes. `SIM_IMPACT` scales it, `0` turns it off |
 
 Each step, every layer may:
 
 - **`volatility()`**: scale how fast the walk moves right now (multiplied together);
 - **`drift(moment)`**: add a move that is not random (added together);
-- **`advance(moment)`**: update its own state once the step is taken.
+- **`advance(moment, moved)`**: update its own state once the step is taken; `moved` is how
+  far the price moved since the previous step, news and trades included, and
+  `moment.rng` is the model's random numbers.
 
 It may also take events from outside, as the news layer takes headlines. `layer.ts` has the
 contract; `layers.ts` lists the layers every symbol gets, in order.
@@ -94,13 +98,26 @@ fair comparison.
 
 ### 3. Volatility with memory
 
-- [ ] A volatility state per symbol, GARCH(1,1)-style per minute:
-      `σ² = ω + α·r² + β·σ²`, α about 0.05 to 0.1, α + β about 0.97 to 0.99, ω set so the
-      long-run level matches the profile's daily volatility. The time-of-day curve stays a
-      multiplier.
-- [ ] Shocks from a Student-t distribution (3 to 5 degrees of freedom) instead of a normal.
-- [ ] Target: \|return\| autocorrelation positive and slow to fade; kurtosis from the walk
-      itself, not only from news.
+- [x] GARCH(1,1) per minute on a variance multiplier: `h = ω + α·e + β·h`, α = 0.08,
+      β = 0.91 (α + β = 0.99), ω = 1 − α − β so h averages 1. `e` is the minute's actual
+      squared move over what the walk alone would give, so news and trading count too;
+      capped at 20, and h at 9. The time-of-day curve stays a multiplier.
+- [x] Fat tails per minute, not per step (four steps a second would average fat-tailed
+      steps back into a normal minute): a variance multiplier `(ν − 2) / χ²(ν)`, ν = 5,
+      capped at 12, which makes each minute's move Student-t.
+- [x] Measured on the model alone, 20 simulated days of ACME, same seed, before and after
+      (`test/volatility.test.ts` checks these as properties):
+
+      | | Before | After | Real stock |
+      |---|---|---|---|
+      | Excess kurtosis | 0.0 | 7.5 | 5 to 20 |
+      | \|return\| autocorrelation at 1, 15, 60 min | 0.01, -0.01, -0.01 | 0.17, 0.15, 0.04 | positive, fading slowly |
+      | Return autocorrelation, lag 1 | 0.006 | -0.001 | about 0 |
+      | One-minute volatility | 6.6 bps | 5.5 bps | |
+
+      The caps trim volatility by about a sixth; stage 4's rebalance of news against the
+      walk is the place to set the overall level.
+- [ ] On the live site after release: the same measures with `pnpm realism --compare`.
 
 ### 4. News over minutes
 

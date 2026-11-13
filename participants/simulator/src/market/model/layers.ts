@@ -4,8 +4,10 @@
 import type { Profile } from "../fair-value.ts";
 import { ImpactLayer } from "./impact.ts";
 import type { Layer } from "./layer.ts";
+import { VolatilityMemory } from "./memory.ts";
 import { NewsLayer } from "./news-layer.ts";
 import { PullToReference } from "./pull.ts";
+import { FatTails } from "./tails.ts";
 
 export interface StandardLayers {
   /** Every layer, in the order FairValue asks them. */
@@ -20,5 +22,9 @@ export interface StandardLayers {
 export function standardLayers(profile: Profile, impact = 1): StandardLayers {
   const news = new NewsLayer();
   const impactLayer = new ImpactLayer(profile.dailyVol, impact);
-  return { all: [new PullToReference(), news, impactLayer], news, impact: impactLayer };
+  return {
+    all: [new PullToReference(), news, impactLayer, new VolatilityMemory(profile.dailyVol), new FatTails()],
+    news,
+    impact: impactLayer,
+  };
 }

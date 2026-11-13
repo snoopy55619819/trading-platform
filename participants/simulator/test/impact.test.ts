@@ -13,9 +13,10 @@ import {
   WARM_UP_SEC,
 } from "../src/market/model/impact.ts";
 import type { Moment } from "../src/market/model/layer.ts";
+import { Rng } from "../src/market/rng.ts";
 
 const DAILY_VOL = 0.03;
-const moment = (wallSec: number): Moment => ({ dtSec: wallSec, wallSec, activity: 1, logRatio: 0 });
+const moment = (wallSec: number): Moment => ({ dtSec: wallSec, wallSec, activity: 1, logRatio: 0, rng: new Rng(1) });
 
 /** A layer that has watched `perSec` shares a second trade for `seconds`. */
 function warmed(perSec: number, seconds: number): ImpactLayer {
