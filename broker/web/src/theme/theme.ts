@@ -18,7 +18,7 @@ export const STYLE_NAMES: Record<Style, string> = { pro: "Pro", active: "Active"
 /** Styles drawn in one mode only, whatever the mode setting says. index.html repeats this. */
 export const FIXED_MODES: Partial<Record<Style, Mode>> = { terminal: "dark" };
 /** What a first visit looks like. index.html's pre-paint script repeats it: keep the two the same. */
-export const DEFAULT_STYLE: Style = "active";
+export const DEFAULT_STYLE: Style = "terminal";
 
 export interface Theme {
   /** What the user chose. */

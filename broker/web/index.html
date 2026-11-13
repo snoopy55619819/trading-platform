@@ -13,7 +13,7 @@
         try {
           saved = JSON.parse(localStorage.getItem("broker.theme") || "{}");
         } catch (e) {}
-        var style = ["pro", "active", "calm", "terminal"].indexOf(saved.style) >= 0 ? saved.style : "active"; // DEFAULT_STYLE in theme.ts
+        var style = ["pro", "active", "calm", "terminal"].indexOf(saved.style) >= 0 ? saved.style : "terminal"; // DEFAULT_STYLE in theme.ts
         var choice = ["light", "dark"].indexOf(saved.modeChoice) >= 0 ? saved.modeChoice : "system";
         var dark = style === "terminal" || choice === "dark" || (choice === "system" && matchMedia("(prefers-color-scheme: dark)").matches); // FIXED_MODES
         document.documentElement.dataset.mode = dark ? "dark" : "light";
