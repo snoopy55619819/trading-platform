@@ -43,6 +43,8 @@ export class FairValue {
   private readonly layers: StandardLayers;
   /** ln(fair value / reference) */
   private logRatio = 0;
+  /** logRatio when the previous step ended, so layers learn how far it has moved since. */
+  private lastStepRatio = 0;
   /** Set for one step after news moved the price, for the market makers to react to. */
   jumped = false;
   private shocked = false;
@@ -82,14 +84,16 @@ export class FairValue {
 
   /** Advances by `wallSec` of real time. `activity` scales volatility. */
   step(wallSec: number, activity: number, rng: Rng): void {
-    const moment: Moment = { dtSec: wallSec * this.speed, wallSec, activity, logRatio: this.logRatio };
+    const moment: Moment = { dtSec: wallSec * this.speed, wallSec, activity, logRatio: this.logRatio, rng };
     const vol = this.modelVolPerSec(activity);
     let drift = 0;
     for (const layer of this.layers.all) if (layer.drift) drift += layer.drift(moment);
     this.move(drift + vol * Math.sqrt(moment.dtSec) * rng.normal());
     this.jumped = this.shocked;
     this.shocked = false;
-    for (const layer of this.layers.all) layer.advance?.(moment);
+    const moved = this.logRatio - this.lastStepRatio;
+    this.lastStepRatio = this.logRatio;
+    for (const layer of this.layers.all) layer.advance?.(moment, moved);
   }
 
   /**
