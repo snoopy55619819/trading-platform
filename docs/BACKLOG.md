@@ -22,8 +22,6 @@ way M8 was.
       venue endpoint) and include the worst case in the estimate and buying-power hint.
 - [ ] **Order history paging.** The backend returns the latest 100 orders. Add a cursor
       (`?before=<orderId>`) and "load more" in History when 100 is not enough.
-- [ ] **Open the guide on a first visit.** Show "How it works?" (ADR 0007) once on a new
-      account's first sign-in, with a way to not see it again.
 - [ ] **"See what just happened" after a fill.** A link on the fill confirmation that opens
       the guide's "Placing a trade" tab, so the steps follow the order just placed.
 - [ ] **"Synthetic, no real money" banner.** A small, always-visible note in the web app so

@@ -74,6 +74,15 @@ Options 2 and 7.
   users who ask their system for reduced motion.
 - **A live line under each diagram** ties it to the screen: the selected symbol's last
   trade price, the latest headline, or the user's cash right now.
+- **Three ways in,** so people know it exists without being made to sit through it:
+  - the top bar button is in the accent colour, with a dot until this browser has opened
+    the guide once (`guideSeen` in the saved settings);
+  - the sign-in page has a link to it, for a visitor deciding whether to sign up (the guide
+    works without an account, minus the live lines);
+  - a new account gets a welcome toast with a button that opens it.
+
+  Opening it on its own at the first visit, and a banner, were rejected: both cost every
+  user attention to reach the ones who want it.
 - **Animation is SVG and CSS only** (`<animateMotion>`). A motion library can be added later
   if the animations outgrow that.
 
@@ -93,5 +102,5 @@ four fixed diagrams do not need.
 - **Boxes are placed by hand.** Adding a fifth box to a flow means choosing its position.
   That is fine at this size; a flow that needed automatic layout would be a sign the guide
   is saying too much.
-- **Later, if wanted** (in `docs/BACKLOG.md`): open the guide once on a new account's first
-  visit, and a "See what just happened" link after an order fills that opens the trade tab.
+- **Later, if wanted** (in `docs/BACKLOG.md`): a "See what just happened" link after an
+  order fills that opens the trade tab.

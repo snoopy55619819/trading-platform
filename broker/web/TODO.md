@@ -430,6 +430,12 @@ they read in every style and mode.
     check every flow's data holds together and the arrow geometry.
   - Checked against the real stack in Active dark, Terminal and Calm light, and at phone
     width (no sideways scroll; the diagram scales down).
+  - **Ways in:** the button is in the accent colour (an inset outline in Calm, which draws
+    no borders), with a dot until this browser has opened the guide once (`guideSeen` in
+    `settings.ts`). The sign-in page links to it, without the live lines since there is no
+    account yet. A new account gets a welcome toast ("You have $10,000 of pretend cash")
+    with a button that opens it; toasts can now carry one action button. Open or closed is
+    a small store (`features/guide/store.ts`), so any of these can open it.
 
 ## Done when
 
