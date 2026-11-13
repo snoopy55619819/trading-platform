@@ -93,3 +93,19 @@ test("the price is built from layers, and a new one plugs in without touching th
   assert.ok(Math.abs(fair.value() - 4210 * Math.exp(0.01)) < 0.01, `at ${fair.value()}`);
   assert.equal(fair.volPerSec(1), 0);
 });
+
+test("the soft band: prices turn back before the edge instead of lying flat against it", () => {
+  // CRUX has the narrowest band for its volatility. Two years of minutes.
+  const crux = { ticker: "CRUX", tickCents: 5, referenceCents: 28_650, bandPct: 15 };
+  const fair = new FairValue(crux, profileFor("CRUX"));
+  const rng = new Rng(3);
+  const limit = Math.log(1 + 0.15 * 0.75);
+  const floor = Math.log(1 - 0.15 * 0.75);
+  let pinned = 0;
+  for (let minute = 0; minute < 2 * 365 * 1440; minute++) {
+    fair.step(60, 0.65, rng); // about a day's average activity
+    const x = Math.log(fair.value() / crux.referenceCents);
+    if (x >= limit - 1e-9 || x <= floor + 1e-9) pinned++;
+  }
+  assert.equal(pinned, 0);
+});

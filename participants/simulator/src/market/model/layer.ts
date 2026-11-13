@@ -31,6 +31,8 @@ export interface Moment {
   activity: number;
   /** ln(fair value / reference price) before the step. */
   logRatio: number;
+  /** The part of the venue's band fair value may use, as ln(price / reference): floor below 0, limit above. */
+  band: { floor: number; limit: number };
   /** The model's random numbers, for advance() only. */
   rng: Rng;
 }
