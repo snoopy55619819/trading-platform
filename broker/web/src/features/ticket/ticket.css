@@ -14,6 +14,12 @@
   grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: var(--space-3);
 }
+/* The price box a market order keeps in the form (Pro, Terminal): there, but not for typing. */
+.ticket .input:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.6; /* in Terminal muted text is the labels' amber, so fade it too */
+}
 .ticket-more summary {
   cursor: pointer;
   color: var(--text-muted);
@@ -39,6 +45,12 @@
 }
 .ticket-costs dd {
   margin: 0;
+}
+/* The shares-owned link: underlined, since in Terminal the accent is also the label colour. */
+.ticket-costs .link {
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .ticket-outcome {
   margin: 0;

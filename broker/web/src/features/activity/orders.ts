@@ -24,9 +24,14 @@ export function splitOrders(orders: readonly Order[], symbol?: string): { open: 
   return { open: newest.filter(isWorking), done: newest.filter((o) => !isWorking(o)) };
 }
 
+/** Shares of `symbol` held, settled or not. */
+export function sharesOwned(holdings: readonly Holding[], symbol: string): number {
+  return holdings.filter((h) => h.symbol === symbol).reduce((n, h) => n + h.qtySettled + h.qtyUnsettled, 0);
+}
+
 /** Shares of `symbol` that can still be sold: held, less what working sells already promise. */
 export function availableToSell(holdings: readonly Holding[], orders: readonly Order[], symbol: string): number {
-  const held = holdings.filter((h) => h.symbol === symbol).reduce((n, h) => n + h.qtySettled + h.qtyUnsettled, 0);
+  const held = sharesOwned(holdings, symbol);
   const promised = orders
     .filter((o) => o.symbol === symbol && o.side === "SELL" && isWorking(o))
     .reduce((n, o) => n + o.qty - o.filledQty, 0);

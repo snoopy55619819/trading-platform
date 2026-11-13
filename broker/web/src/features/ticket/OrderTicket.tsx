@@ -18,10 +18,10 @@ import { ConfirmDialog } from "../../ui/Dialog.tsx";
 import { Panel } from "../../ui/Shell.tsx";
 import { Segmented, Stepper } from "../../ui/controls.tsx";
 import { type Variants, useVariants } from "../../theme/variants.ts";
-import { STATUS_LABEL, availableToSell } from "../activity/orders.ts";
+import { STATUS_LABEL, availableToSell, sharesOwned } from "../activity/orders.ts";
 import { quoteFrom } from "../header/quote.ts";
 import { type Draft, updateDraft, useDraft } from "./draft.ts";
-import { type TicketCheck, checkTicket } from "./ticket.ts";
+import { type TicketCheck, checkTicket, ownedText } from "./ticket.ts";
 import "./ticket.css";
 
 /** The last submit: an order to follow, or why it was not placed. */
@@ -53,14 +53,15 @@ export function OrderTicket({ symbol, security }: { symbol: string | undefined; 
   }
 
   const quote = quoteFrom(market, daily.bars, bucketStart(Date.now(), "1d"));
+  const available =
+    positions.data && orders.data ? availableToSell(positions.data.holdings, orders.data, symbol) : undefined;
   const check = checkTicket(symbol, draft, {
     security,
     bestBidCents: quote.bidCents,
     bestAskCents: quote.askCents,
     lastCents: quote.lastCents,
     buyingPowerCents: positions.data?.buyingPowerCents,
-    availableToSell:
-      positions.data && orders.data ? availableToSell(positions.data.holdings, orders.data, symbol) : undefined,
+    availableToSell: available,
   });
 
   const send = () => {
@@ -86,6 +87,8 @@ export function OrderTicket({ symbol, security }: { symbol: string | undefined; 
       lotSize={security?.lotSize ?? 1}
       check={check}
       buyingPowerCents={positions.data?.buyingPowerCents}
+      owned={positions.data ? sharesOwned(positions.data.holdings, symbol) : undefined}
+      available={available}
       outcome={outcome}
       onChange={(change) => {
         updateDraft(change);
@@ -149,6 +152,8 @@ export function TicketView({
   askCents,
   lotSize,
   buyingPowerCents,
+  owned,
+  available,
   outcome,
   onChange,
   onReview,
@@ -162,6 +167,9 @@ export function TicketView({
   askCents: number | undefined;
   lotSize: number;
   buyingPowerCents: number | undefined;
+  /** Shares of this symbol held, and how many of them are not already on working sells. */
+  owned: number | undefined;
+  available: number | undefined;
   outcome: Outcome | undefined;
   onChange: (change: Partial<Draft>) => void;
   onReview: () => void;
@@ -210,7 +218,7 @@ export function TicketView({
         <Stepper label="Shares" value={draft.qtyText} step={lotSize} onChange={(qtyText) => onChange({ qtyText })} />
       </div>
     );
-  const price = limit && (
+  const price = limit ? (
     <label className="field">
       Limit price
       <input
@@ -222,6 +230,17 @@ export function TicketView({
         onChange={(e) => onChange({ priceText: e.target.value })}
       />
     </label>
+  ) : (
+    // The form keeps the price box for a market order, disabled, so Shares does not
+    // stretch across the whole ticket and nothing jumps when switching type. It shows
+    // "Market" without touching the draft, so a typed limit price is kept for later
+    // and never sent with a market order.
+    variant === "form" && (
+      <label className="field">
+        Limit price
+        <input className="input numbers" value="Market" disabled readOnly />
+      </label>
+    )
   );
   const timeInForce = (
     <label className="field">
@@ -258,6 +277,27 @@ export function TicketView({
       <div>
         <dt>Buying power</dt>
         <dd className="numbers">{buyingPowerCents === undefined ? "–" : formatDollars(buyingPowerCents)}</dd>
+      </div>
+      <div>
+        <dt>Shares owned</dt>
+        <dd className="numbers">
+          {owned === undefined || available === undefined ? (
+            "–"
+          ) : (!buy || variant === "quick") && available > 0 ? (
+            // Selling everything that is free to sell is one click. The quick ticket picks
+            // its side last (the Buy and Sell buttons), so there it is always offered.
+            <button
+              type="button"
+              className="link numbers"
+              title={`Sell all ${available.toLocaleString("en-US")} available`}
+              onClick={() => onChange({ qtyText: String(available) })}
+            >
+              {ownedText(owned, available)}
+            </button>
+          ) : (
+            ownedText(owned, available)
+          )}
+        </dd>
       </div>
     </dl>
   );

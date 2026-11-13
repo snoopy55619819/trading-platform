@@ -116,3 +116,13 @@ export function checkTicket(symbol: string, draft: Draft, ctx: TicketContext): T
     summary: `${verb} ${qty?.toLocaleString("en-US") ?? "–"} ${symbol} ${how}${tif}`,
   };
 }
+
+/**
+ * The ticket's "Shares owned" line: "None", "25", or "25 (20 available)" when working sells
+ * already promise some of them, so it is clear why a bigger sell would be refused.
+ */
+export function ownedText(owned: number, available: number): string {
+  if (owned === 0) return "None";
+  const text = owned.toLocaleString("en-US");
+  return available < owned ? `${text} (${available.toLocaleString("en-US")} available)` : text;
+}
