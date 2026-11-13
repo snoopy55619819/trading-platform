@@ -359,8 +359,10 @@ they read in every style and mode.
 
 ### After M8
 
-- **Defaults:** Active is the style a first visit gets (`DEFAULT_STYLE` in `theme/theme.ts`,
-  repeated in `index.html`'s pre-paint script). The app is called "Trading Platform".
+- **Defaults:** Terminal is the style a first visit gets (`DEFAULT_STYLE` in
+  `theme/theme.ts`, repeated in `index.html`'s pre-paint script). It was Active; Terminal
+  is the most distinctive look, though dark only and the densest. The app is called
+  "Trading Platform".
 - **Active's layout:** time and sales moved under the order book in the right column (ticket
   5 rows, book 4, tape 3); the watchlist runs the full height of the left column, and the
   activity panel (positions, orders) sits under the chart. On a phone:
