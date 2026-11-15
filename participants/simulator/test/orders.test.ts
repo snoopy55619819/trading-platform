@@ -90,3 +90,14 @@ test("orders a crashed run left behind are adopted and cancelled on logon", () =
   orders.receive(reject);
   assert.equal(orders.open().length, 0);
 });
+
+test("ack latency is measured from sending to the first answer, once per order", () => {
+  const { orders } = setup();
+  assert.equal(orders.takeAckLatency(), undefined);
+  const order = orders.place({ account: "MM-ACME", symbol: "ACME", side: "buy", qty: 100, priceCents: 4205 }, 0)!;
+  orders.receive(report(order.clOrdId, { [Tag.OrderID]: "1", [Tag.ExecType]: "0", [Tag.OrdStatus]: "0", [Tag.LeavesQty]: "100" }));
+  orders.receive(report(order.clOrdId, { [Tag.OrderID]: "1", [Tag.ExecType]: "F", [Tag.OrdStatus]: "1", [Tag.LastQty]: "10", [Tag.LeavesQty]: "90" }));
+  const ack = orders.takeAckLatency()!;
+  assert.ok(ack.p50 >= 0 && ack.p99 >= ack.p50);
+  assert.equal(orders.takeAckLatency(), undefined); // taken, and the fill did not count again
+});
