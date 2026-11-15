@@ -178,9 +178,36 @@ fair comparison.
       Kurtosis is above the usual range: with a quieter walk, news jumps stand out more.
       If the live numbers agree, lower it with one constant (fewer degrees of fat tails, or
       smaller MAJOR moves).
-- [ ] Final measurement on the live site, a full day including market hours, against the
-      baseline (`pnpm realism --compare realism/baselines/2026-11-13-before.json`); record
-      it in ADR 0008.
+- [x] Final measurement on the live site: see below; recorded in ADR 0008.
+
+## Final measurement
+
+`v0.5.6` (all five stages) went live at 07:13 UTC on 13 November. Measured on the live site
+with `pnpm realism`, in two windows: the same night hours as the baseline (22:45 to 05:15
+UTC, one night later), and a full day including New York market hours (13 November 08:00 to
+14 November 08:00 UTC, saved as `realism/baselines/2026-11-14-after.json`).
+
+| Measure (median of ten symbols) | Baseline | Same night hours, after | Full day, after | Real stock |
+|---|---|---|---|---|
+| Flat minutes | 23% | 12% | 8% | few |
+| Excess kurtosis | 75 | 2.4 | 8.6 | 5 to 20 |
+| \|return\| autocorrelation at 1, 15, 60 min | 0.00, -0.00, -0.02 | 0.21, 0.05, 0.02 | 0.39, 0.24, 0.11 | positive, fading slowly |
+| Average move after news at 1, 5, 10, 30 min | 213, 192, 174, 159 bps | 20, 65, 46, 37 bps | 45, 88, 99, 38 bps | builds over minutes |
+| Share of movement in the 5 min after news | 51% | 5% | 12% | a minority |
+| Volume against \|return\| | 0.29 | 0.32 | 0.46 | positive |
+| Return autocorrelation, lag 1 | -0.13 | -0.26 | -0.29 | slightly negative |
+
+Over a full day every target is in a real stock's range. Three things are still off, all
+small, and each a candidate for a later layer or a constant:
+
+- **Lag-1 autocorrelation is strongly negative** (-0.29). One-minute closes are last trades,
+  which bounce between bid and ask; real stocks show this too, but less. Measuring mid
+  prices, or a deeper and tighter book, would bring it toward 0.
+- **News moves give back a lot by 30 minutes** (99 bps at 10 minutes, 38 at 30): the fading
+  part of trading impact and the overshoots unwinding together. One constant if news
+  should stick more.
+- **Overnight is calm** (kurtosis 2.4 in the night window): quiet hours with little news, as
+  in a real stock. The full-day figure is the one that counts.
 
 ## Sources
 

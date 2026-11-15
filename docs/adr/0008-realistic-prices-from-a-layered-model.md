@@ -5,7 +5,8 @@ all five stages are built: 1 (the layered structure, the measurement tool and a
 baseline), 2 (trading moves the price), 3 (volatility with memory and fat tails), 4 (news
 over minutes, rebalanced, and following the time of day; this one also changes the
 newswire, since when news happens is its business) and 5 (a soft band, and the volatility
-memory normalised to average 1). The final measurement on the live site is still to do. Changes how the
+memory normalised to average 1), released in `v0.5.6` and measured on the live site
+(below). Changes how the
 simulator's fair value moves (`participants/simulator/src/market/`), not who decides it: the
 simulator is still the only firm with a fair value, and nothing about the exchange, the
 broker or the protocols changes.
@@ -109,3 +110,33 @@ moves the price.
   public feed, which already publishes the aggressor's side, so it needs no private data
   and counts real users' trades as well as the simulator's: a large order from the web app
   moves the price. The simulator still has no backdoor.
+
+## Measured
+
+On the live site after `v0.5.6`, medians of the ten symbols, against the baseline above.
+"Same night hours" repeats the baseline's window one night later; "full day" is 13 November
+08:00 to 14 November 08:00 UTC, New York market hours included.
+
+| Measure (median of ten symbols) | Baseline | Same night hours, after | Full day, after | Real stock |
+|---|---|---|---|---|
+| Flat minutes | 23% | 12% | 8% | few |
+| Excess kurtosis | 75 | 2.4 | 8.6 | 5 to 20 |
+| \|return\| autocorrelation at 1, 15, 60 min | 0.00, -0.00, -0.02 | 0.21, 0.05, 0.02 | 0.39, 0.24, 0.11 | positive, fading slowly |
+| Average move after news at 1, 5, 10, 30 min | 213, 192, 174, 159 bps | 20, 65, 46, 37 bps | 45, 88, 99, 38 bps | builds over minutes |
+| Share of movement in the 5 min after news | 51% | 5% | 12% | a minority |
+| Volume against \|return\| | 0.29 | 0.32 | 0.46 | positive |
+| Return autocorrelation, lag 1 | -0.13 | -0.26 | -0.29 | slightly negative |
+
+Over a full day every target is in a real stock's range. Three things are still off, all
+small, and each a candidate for a later layer or a constant:
+
+- **Lag-1 autocorrelation is strongly negative** (-0.29). One-minute closes are last trades,
+  which bounce between bid and ask; real stocks show this too, but less. Measuring mid
+  prices, or a deeper and tighter book, would bring it toward 0.
+- **News moves give back a lot by 30 minutes** (99 bps at 10 minutes, 38 at 30): the fading
+  part of trading impact and the overshoots unwinding together. One constant if news
+  should stick more.
+- **Overnight is calm** (kurtosis 2.4 in the night window): quiet hours with little news, as
+  in a real stock. The full-day figure is the one that counts.
+
+The detail, per stage, is in `participants/simulator/PRICE-MODEL.md`.

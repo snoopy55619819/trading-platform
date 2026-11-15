@@ -65,7 +65,8 @@ All optional, by environment variable (`src/config.ts`):
 - [ ] More realistic prices, in layers and measured (ADR 0008): the plan and its stages are
       in [PRICE-MODEL.md](PRICE-MODEL.md). All five stages are built: layers and measurement,
       trading moves the price, volatility with memory and fat tails, news over minutes, a
-      soft band. The final live measurement is still to do.
+      soft band. Measured live after `v0.5.6`: every target in a real stock's range over a full
+      day (ADR 0008, "Measured").
 
 ### 3. Agents
 - [x] **Market maker** — quotes both sides around fair value; spread widens with
