@@ -578,7 +578,9 @@ impl Session {
     /// TRIM_BATCH past it. Without a window, a busy session kept every message of the day in
     /// memory (and in the store): gigabytes by evening (ADR 0010).
     fn trim_outbound(&mut self) {
-        let Some(window) = self.config.resend_window else { return };
+        let Some(window) = self.config.resend_window else {
+            return;
+        };
         if (self.outbound.len() as u64) <= window + TRIM_BATCH {
             return;
         }

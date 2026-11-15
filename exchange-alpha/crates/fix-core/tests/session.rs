@@ -488,12 +488,17 @@ fn with_a_resend_window_only_the_latest_messages_are_kept_and_older_ones_are_gap
     let changes = session.take_changes().expect("changes to save");
     let below = changes.forget_below.expect("told the store what to forget");
     // Cut back to the window when the store passed it by 5,000: everything since is kept.
-    assert!(below > 5_000 && below <= last + 1 - window, "forget below {below}");
+    assert!(
+        below > 5_000 && below <= last + 1 - window,
+        "forget below {below}"
+    );
     assert!(changes.new_outbound.iter().all(|(seq, _)| *seq >= below));
     assert_eq!(changes.new_outbound.len() as u64, last + 1 - below);
 
     // The kept ones replay; everything older is one gap fill.
-    let request = from_client(2, "2").with(BEGIN_SEQ_NO, "1").with(END_SEQ_NO, "0");
+    let request = from_client(2, "2")
+        .with(BEGIN_SEQ_NO, "1")
+        .with(END_SEQ_NO, "0");
     let replayed = sent(&session.receive(request, at(2)));
     let first = &replayed[0];
     assert_eq!(first.msg_type(), "4");
