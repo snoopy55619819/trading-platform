@@ -118,9 +118,79 @@ enum ClientId {
     Spent,
 }
 
+impl ClientId {
+    /// Packed into one `u64`: the order number shifted up three bits, and what the entry
+    /// is in the low three. With the key as two `u64`s, a map slot is 24 bytes; `ClientKey`
+    /// and this enum as they are would be 32, because a `u128` is aligned on 16 bytes
+    /// (ADR 0011, measured: 102 MB at the peak of a 1.5-million-order day, against 212 MB
+    /// with the ids as strings).
+    fn pack(self) -> u64 {
+        let (order_id, tag) = match self {
+            ClientId::Spent => (0, 0),
+            ClientId::Live(id) => (id.0, 1),
+            ClientId::Finished(id, Ended::Filled) => (id.0, 2),
+            ClientId::Finished(id, Ended::Canceled) => (id.0, 3),
+            ClientId::Finished(id, Ended::Expired) => (id.0, 4),
+        };
+        debug_assert!(order_id < 1 << 61, "order ids fit in 61 bits");
+        (order_id << 3) | tag
+    }
+
+    fn unpack(slot: u64) -> ClientId {
+        let id = OrderId(slot >> 3);
+        match slot & 0b111 {
+            1 => ClientId::Live(id),
+            2 => ClientId::Finished(id, Ended::Filled),
+            3 => ClientId::Finished(id, Ended::Canceled),
+            4 => ClientId::Finished(id, Ended::Expired),
+            _ => ClientId::Spent,
+        }
+    }
+}
+
+/// A [`ClientKey`] as a map key: two `u64`s, so it is aligned on 8 bytes, not 16.
+type MapKey = [u64; 2];
+
+fn map_key(key: ClientKey) -> MapKey {
+    [key as u64, (key >> 64) as u64]
+}
+
+fn from_map_key(key: &MapKey) -> ClientKey {
+    u128::from(key[0]) | (u128::from(key[1]) << 64)
+}
+
 struct PendingCancel {
     cancel_client_order_id: String,
     orig_client_order_id: String,
+}
+
+/// A `ClOrdID` as the tracker remembers it: a 128-bit hash, not the string (ADR 0011). With
+/// its entry packed beside it, a map slot is 24 bytes, against about 40 plus the string's own
+/// allocation for the id as a `String`. FNV-1a, because it is fixed and published: the same id gives the same key on
+/// every run and every version, which snapshots rely on. Keys are per session, so a collision
+/// (about one in 10^21 a day at a billion orders) could only ever touch one client's own ids.
+pub type ClientKey = u128;
+
+/// FNV-1a, 128 bits.
+pub fn client_key(client_order_id: &str) -> ClientKey {
+    const OFFSET: u128 = 0x6c62272e07bb014262b821756295c58d;
+    const PRIME: u128 = 0x0000000001000000000000000000013b;
+    let mut hash = OFFSET;
+    for byte in client_order_id.as_bytes() {
+        hash ^= u128::from(*byte);
+        hash = hash.wrapping_mul(PRIME);
+    }
+    hash
+}
+
+/// A key as it is written in a snapshot: 32 hex digits.
+fn key_text(key: ClientKey) -> String {
+    format!("{key:032x}")
+}
+
+fn key_from_text(text: &str) -> ClientKey {
+    ClientKey::from_str_radix(text, 16)
+        .unwrap_or_else(|_| panic!("snapshot: bad ClOrdID key {text:?}"))
 }
 
 /// The tracker's state as plain data, sorted, for a snapshot. Two trackers are in the same
@@ -129,12 +199,18 @@ struct PendingCancel {
 pub struct OrdersState {
     /// Every live order, by id.
     pub orders: Vec<(OrderId, TrackedOrder)>,
-    /// Every (CompID, ClOrdID) used this business day.
-    pub used_client_ids: Vec<(String, String)>,
-    /// The orders that finished this business day: (CompID, ClOrdID, order, how it ended).
-    /// Absent from snapshots written before finished orders were kept this small; those were
-    /// all taken at a roll, when nothing has finished yet.
+    /// Every ClOrdID each session used this business day, as (CompID, key in hex).
     #[serde(default)]
+    pub used_client_keys: Vec<(String, String)>,
+    /// The orders that finished this business day: (CompID, key in hex, order, how it ended).
+    #[serde(default)]
+    pub finished_keys: Vec<(String, String, OrderId, Ended)>,
+    /// Read from snapshots written before ADR 0011, which named ids by their strings; never
+    /// written now.
+    #[serde(default, skip_serializing)]
+    pub used_client_ids: Vec<(String, String)>,
+    /// Likewise, from before ADR 0011.
+    #[serde(default, skip_serializing)]
     pub finished: Vec<(String, String, OrderId, Ended)>,
 }
 
@@ -144,10 +220,10 @@ pub struct OrderTracker {
     /// maker sends is cancelled within seconds, and keeping each one's full record until the
     /// end of the day grew the gateway by about 1.35 KB an order.
     orders: HashMap<OrderId, TrackedOrder>,
-    /// Every `ClOrdID` each session used today, by CompID, and what it refers to. A client
-    /// names its orders by its own `ClOrdID`, scoped to its session, so one client can never
-    /// address another's order, even by guessing its id.
-    client_ids: HashMap<String, HashMap<String, ClientId>>,
+    /// Every `ClOrdID` each session used today, by CompID, and what it refers to, keyed by its
+    /// hash ([`client_key`]). A client names its orders by its own `ClOrdID`, scoped to its
+    /// session, so one client can never address another's order, even by guessing its id.
+    client_ids: HashMap<String, HashMap<MapKey, u64>>,
     pending_cancels: HashMap<OrderId, PendingCancel>,
 }
 
@@ -164,12 +240,36 @@ impl OrderTracker {
     /// Rebuilds a tracker from [`state`](Self::state).
     pub fn restore(listings: &Listings, state: OrdersState) -> Self {
         let mut tracker = OrderTracker::new(listings);
-        for (comp_id, client_order_id) in state.used_client_ids {
-            tracker.set_client_id(&comp_id, &client_order_id, ClientId::Spent);
+        // Snapshots from before ADR 0011 name ids by their strings: hash them on the way in.
+        let used = state
+            .used_client_ids
+            .iter()
+            .map(|(comp_id, id)| (comp_id.clone(), client_key(id)))
+            .chain(
+                state
+                    .used_client_keys
+                    .iter()
+                    .map(|(comp_id, key)| (comp_id.clone(), key_from_text(key))),
+            );
+        for (comp_id, key) in used.collect::<Vec<_>>() {
+            tracker.set_key(&comp_id, key, ClientId::Spent);
         }
-        for (comp_id, client_order_id, order_id, ended) in state.finished {
-            let entry = ClientId::Finished(order_id, ended);
-            tracker.set_client_id(&comp_id, &client_order_id, entry);
+        let finished = state
+            .finished
+            .iter()
+            .map(|(comp_id, id, order_id, ended)| {
+                (comp_id.clone(), client_key(id), *order_id, *ended)
+            })
+            .chain(
+                state
+                    .finished_keys
+                    .iter()
+                    .map(|(comp_id, key, order_id, ended)| {
+                        (comp_id.clone(), key_from_text(key), *order_id, *ended)
+                    }),
+            );
+        for (comp_id, key, order_id, ended) in finished.collect::<Vec<_>>() {
+            tracker.set_key(&comp_id, key, ClientId::Finished(order_id, ended));
         }
         for (order_id, order) in state.orders {
             if order.open {
@@ -203,22 +303,25 @@ impl OrderTracker {
             .map(|(id, order)| (*id, order.clone()))
             .collect();
         orders.sort_by_key(|(id, _)| *id);
-        let mut used_client_ids = Vec::new();
-        let mut finished = Vec::new();
+        let mut used_client_keys = Vec::new();
+        let mut finished_keys = Vec::new();
         for (comp_id, ids) in &self.client_ids {
-            for (client_order_id, entry) in ids {
-                used_client_ids.push((comp_id.clone(), client_order_id.clone()));
-                if let ClientId::Finished(order_id, ended) = entry {
-                    finished.push((comp_id.clone(), client_order_id.clone(), *order_id, *ended));
+            for (key, slot) in ids {
+                let key = key_text(from_map_key(key));
+                if let ClientId::Finished(order_id, ended) = ClientId::unpack(*slot) {
+                    finished_keys.push((comp_id.clone(), key.clone(), order_id, ended));
                 }
+                used_client_keys.push((comp_id.clone(), key));
             }
         }
-        used_client_ids.sort();
-        finished.sort_by_key(|(_, _, order_id, _)| *order_id);
+        used_client_keys.sort();
+        finished_keys.sort_by_key(|(_, _, order_id, _)| *order_id);
         OrdersState {
             orders,
-            used_client_ids,
-            finished,
+            used_client_keys,
+            finished_keys,
+            used_client_ids: Vec::new(),
+            finished: Vec::new(),
         }
     }
 
@@ -227,7 +330,7 @@ impl OrderTracker {
     /// unique per session and business day, so the next day may use any other id again.
     fn start_next_day(&mut self) {
         for ids in self.client_ids.values_mut() {
-            ids.retain(|_, entry| matches!(entry, ClientId::Live(_)));
+            ids.retain(|_, slot| matches!(ClientId::unpack(*slot), ClientId::Live(_)));
         }
         self.client_ids.retain(|_, ids| !ids.is_empty());
     }
@@ -237,14 +340,28 @@ impl OrderTracker {
     }
 
     fn client_id(&self, comp_id: &str, client_order_id: &str) -> Option<ClientId> {
-        self.client_ids.get(comp_id)?.get(client_order_id).copied()
+        self.client_ids
+            .get(comp_id)?
+            .get(&map_key(client_key(client_order_id)))
+            .map(|slot| ClientId::unpack(*slot))
     }
 
     fn set_client_id(&mut self, comp_id: &str, client_order_id: &str, entry: ClientId) {
-        self.client_ids
-            .entry(comp_id.to_string())
-            .or_default()
-            .insert(client_order_id.to_string(), entry);
+        self.set_key(comp_id, client_key(client_order_id), entry);
+    }
+
+    fn set_key(&mut self, comp_id: &str, key: ClientKey, entry: ClientId) {
+        // Sessions are few and long-lived: look up first, so a new CompID string is only
+        // allocated once, not on every order.
+        let (key, slot) = (map_key(key), entry.pack());
+        if let Some(ids) = self.client_ids.get_mut(comp_id) {
+            ids.insert(key, slot);
+        } else {
+            self.client_ids
+                .entry(comp_id.to_string())
+                .or_default()
+                .insert(key, slot);
+        }
     }
 
     /// Records a `ClOrdID` as used. False if this session has already used it today.
@@ -784,5 +901,32 @@ fn tif_to_fix(tif: TimeInForce) -> &'static str {
         TimeInForce::Gtc => "1",
         TimeInForce::Ioc => "3",
         TimeInForce::Fok => "4",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_entry_packs_into_one_u64_and_back() {
+        let big = OrderId((1 << 61) - 1);
+        for entry in [
+            ClientId::Spent,
+            ClientId::Live(OrderId(1)),
+            ClientId::Live(big),
+            ClientId::Finished(OrderId(42), Ended::Filled),
+            ClientId::Finished(OrderId(42), Ended::Canceled),
+            ClientId::Finished(big, Ended::Expired),
+        ] {
+            assert_eq!(ClientId::unpack(entry.pack()), entry);
+        }
+        let key = client_key("SIM-1");
+        assert_eq!(from_map_key(&map_key(key)), key);
+        assert_eq!(
+            std::mem::size_of::<(MapKey, u64)>(),
+            24,
+            "a map slot is 24 bytes"
+        );
     }
 }

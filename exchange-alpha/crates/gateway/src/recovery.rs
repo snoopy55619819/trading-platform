@@ -34,6 +34,8 @@ impl ExchangeState {
             engine: Engine::default().snapshot(),
             orders: OrdersState {
                 orders: Vec::new(),
+                used_client_keys: Vec::new(),
+                finished_keys: Vec::new(),
                 used_client_ids: Vec::new(),
                 finished: Vec::new(),
             },

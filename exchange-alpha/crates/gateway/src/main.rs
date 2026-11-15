@@ -23,6 +23,13 @@ use tokio::net::TcpListener;
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
+/// mimalloc rather than the system's (glibc's) allocator, which kept memory the gateway had
+/// freed: after the 21:00 roll cleared the day's finished orders, the process still held the
+/// day's peak, and the idle part went to swap. mimalloc returns pages it no longer uses to the
+/// system (ADR 0011).
+#[global_allocator]
+static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
