@@ -144,7 +144,7 @@ impl<S: SessionStore> Core<S> {
             .await?
             .into_iter()
             .map(|stored| {
-                let config = session_config(&listings.venue, &stored.comp_id);
+                let config = session_config(&listings, &stored.comp_id);
                 let session = Session::restore(
                     config,
                     stored.next_in_seq,
@@ -508,10 +508,10 @@ impl<S: SessionStore> Core<S> {
     }
 
     fn session(&mut self, comp_id: &str) -> &mut Session {
-        let venue = &self.listings.venue;
+        let listings = &self.listings;
         self.sessions
             .entry(comp_id.to_string())
-            .or_insert_with(|| Session::new(session_config(venue, comp_id)))
+            .or_insert_with(|| Session::new(session_config(listings, comp_id)))
     }
 
     fn write(&self, comp_id: &str, bytes: Vec<u8>) {
@@ -546,11 +546,13 @@ impl<S: SessionStore> Core<S> {
     }
 }
 
-fn session_config(venue: &str, comp_id: &str) -> SessionConfig {
+fn session_config(listings: &Listings, comp_id: &str) -> SessionConfig {
     SessionConfig {
-        our_comp_id: venue.to_string(),
+        our_comp_id: listings.venue.clone(),
         their_comp_id: comp_id.to_string(),
         role: Role::Acceptor,
         heartbeat_secs: 30, // replaced by whatever the client's Logon asks for
+        // The latest messages only, as the venue's spec publishes (ADR 0010).
+        resend_window: Some(listings.resend_window),
     }
 }

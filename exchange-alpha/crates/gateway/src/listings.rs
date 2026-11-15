@@ -38,6 +38,12 @@ struct Venue {
     code: String,
     maker_fee_bps: i64,
     taker_fee_bps: i64,
+    order_entry: OrderEntry,
+}
+
+#[derive(Deserialize)]
+struct OrderEntry {
+    resend_window_messages: u64,
 }
 
 #[derive(Deserialize)]
@@ -61,6 +67,8 @@ pub struct Listings {
     pub taker_fee_bps: i64,
     /// When the business date changes, as milliseconds after UTC midnight (21:00 UTC).
     pub business_date_roll_ms: u64,
+    /// How many of each session's latest outbound messages are kept for resend (ADR 0010).
+    pub resend_window: u64,
     symbols: HashMap<String, Symbol>,
 }
 
@@ -72,6 +80,7 @@ impl Listings {
             venue: file.venue.code,
             maker_fee_bps: file.venue.maker_fee_bps,
             taker_fee_bps: file.venue.taker_fee_bps,
+            resend_window: file.venue.order_entry.resend_window_messages,
             business_date_roll_ms: parse_time_of_day(&file.market.business_date_roll_utc)
                 .unwrap_or_else(|| panic!("spec/listings.json: bad business_date_roll_utc")),
             symbols: file

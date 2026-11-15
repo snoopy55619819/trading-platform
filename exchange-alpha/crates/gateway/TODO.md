@@ -121,6 +121,11 @@ mid-day, almost all of it market maker quotes cancelled within seconds (ADR 0005
   business days, only ids used since the day's snapshot can be lost this way.
 - **Slow clients are unbounded.** A connection's outbound queue has no limit.
 
+- **The resend window is bounded** (ADR 0010): each session keeps its latest 50,000 outbound
+  messages (`resend_window_messages` in the spec); a resend of older ones is gap-filled, and
+  the client recovers with an order status request. Before, every message of the day was
+  kept in memory and in `fix_outbound`, about 3 million a day for the simulator's session.
+
 ## Found by conformance testing
 
 QuickFIX refused to load the published spec at all: its root element lacked `type="FIX"`.

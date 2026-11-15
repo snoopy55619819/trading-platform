@@ -19,6 +19,7 @@ fn acceptor() -> Session {
         their_comp_id: "BROKER".into(),
         role: Role::Acceptor,
         heartbeat_secs: 30,
+        resend_window: None,
     })
 }
 
@@ -28,6 +29,7 @@ fn initiator() -> Session {
         their_comp_id: "ALPHA".into(),
         role: Role::Initiator,
         heartbeat_secs: 30,
+        resend_window: None,
     })
 }
 
@@ -460,4 +462,48 @@ fn a_restored_session_resumes_its_sequence_numbers() {
     );
     assert_eq!(restored.next_in_seq(), 2);
     assert_eq!(restored.next_out_seq(), 3);
+}
+
+#[test]
+fn with_a_resend_window_only_the_latest_messages_are_kept_and_older_ones_are_gap_filled() {
+    // ADR 0010: a busy session kept every message of the day in memory. With a window, the
+    // store is cut back to the latest `window` messages whenever it grows 5,000 past that,
+    // the persistence layer is told what to forget, and a resend of anything older is
+    // answered with a gap fill.
+    let window = 10;
+    let mut session = Session::new(SessionConfig {
+        our_comp_id: "ALPHA".into(),
+        their_comp_id: "BROKER".into(),
+        role: Role::Acceptor,
+        heartbeat_secs: 30,
+        resend_window: Some(window),
+    });
+    session.on_connected(T0);
+    session.receive(logon(1), T0); // our seq 1: the Logon reply
+    let total = 6_000; // past the window and its trim batch, once
+    for i in 0..total {
+        session.send(Message::new("8").with(ORDER_ID, format!("A-{i}")), at(1));
+    }
+    let last = total + 1; // our latest sequence number
+    let changes = session.take_changes().expect("changes to save");
+    let below = changes.forget_below.expect("told the store what to forget");
+    // Cut back to the window when the store passed it by 5,000: everything since is kept.
+    assert!(
+        below > 5_000 && below <= last + 1 - window,
+        "forget below {below}"
+    );
+    assert!(changes.new_outbound.iter().all(|(seq, _)| *seq >= below));
+    assert_eq!(changes.new_outbound.len() as u64, last + 1 - below);
+
+    // The kept ones replay; everything older is one gap fill.
+    let request = from_client(2, "2")
+        .with(BEGIN_SEQ_NO, "1")
+        .with(END_SEQ_NO, "0");
+    let replayed = sent(&session.receive(request, at(2)));
+    let first = &replayed[0];
+    assert_eq!(first.msg_type(), "4");
+    assert_eq!(first.get(MSG_SEQ_NUM), Some("1"));
+    assert_eq!(first.get(NEW_SEQ_NO), Some(below.to_string().as_str()));
+    assert_eq!(replayed.len() as u64, 1 + (last + 1 - below));
+    assert!(replayed[1..].iter().all(|m| m.msg_type() == "8"));
 }
