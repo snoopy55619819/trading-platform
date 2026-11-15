@@ -41,7 +41,14 @@ pub struct SessionConfig {
     /// The heartbeat interval an initiator proposes. An acceptor adopts whatever the
     /// counterparty's Logon asks for.
     pub heartbeat_secs: u64,
+    /// How many of our latest outbound messages to keep for resend; `None` keeps every one
+    /// for the life of the session. A resend of anything older is gap-filled. Kept in batches
+    /// a little over the window, so trimming is not done on every message.
+    pub resend_window: Option<u64>,
 }
+
+/// How far past the window the store may grow before it is trimmed back.
+const TRIM_BATCH: u64 = 5_000;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum State {
@@ -73,6 +80,9 @@ pub struct Changes {
     pub reset: bool,
     /// Outbound messages to store for possible resend, by sequence number.
     pub new_outbound: Vec<(u64, Vec<u8>)>,
+    /// Stored outbound messages below this sequence number fell out of the resend window:
+    /// forget them.
+    pub forget_below: Option<u64>,
 }
 
 pub struct Session {
@@ -92,8 +102,10 @@ pub struct Session {
     /// when we have caught up and stop treating later messages as part of the gap.
     resend_until: Option<u64>,
     logout_sent_at: Option<UtcMillis>,
-    /// Every message we have sent, for resend. Kept for the life of the session.
+    /// The messages we have sent, for resend: every one, or the latest `resend_window`.
     outbound: BTreeMap<u64, Vec<u8>>,
+    /// Set when messages fell out of the resend window, until the store has been told.
+    forget_below: Option<u64>,
     unsaved: Vec<u64>,
     reset: bool,
     dirty: bool,
@@ -126,6 +138,7 @@ impl Session {
             resend_until: None,
             logout_sent_at: None,
             outbound: outbound.into_iter().collect(),
+            forget_below: None,
             unsaved: Vec::new(),
             reset: false,
             dirty: false,
@@ -255,6 +268,7 @@ impl Session {
             next_out_seq: self.next_out,
             reset: std::mem::take(&mut self.reset),
             new_outbound,
+            forget_below: self.forget_below.take(),
         })
     }
 
@@ -296,6 +310,7 @@ impl Session {
             self.next_out = 1;
             self.outbound.clear();
             self.unsaved.clear();
+            self.forget_below = None;
             self.reset = true;
             self.dirty = true;
         }
@@ -559,6 +574,20 @@ impl Session {
         self.stamp_and_store(message, now, connected, actions);
     }
 
+    /// Forgets outbound messages that fell out of the resend window, once the store has grown
+    /// TRIM_BATCH past it. Without a window, a busy session kept every message of the day in
+    /// memory (and in the store): gigabytes by evening (ADR 0010).
+    fn trim_outbound(&mut self) {
+        let Some(window) = self.config.resend_window else { return };
+        if (self.outbound.len() as u64) <= window + TRIM_BATCH {
+            return;
+        }
+        let keep_from = self.next_out.saturating_sub(window);
+        self.outbound = self.outbound.split_off(&keep_from);
+        self.unsaved.retain(|seq| *seq >= keep_from);
+        self.forget_below = Some(keep_from);
+    }
+
     /// Gives a message our header and the next sequence number, stores it for resend, and
     /// sends it if `connected`.
     fn stamp_and_store(
@@ -580,6 +609,7 @@ impl Session {
         self.unsaved.push(seq);
         self.next_out += 1;
         self.dirty = true;
+        self.trim_outbound();
         if connected {
             self.last_sent = now;
             actions.push(Action::Send(bytes));
