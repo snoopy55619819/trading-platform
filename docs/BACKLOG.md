@@ -69,7 +69,9 @@ In the plan's suggested order of value.
       ledger, clearing and surveillance). Replay-driven state rebuild.
 - [ ] **ClickHouse migration.** Move `ticks` and `bars` off Postgres, with a measured before
       and after.
-- [ ] **Closer to real market speed.** At `SIM_ACTIVITY=1` the simulator sends about 18
+- [ ] **Closer to real market speed.** Planned in ADR 0012 and `docs/SCALE-PLAN.md`: 500 to
+      1,000 transactions a second, load test first. The notes below are from before the plan.
+      At `SIM_ACTIVITY=1` the simulator sends about 18
       orders and cancels a second across 10 symbols, about 0.2 to 0.4 trades a second per
       symbol: roughly a quiet to typical mid-cap stock. Busy large caps would be about 5 to
       10 times that, mega caps like AAPL 50 to 100 times, and the whole US market (millions
