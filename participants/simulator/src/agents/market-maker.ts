@@ -18,6 +18,12 @@ import type { Order, Side } from "../orders.ts";
 import { type Agent, type Context, lotFor } from "./context.ts";
 
 export const LEVELS = 3;
+/**
+ * How far apart its levels are, in half-spreads (at least a tick). 1.5 spreads the three over
+ * more of the book than 1 did, at no extra orders; the patient traders fill in behind
+ * (agents/patient.ts, ADR 0009).
+ */
+export const LEVEL_STEP = 1.5;
 /** How far ahead the spread allows for: about a minute of fair value movement. */
 const HORIZON_SEC = 60;
 const PAUSE_MS = 3000;
@@ -68,7 +74,7 @@ export function desiredQuotes(inputs: QuoteInputs): Quote[] {
     if (hardStop) continue;
     let used = 0;
     for (let level = 0; level < LEVELS; level++) {
-      const offset = half + level * Math.max(tick, half);
+      const offset = half + level * LEVEL_STEP * Math.max(tick, half);
       const price =
         side === "buy"
           ? Math.floor((center - offset) / tick) * tick
