@@ -26,6 +26,9 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-uti
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# The allocator (ADR 0011): returns freed memory to the system, so the gateway's footprint
+# falls back after the daily roll instead of staying at the day's peak.
+mimalloc = { version = "0.1", default-features = false }
 
 [dev-dependencies]
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
