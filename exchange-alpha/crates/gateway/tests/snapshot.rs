@@ -213,11 +213,15 @@ fn only_live_orders_keep_a_full_record() {
         "only the resting order keeps its record"
     );
     assert_eq!(
-        state.finished.len(),
+        state.finished_keys.len(),
         1002,
         "a small entry for every finished order"
     );
-    assert_eq!(state.used_client_ids.len(), 1003);
+    assert_eq!(state.used_client_keys.len(), 1003);
+    assert!(
+        state.used_client_ids.is_empty() && state.finished.is_empty(),
+        "the old string fields are never written"
+    );
     assert_eq!(exchange.orders.open_order_count(), 1);
 }
 
@@ -239,6 +243,21 @@ fn a_snapshot_written_before_finished_orders_were_dropped_still_loads() {
 
     let orders = state(&exchange).orders;
     assert_eq!(orders.orders.len(), 1);
-    assert_eq!(orders.finished.len(), 1);
-    assert_eq!(orders.finished[0].1, "gone");
+    assert_eq!(orders.finished_keys.len(), 1);
+    assert_eq!(
+        orders.finished_keys[0].1,
+        format!("{:032x}", gateway::orders::client_key("gone")),
+        "the old snapshot's string id is kept by its key"
+    );
+}
+
+#[test]
+fn client_order_ids_are_kept_by_a_fixed_128_bit_hash() {
+    use gateway::orders::client_key;
+    // FNV-1a 128's published test vectors: the key of an id must never change between runs
+    // or versions, since snapshots store keys (ADR 0011).
+    assert_eq!(client_key(""), 0x6c62272e07bb014262b821756295c58d);
+    assert_eq!(client_key("a"), 0xd228cb696f1a8caf78912b704e4a8964);
+    assert_eq!(client_key("foobar"), 0x343e1662793c64bf6f0d3597ba446f18);
+    assert_ne!(client_key("SIM-1"), client_key("SIM-2"));
 }
