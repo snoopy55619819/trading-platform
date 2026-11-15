@@ -24,21 +24,53 @@ Where it stands (from the journal on the live server):
 
 ### 1. A load test, and the first real number
 
-- [ ] A script that runs the whole stack locally (exchange, simulator, broker, market-data,
-      newswire) and steps the simulator's load up, a couple of minutes a step, holding the
-      time-of-day curve flat so every step is comparable.
-- [ ] At each step: transactions, trades, execution reports and feed messages a second; each
-      process's CPU and memory; rejects, throttling, feed gaps; how long an order takes from
-      the simulator to its execution report (a latency percentile, if it can be measured
-      cheaply).
-- [ ] It stops at the first step where something gives (throttling it cannot clear, a process
-      at 100% of a core, rejects, gaps, latency climbing) and says which.
-- [ ] Results saved in a file, like `pnpm realism`'s baselines, to compare later runs with.
-- [ ] Record the first number: "handles N transactions a second, limited by X".
+- [x] A script that runs the whole stack locally (exchange, simulator, broker, market-data,
+      newswire) and steps the simulator's load up, a minute a step, holding the time-of-day
+      curve flat so every step is comparable: `pnpm load-test` (`load-test/run.ts`,
+      `SIM_FLAT_DAY`).
+- [x] At each step: transactions, trades, execution reports and feed messages a second; each
+      process's CPU and memory; rejects, feed gaps; how long an order takes from the
+      simulator to the exchange's first answer (`ack p50`/`p99` in the simulator's status
+      line).
+- [x] It stops at the first step where something gives (a process at 90% of a core, the
+      exchange falling behind, rejects, gaps, the market makers stopping, the answer's 99th
+      percentile over 50 ms) and says which.
+- [x] Results saved in `load-test/results/`, to compare later runs with.
+- [x] Record the first number (below).
+
+**First number (2026-11-15, an Apple M5 Pro laptop, everything local): handles about 70
+transactions a second, limited by how long the exchange takes to answer.**
+
+| Activity | Transactions/s | Trades/s | Answer p50 / p99 | Busiest process |
+|---|---|---|---|---|
+| 4 | 31 | 6 | 8 / 30 ms | exchange Postgres, 2% of a core |
+| 16 | **69** | 24 | 19 / 42 ms | 3% |
+| 32 | 111 | 46 | 27 / **60 ms** (stop) | gateway, 4% |
+| 256 (past the limit) | 515 | 363 | 74 / 150 ms | gateway, 11% |
+| 1024 (past the limit) | about 1,200, and no more | 164 | 2.2 s; the market makers stop | exchange Postgres, 18% |
+
+(`load-test/results/2026-11-15-before.json`, and `-before-ceiling.json` for the run past the
+latency limit.)
+
+What it found:
+
+- **Nothing is short of CPU.** At 1,200 a second the busiest process uses 18% of one core.
+- **The limit is waiting, not work.** The gateway's core handles one message, then saves the
+  FIX sessions to Postgres (a transaction, and one `INSERT` per outgoing message), then the
+  next. Each message waits for the saves of every message before it: about 0.8 ms each, so
+  answers slow as soon as messages arrive in bursts (the simulator sends every 250 ms) and
+  nothing gets past about 1,200 messages a second. Turning off Postgres's commit flush
+  changed nothing, so it is round trips, not the disk. This is stage 2, confirmed.
+- **The simulator could not make the load at first:** each taker could send at most one
+  order per symbol per 250 ms step, so it stopped at about 125 a second whatever the
+  activity. Its noise traders now send as many as their rate calls for (a Poisson count;
+  `rng.count`), the same as before at today's activity.
+- Feed gaps, rejects and memory were fine at every step.
 
 ### 2. Batch the gateway's FIX session writes
 
-Expected first bottleneck: one `INSERT` into `fix_outbound` per outgoing message.
+The first bottleneck, confirmed by stage 1: a save after every message, and one `INSERT` into
+`fix_outbound` per outgoing message.
 
 - [ ] One multi-row insert (or `COPY`) per save, with the resend window's delete in the same
       transaction (ADR 0010).
