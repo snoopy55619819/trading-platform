@@ -56,7 +56,10 @@ deploy() {
     docker compose -f "$stack/compose.yml" pull --quiet
     docker compose -f "$stack/compose.yml" up -d --no-build --remove-orphans
   done
-  docker image prune --force > /dev/null
+  # Every image no container uses, not only untagged ones: each release's images keep their
+  # version tag, so a plain prune left about 1 GB a release on disk (ADR 0009). A rollback
+  # pulls its images again from the registry.
+  docker image prune --all --force > /dev/null
 
   mkdir -p "$(dirname "$STATE")"
   echo "$target" > "$STATE"
