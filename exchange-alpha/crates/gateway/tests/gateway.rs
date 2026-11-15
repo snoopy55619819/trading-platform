@@ -297,3 +297,58 @@ async fn after_a_crash_the_book_and_the_sessions_come_back() {
     broker.send(limit("b1", "2", "5", "ACME", "42.10")).await;
     assert_eq!(broker.next().await.get(ORD_REJ_REASON), Some("6"));
 }
+
+/// A store that takes a while to save, as a real database does, so a reply sent before
+/// its save finished would be caught.
+#[derive(Clone, Default)]
+struct SlowStore(MemoryStore);
+
+impl gateway::SessionStore for SlowStore {
+    async fn load_all(&mut self) -> anyhow::Result<Vec<gateway::store::StoredSession>> {
+        self.0.load_all().await
+    }
+
+    async fn save(&mut self, comp_id: &str, changes: &fix_core::Changes) -> anyhow::Result<()> {
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        self.0.save(comp_id, changes).await
+    }
+}
+
+#[tokio::test]
+async fn every_message_a_client_receives_is_already_saved_for_resend() {
+    // The core handles messages in batches and saves once per batch; nothing it says may
+    // reach a client before it is saved, or a crash could number a different message the
+    // same (ADR 0013).
+    use gateway::SessionStore;
+    let journal = TempData::new();
+    let store = SlowStore::default();
+    let (core, feed) = gateway::Core::open(
+        &journal.0,
+        store.clone(),
+        COMP_IDS.map(String::from),
+        clock(),
+    )
+    .await
+    .unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let md_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let gateway = gateway::Gateway::start(listener, md_listener, core, feed).unwrap();
+    let mut broker = Client::logon(gateway.addr, "BROKER").await;
+
+    for i in 0..50 {
+        broker
+            .send(limit(&format!("o{i}"), "2", "100", "ACME", "42.10"))
+            .await;
+    }
+    for _ in 0..50 {
+        let ack = broker.next().await;
+        assert_eq!(exec(&ack), ("0", "0"));
+        let seq: u64 = ack.get(MSG_SEQ_NUM).unwrap().parse().unwrap();
+        let saved = store.0.clone().load_all().await.unwrap();
+        let session = saved.iter().find(|s| s.comp_id == "BROKER").unwrap();
+        assert!(
+            session.outbound.iter().any(|(s, _)| *s == seq),
+            "message {seq} arrived before it was saved"
+        );
+    }
+}
