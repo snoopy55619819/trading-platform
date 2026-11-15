@@ -87,8 +87,10 @@ gateway being SIGKILLed, and recovers a missed fill by resend.
 
 ## What's next
 
-The post-MVP roadmap is in `PLAN.md` Part 8, led by the post-trade plane (clearing, custody,
-and settlement on a real T+1 clock). Smaller follow-ups and the layout editor are in
+Under way: scaling the live market to 500 to 1,000 transactions a second, load test first
+([ADR 0012](adr/0012-scaling-to-1000-transactions-a-second.md),
+[SCALE-PLAN.md](SCALE-PLAN.md)). The post-MVP roadmap is in `PLAN.md` Part 8, led by the
+post-trade plane (clearing, custody, and settlement on a real T+1 clock). Smaller follow-ups and the layout editor are in
 [BACKLOG.md](BACKLOG.md). The plan for running it publicly is in
 [DEPLOYMENT.md](DEPLOYMENT.md).
 
