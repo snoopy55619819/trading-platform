@@ -13,6 +13,7 @@ import { dirname } from "node:path";
 
 import { type Agent, type Context, Positions } from "./agents/context.ts";
 import { MarketMaker } from "./agents/market-maker.ts";
+import { PatientTrader } from "./agents/patient.ts";
 import { MeanReversionTrader, MomentumTrader, NoiseTrader } from "./agents/takers.ts";
 import { loadConfig, profileFor } from "./config.ts";
 import { FeedClient } from "./feed/client.ts";
@@ -94,6 +95,8 @@ const agents: Agent[] = [
   new NoiseTrader(context, config.activity),
   new MomentumTrader(context, config.activity),
   new MeanReversionTrader(context, config.activity),
+  // Depth behind the best prices: orders that rest for minutes (agents/patient.ts).
+  new PatientTrader(context),
 ];
 
 // Orders a crashed run left resting are cancelled as soon as we log on.

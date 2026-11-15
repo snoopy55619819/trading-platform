@@ -3,7 +3,7 @@
 **Makes the market look alive when nobody is using the app.** Without it, v1 is an empty
 book and a flat chart.
 
-Status: **done** · 61 tests, plus behaviour runs against the real exchange. Trades on the
+Status: **done** · 65 tests, plus behaviour runs against the real exchange. Trades on the
 newswire's headlines since stage 3 of the news plan (ADR 0006).
 
 ```
@@ -76,6 +76,13 @@ All optional, by environment variable (`src/config.ts`):
 - [x] **Momentum** — chases short-term moves; creates trends
 - [x] **Mean reversion** — fades extremes; creates the pullbacks
 - [x] Global rate control, so you can dial total order volume down for a deployed instance
+- [x] **Patient limit traders** (`src/agents/patient.ts`, ADR 0009): depth behind the best
+      prices. About one order per symbol every 20 seconds (times the time of day), resting
+      behind its own side's best price at a random distance (mostly about 0.3% away, 10%
+      outliers four times further) and size (about half a lot, 5% blocks five times that),
+      for about 20 minutes, or until the market is 4% away. At most 12 per symbol. About 2%
+      more orders. Market makers also space their three levels 1.5 half-spreads apart, not
+      1, at no extra orders.
 
 ### 4. Behaviour checks
 - [x] The spread stays sane — it should not collapse to zero or blow out permanently
