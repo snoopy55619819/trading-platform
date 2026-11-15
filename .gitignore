@@ -40,3 +40,6 @@ exchange-alpha/data/
 
 # Simulator run state (open orders saved for crash recovery)
 participants/simulator/data/
+
+# Load test process logs (load-test/run.ts); results/ is kept
+load-test/logs/

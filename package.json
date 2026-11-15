@@ -18,6 +18,7 @@
     "exchange:db": "docker compose -f exchange-alpha/compose.yml up -d --wait",
     "exchange:run": "cd exchange-alpha && cargo run -p gateway",
     "exchange:test": "cd exchange-alpha && cargo test --workspace",
-    "exchange:conformance": "cd exchange-alpha && ./conformance/run.sh"
+    "exchange:conformance": "cd exchange-alpha && ./conformance/run.sh",
+    "load-test": "node load-test/run.ts"
   }
 }

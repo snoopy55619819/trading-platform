@@ -282,6 +282,22 @@ pnpm exchange:test && cd exchange-alpha && cargo bench -p matching-engine
 Each TypeScript deployable runs its own with `pnpm test` (and `pnpm typecheck`) from its
 folder.
 
+### The load test
+
+How many transactions a second (new orders and cancels the exchange accepts) the whole stack
+handles, and what stops it (ADR 0012, `docs/SCALE-PLAN.md`). It starts every service itself
+against a fresh exchange, steps the simulator's activity up a minute at a time, and stops at
+the first step where something gives:
+
+```bash
+pnpm db:up && pnpm exchange:db
+pnpm load-test                                   # about 10 minutes at most
+pnpm load-test --steps 64,256,1024 --secs 30 --max-ack-ms 100000   # past slow answers, to the ceiling
+```
+
+Results are saved to `load-test/results/`, to compare with later runs; each process's log to
+`load-test/logs/`. What each check means is at the top of `load-test/run.ts`.
+
 GitHub Actions runs all of it on every pull request and every merge to `main`
 (`.github/workflows/ci.yml`): one job per deployable, Postgres beside the backend's and
 market-data's, plus a check that every production image still builds.
@@ -296,6 +312,7 @@ market-data's, plus a check that every production image still builds.
 | `pnpm exchange:db` | start the exchange's database |
 | `pnpm exchange:run` / `exchange:build` / `exchange:test` | run, build or test the exchange |
 | `pnpm exchange:conformance` | the QuickFIX conformance run |
+| `pnpm load-test` | the load test: how many transactions a second the stack handles locally |
 | `pnpm spec:check` / `pnpm spec:sync` | find / update stale vendored copies of the exchange's spec |
 | `pnpm backend <script>` | run a script inside `broker/backend`; likewise `market-data`, `web`, `simulator` and `newswire` |
 
