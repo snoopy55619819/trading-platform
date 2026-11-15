@@ -1,8 +1,9 @@
 # ADR 0012: Scaling to 500 to 1,000 transactions a second, measured by a load test
 
 **Status:** accepted, 2026-11-15. Being built in stages (`docs/SCALE-PLAN.md`). Stage 1, the
-load test, is built: about 70 transactions a second locally, limited by the gateway saving
-its FIX sessions after every message. Touches the exchange, the simulator and the server; each stage that changes a
+load test, found about 70 transactions a second locally, limited by the gateway saving its
+FIX sessions after every message; stage 2 (ADR 0013) batched those saves: about 1,460 a
+second within a 50 ms 99th percentile, locally. Not yet live. Touches the exchange, the simulator and the server; each stage that changes a
 published rule gets its own ADR.
 
 ## Context

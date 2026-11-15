@@ -70,13 +70,35 @@ What it found:
 ### 2. Batch the gateway's FIX session writes
 
 The first bottleneck, confirmed by stage 1: a save after every message, and one `INSERT` into
-`fix_outbound` per outgoing message.
+`fix_outbound` per outgoing message. Done in [ADR 0013](adr/0013-the-gateway-saves-fix-sessions-once-per-batch.md).
 
-- [ ] One multi-row insert (or `COPY`) per save, with the resend window's delete in the same
+- [x] The core handles every event already waiting (up to 512), then saves once; replies are
+      held until that save is done, so a client never has a message the exchange forgot.
+- [x] One multi-row insert per save (`UNNEST`), with the resend window's delete in the same
       transaction (ADR 0010).
-- [ ] Optionally, for sessions that reset on every logon (the simulator), keep the window in
-      memory only.
-- [ ] Load test before and after.
+- [ ] ~~For sessions that reset on every logon, keep the window in memory only~~: not
+      needed; a save per batch costs about a millisecond.
+- [x] Load test before and after.
+
+**After (2026-11-15, same laptop): every step of the standard run passes, up to about 860
+transactions a second, and about 1,460 a second still answers within 50 ms.**
+
+| Activity | Transactions/s | Answer p50 / p99, before | After |
+|---|---|---|---|
+| 4 | 27 to 31 | 8 / 30 ms | **6 / 8 ms** |
+| 32 | 111 | 27 / 60 ms (stopped) | **7 / 9 ms** |
+| 256 | 516 | 74 / 150 ms | **15 / 21 ms** |
+| 512 | 858 | (not reached) | **23 / 31 ms** |
+| 1024 | 1,465 (was 1,200, broken) | 2.2 s | **32 / 43 ms** |
+| 4096 | 5,181 accepted | (not reached) | 50 / 68 ms; the gateway at 19% of a core |
+
+(`load-test/results/2026-11-15-after-batching.json` and `-after-batching-ceiling.json`.)
+
+What it found next: **the exchange is no longer the limit.** From about 1,500 a second the
+simulator's market makers fall behind the takers (cancels drop towards zero, the book thins,
+trades level off at about 1,450 a second), while the exchange still accepts everything sent.
+The next limit is the simulator as a market (stage 5), and before going live, the journal
+and finished-order memory at these rates (stages 3 and 4).
 
 ### 3. Journal retention and size
 

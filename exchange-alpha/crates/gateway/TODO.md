@@ -114,7 +114,9 @@ mid-day, almost all of it market maker quotes cancelled within seconds (ADR 0005
 
 - **Crash window.** A command is journaled, then the reports it produces are stored for
   resend. A crash between the two loses those reports: the trade happened, the client is
-  never told. The fix is to regenerate reports from the journal on recovery, or to keep FIX
+  never told. (Since ADR 0013 the core saves once per batch of events and sends nothing
+  until it is saved, so a client never has a message the exchange forgot; but the reports
+  of the last batch can still be lost this way.) The fix is to regenerate reports from the journal on recovery, or to keep FIX
   state in the same journal. Worth doing before anything depends on it.
 - **Rejected `ClOrdID`s are forgotten on restart.** Accepted orders are rebuilt from the
   journal; orders rejected before the engine, and cancel requests, are not journaled. Since
