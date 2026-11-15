@@ -87,7 +87,19 @@ In the plan's suggested order of value.
       after two daily rolls, against 37 MB measured in ADR 0005, so something grows across
       days; and `fix_outbound` held 264,000 live rows (605 MB) 3.6 hours after the roll,
       because every outgoing message is kept for resends until the daily session reset.
-      Both grow with order volume, so they come before raising activity again.
+      Both grow with order volume, so they come before raising activity again. **Fixed, to
+      measure:** a bounded resend window (ADR 0010, `v0.5.7`) and compact client order ids
+      with mimalloc (ADR 0011). Left: measure the gateway over a full day (its evening peak,
+      and after the roll), then raise `SIM_ACTIVITY`. Optional: one `VACUUM FULL` of
+      `fix_outbound` at a quiet moment, to shrink its file (605 MB) to the rows it now holds.
+- [ ] **`OrderStatusRequest` (FIX message `H`).** Spec 1.2.0 (ADR 0010) tells a client that
+      was gap-filled past the resend window to recover with an `OrderStatusRequest`, but
+      Alpha does not support that message yet: it is not in `fix44.xml` and the gateway has
+      no handler. Investigate adding it: answer with an execution report of the order's
+      status, from the live order's record, or for a finished order from the entry ADR 0011
+      keeps (how it ended; its fill details are not kept). Add it to the dictionary, the
+      gateway, conformance tests, and the broker if it should use it. If not added, correct
+      the note in `listings.json` so the spec does not promise it.
 - [ ] **Calmer market makers.** 95% of the exchange's orders are market maker quotes
       cancelled within seconds, replaced each time fair value moves. Wider tolerance before
       re-quoting would cut orders per trade, and with them the journal (about 120 MB a day
