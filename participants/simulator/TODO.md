@@ -32,8 +32,8 @@ All optional, by environment variable (`src/config.ts`):
 
 | Variable | Default | |
 |---|---|---|
-| `SIM_MAX_ORDERS_PER_SEC` | `40` | ceiling on orders and cancels, every agent together (the deployed instance uses `80`) |
-| `SIM_ACTIVITY` | `1` | how often the takers trade; below 1 for a quieter market (the deployed instance ran at `0.2` until ADR 0005, then `1`, now `2`) |
+| `SIM_MAX_ORDERS_PER_SEC` | `40` | ceiling on orders and cancels, every agent together (the deployed instance uses `160`) |
+| `SIM_ACTIVITY` | `1` | how often the takers trade; below 1 for a quieter market (the deployed instance ran at `0.2` until ADR 0005, then `1`, then `2`, now `4`) |
 | `SIM_IMPACT` | `1` | how hard trading moves the price, as a multiple of the model's (`src/market/model/impact.ts`, ADR 0008); `0` turns it off |
 | `SIM_SPEED` | `1` | fair value runs this many times faster than the clock, to see hours in minutes |
 | `SIM_SEED` | the clock | the same seed replays the same price paths |
