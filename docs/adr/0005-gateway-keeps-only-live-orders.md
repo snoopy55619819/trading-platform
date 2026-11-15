@@ -1,6 +1,7 @@
 # ADR 0005: The gateway keeps a full record only for live orders
 
-**Status:** accepted, 2026-11-12. Built in PR #34; released as `v0.3.0`; measured below.
+**Status:** accepted, 2026-11-12. The finished-order entries were made smaller still by
+ADR 0011 (a hashed key, 24 bytes a slot) on 2026-11-15. Built in PR #34; released as `v0.3.0`; measured below.
 Changes how `gateway/src/orders.rs` (the order tracker) holds the business day's orders.
 
 ## Context

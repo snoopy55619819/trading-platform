@@ -126,6 +126,12 @@ mid-day, almost all of it market maker quotes cancelled within seconds (ADR 0005
   the client recovers with an order status request. Before, every message of the day was
   kept in memory and in `fix_outbound`, about 3 million a day for the simulator's session.
 
+- **A day's client order ids are kept compactly** (ADR 0011): by a 128-bit FNV-1a hash, with
+  the entry packed beside it, 24 bytes a map slot. 102 MB at the peak of a 1.5-million-order
+  day, against 212 MB with the ids as strings. Snapshots store the keys; old ones still load.
+- **The allocator is mimalloc** (ADR 0011), which returns freed memory to the system, so the
+  gateway shrinks after the roll instead of keeping the day's peak.
+
 ## Found by conformance testing
 
 QuickFIX refused to load the published spec at all: its root element lacked `type="FIX"`.
