@@ -70,6 +70,7 @@ impl Client {
             their_comp_id: "ALPHA".into(),
             role: Role::Initiator,
             heartbeat_secs: 30,
+            resend_window: None,
         });
         Client::reconnect(addr, session).await
     }

@@ -94,6 +94,14 @@ impl SessionStore for PgStore {
                 .execute(&mut *tx)
                 .await?;
         }
+        if let Some(below) = changes.forget_below {
+            // Fell out of the resend window: no longer kept (ADR 0010).
+            sqlx::query("DELETE FROM fix_outbound WHERE comp_id = $1 AND seq < $2")
+                .bind(comp_id)
+                .bind(below as i64)
+                .execute(&mut *tx)
+                .await?;
+        }
         for (seq, raw) in &changes.new_outbound {
             sqlx::query(
                 "INSERT INTO fix_outbound (comp_id, seq, raw) VALUES ($1, $2, $3)
@@ -130,6 +138,9 @@ impl SessionStore for MemoryStore {
         session.next_out_seq = changes.next_out_seq;
         if changes.reset {
             session.outbound.clear();
+        }
+        if let Some(below) = changes.forget_below {
+            session.outbound.retain(|(seq, _)| *seq >= below);
         }
         session
             .outbound
