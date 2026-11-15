@@ -1,8 +1,8 @@
 {
   "venue": "ALPHA",
-  "spec_version": "1.1.0",
-  "synced_at": "2026-11-12T21:36:52.527Z",
+  "spec_version": "1.2.0",
+  "synced_at": "2026-11-15T00:53:37.448Z",
   "files": {
-    "listings.json": "b24f9f5f8d20dcf6c7b4ebd5fb8b5ac8907ea883e9e515c3eaf083120553b916"
+    "listings.json": "88954d527792263e7ac70a64db498decc428fa299f12705c2c2f55b2889be350"
   }
 }
