@@ -201,7 +201,9 @@ deploys.
    checkout, the agent hands over to the new copy. (Until that was added, each release was
    deployed by the previous release's agent, so `v0.5.0` started without the newswire that
    its own agent listed; it was started by running the agent again.) Only containers whose image changed restart, and
-   the backend and market-data apply pending migrations as they start. The workflow then
+   the backend and market-data apply pending migrations as they start. Afterwards the agent
+   removes every image no container uses (ADR 0009), so old releases do not pile up on disk;
+   a rollback pulls its images again. The workflow then
    waits until https://tradeplatform.dev/version.txt reports the new version.
 5. **What a restart does.** A gateway restart loads the day's snapshot and journal in
    seconds; the broker reconnects and recovers anything it missed by resend, and the
