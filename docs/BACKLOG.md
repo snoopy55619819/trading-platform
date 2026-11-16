@@ -102,11 +102,8 @@ In the plan's suggested order of value.
       keeps (how it ended; its fill details are not kept). Add it to the dictionary, the
       gateway, conformance tests, and the broker if it should use it. If not added, correct
       the note in `listings.json` so the spec does not promise it.
-- [ ] **Calmer market makers.** 95% of the exchange's orders are market maker quotes
-      cancelled within seconds, replaced each time fair value moves. Wider tolerance before
-      re-quoting would cut orders per trade, and with them the journal (about 120 MB a day
-      even at `SIM_ACTIVITY=0.2`), disk and CPU, without making the market less lively.
-      Check that spreads stay sane (ADR 0005).
+- [x] **Calmer market makers.** Overtaken by stage 5 of the scale plan: the aim is now a
+      busier book with fewer trades per message, which `SIM_QUOTE_ACTIVITY` gives.
 - [x] **Tick retention without losing data.** Done in ADR 0014: `ticks` is partitioned by
       day, Postgres keeps today and yesterday, and every finished day goes to S3 as a
       gzipped CSV (about 20 bytes a trade).

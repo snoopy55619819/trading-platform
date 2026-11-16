@@ -300,6 +300,7 @@ the first step where something gives:
 pnpm db:up && pnpm exchange:db
 pnpm load-test                                   # about 10 minutes at most
 pnpm load-test --steps 64,256,1024 --secs 30 --max-ack-ms 100000   # past slow answers, to the ceiling
+pnpm load-test --steps 16:1,16:200,16:420         # activity:quote activity: trades and book churn apart
 ```
 
 Results are saved to `load-test/results/`, to compare with later runs; each process's log to

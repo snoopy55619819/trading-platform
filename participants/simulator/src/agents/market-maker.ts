@@ -11,6 +11,9 @@
 //              are free money for whoever trades against them first
 //   news       after a headline the symbol is "hot" (market/news.ts): fair value moves
 //              faster, so the spread widens by itself, and it shows smaller sizes
+//   refreshing every resting quote is also re-priced now and then, as real market makers
+//              do all the time, at a rate set by SIM_QUOTE_ACTIVITY; sizes vary a little
+//              each time, so the book keeps changing between trades (ADR 0012 stage 5)
 
 import { type FairValue, type Listing, toTick, withinBand } from "../market/fair-value.ts";
 import { quoteSizeMultiplier } from "../market/news.ts";
@@ -27,6 +30,10 @@ export const LEVEL_STEP = 1.5;
 /** How far ahead the spread allows for: about a minute of fair value movement. */
 const HORIZON_SEC = 60;
 const PAUSE_MS = 3000;
+/** How often each resting quote is re-priced anyway, per second, at a quote activity of 1. */
+export const REFRESH_PER_SEC = 1 / 30;
+/** A quote's size varies this much either way each time it is placed. */
+export const SIZE_JITTER = 0.2;
 
 export interface Quote {
   side: Side;
@@ -103,6 +110,8 @@ export class MarketMaker implements Agent {
   private readonly lot: number;
   private readonly maxInventory: number;
   private readonly slots = new Map<string, Order>();
+  /** The size each slot's order was meant to be, before it was varied. */
+  private readonly sizes = new Map<string, number>();
   private pausedUntil = 0;
   private lastFair: number | undefined;
   pulls = 0;
@@ -118,8 +127,8 @@ export class MarketMaker implements Agent {
     this.maxInventory = this.lot * 8;
   }
 
-  step(now: number): void {
-    const { orders, positions } = this.context;
+  step(now: number, dtSec: number): void {
+    const { orders, positions, rng, quoteActivity } = this.context;
     const fairCents = this.fair.value();
     const inputs: QuoteInputs = {
       fairCents,
@@ -151,23 +160,29 @@ export class MarketMaker implements Agent {
         // Deeper levels tolerate more drift, which keeps the order rate sane.
         const tolerance = Math.max(tick * (quote.level + 1), Math.round(half / 3));
         const depleted = current.leaves < current.qty / 4;
-        if (drift < tolerance && !depleted && current.qty === quote.qty) continue;
+        const refresh = rng.chance(REFRESH_PER_SEC * quoteActivity, dtSec);
+        if (!refresh && drift < tolerance && !depleted && this.sizes.get(key) === quote.qty) continue;
         // Replace now, without waiting for the cancel to be confirmed: waiting leaves the
         // level empty, and when every level moves at once, the whole side.
         orders.cancel(current, now);
       }
+      const varied = Math.max(1, Math.round(quote.qty * (1 + SIZE_JITTER * (2 * rng.next() - 1))));
       const order = orders.place(
         {
           account: this.name,
           symbol: this.symbol,
           side: quote.side,
-          qty: quote.qty,
+          qty: varied,
           priceCents: toTick(quote.priceCents, tick),
         },
         now,
       );
-      if (order) this.slots.set(key, order);
-      else this.slots.delete(key);
+      if (order) {
+        this.slots.set(key, order);
+        this.sizes.set(key, quote.qty);
+      } else {
+        this.slots.delete(key);
+      }
     }
     // A side that must not be quoted (at the inventory limit) is cancelled.
     const wanted = new Set(quotes.map((q) => `${q.side}${q.level}`));

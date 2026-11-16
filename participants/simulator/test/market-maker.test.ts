@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { type QuoteInputs, desiredQuotes, halfSpread } from "../src/agents/market-maker.ts";
+import { type Context, Positions } from "../src/agents/context.ts";
+import { MarketMaker, type QuoteInputs, desiredQuotes, halfSpread } from "../src/agents/market-maker.ts";
+import { profileFor } from "../src/config.ts";
+import { FixMessage } from "../src/fix/codec.ts";
+import { MsgType, Tag } from "../src/fix/tags.ts";
+import { FairValue } from "../src/market/fair-value.ts";
+import { Rng } from "../src/market/rng.ts";
+import { Orders, RateLimit } from "../src/orders.ts";
 
 const base: QuoteInputs = {
   fairCents: 4210,
@@ -79,4 +86,53 @@ test("quotes outside the venue's price band are not sent", () => {
   // Fair value pinned at the top of a 20% band: the offers would be outside it.
   const quotes = desiredQuotes({ ...base, fairCents: 5052 });
   assert.ok(quotes.every((q) => Math.abs(q.priceCents - 4210) * 100 <= 4210 * 20));
+});
+
+/** Runs one market maker for `seconds` with fair value held still, the exchange acking
+ * everything at once; returns how many orders and cancels it sent after its first quotes. */
+function messagesWhileStill(quoteActivity: number, seconds: number): number {
+  const sent: FixMessage[] = [];
+  const orders = new Orders((m) => (sent.push(m), true), new RateLimit(1e9, 0), () => {});
+  const listing = base.listing;
+  const fair = new FairValue(listing, profileFor("ACME"));
+  const context = {
+    listings: new Map([["ACME", listing]]),
+    fair: new Map([["ACME", fair]]),
+    feed: undefined as never,
+    orders,
+    positions: new Positions(),
+    rng: new Rng(7),
+    activity: 1,
+    quoteActivity,
+  } satisfies Context;
+  const maker = new MarketMaker("ACME", context);
+  let acked = 0;
+  let after = 0;
+  for (let step = 0; step < seconds * 4; step++) {
+    maker.step(step * 250, 0.25);
+    // The exchange answers every new order and cancel straight away.
+    for (const message of sent.slice(acked)) {
+      const id = message.get(Tag.ClOrdID)!;
+      const report = new FixMessage(MsgType.ExecutionReport).set(Tag.ClOrdID, id).set(Tag.OrderID, `O-${id}`);
+      if (message.type === MsgType.NewOrderSingle) {
+        orders.receive(report.set(Tag.ExecType, "0").set(Tag.OrdStatus, "0").set(Tag.LeavesQty, message.get(Tag.OrderQty)!));
+      } else {
+        const original = message.get(Tag.OrigClOrdID)!;
+        orders.receive(report.set(Tag.OrderID, `O-${original}`).set(Tag.ExecType, "4").set(Tag.OrdStatus, "4").set(Tag.LeavesQty, "0"));
+      }
+    }
+    acked = sent.length;
+    if (step === 0) after = sent.length; // its first quotes
+  }
+  return sent.length - after;
+}
+
+test("with fair value still, quotes are re-priced only as often as the quote activity says", () => {
+  assert.equal(messagesWhileStill(0, 120), 0, "nothing moves, nothing is sent");
+  // Six quotes, each re-priced (a cancel and an order) about every 30 s at 1: about 48 in
+  // two minutes; ten times that at 10.
+  const one = messagesWhileStill(1, 120);
+  const ten = messagesWhileStill(10, 120);
+  assert.ok(one > 20 && one < 90, `at 1: ${one}`);
+  assert.ok(ten > 6 * one && ten < 14 * one, `at 10: ${ten} against ${one}`);
 });
