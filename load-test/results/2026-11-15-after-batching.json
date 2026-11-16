@@ -1,0 +1,315 @@
+{
+  "at": "2026-11-15T23:55:46.900Z",
+  "commit": "b1f3a37",
+  "machine": {
+    "cpu": "Apple M5 Pro",
+    "cores": 15,
+    "memoryGb": 24
+  },
+  "measureSecs": 60,
+  "warmupSecs": 15,
+  "limits": {
+    "core": 0.9,
+    "accepted": 0.9,
+    "ackP99Ms": 50
+  },
+  "verdict": "handles 857.5 transactions a second (activity 512); next step stopped by: every step passed",
+  "steps": [
+    {
+      "activity": 4,
+      "transactionsPerSec": 26.9,
+      "newOrdersPerSec": 16.4,
+      "cancelsPerSec": 10.5,
+      "simulatorSentPerSec": 26.8,
+      "tradesPerSec": 5.4,
+      "executionReportsPerSec": 37.9,
+      "feedMessagesPerSec": 32.7,
+      "ackMs": {
+        "p50": 5.5,
+        "p99": 7.78
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.005,
+        "market-data": 0.006,
+        "backend": 0.003,
+        "newswire": 0,
+        "simulator": 0.007,
+        "exchange-alpha-postgres": 0.011,
+        "broker-market-data-postgres": 0.014,
+        "broker-postgres": 0.005
+      },
+      "memoryMb": {
+        "gateway": 13.1,
+        "market-data": 119.4,
+        "backend": 108.8,
+        "newswire": 111.2,
+        "simulator": 123.1,
+        "exchange-alpha-postgres": 385.2,
+        "broker-market-data-postgres": 190,
+        "broker-postgres": 46.4
+      },
+      "failed": []
+    },
+    {
+      "activity": 8,
+      "transactionsPerSec": 44,
+      "newOrdersPerSec": 27.8,
+      "cancelsPerSec": 16.2,
+      "simulatorSentPerSec": 44,
+      "tradesPerSec": 11.1,
+      "executionReportsPerSec": 66.2,
+      "feedMessagesPerSec": 55.8,
+      "ackMs": {
+        "p50": 5.89,
+        "p99": 7.3
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.006,
+        "market-data": 0.009,
+        "backend": 0.002,
+        "newswire": 0,
+        "simulator": 0.008,
+        "exchange-alpha-postgres": 0.012,
+        "broker-market-data-postgres": 0.019,
+        "broker-postgres": 0.006
+      },
+      "memoryMb": {
+        "gateway": 14.4,
+        "market-data": 121.2,
+        "backend": 108.7,
+        "newswire": 111.3,
+        "simulator": 125,
+        "exchange-alpha-postgres": 385.6,
+        "broker-market-data-postgres": 190.9,
+        "broker-postgres": 46.7
+      },
+      "failed": []
+    },
+    {
+      "activity": 16,
+      "transactionsPerSec": 63.8,
+      "newOrdersPerSec": 43,
+      "cancelsPerSec": 20.8,
+      "simulatorSentPerSec": 63.7,
+      "tradesPerSec": 21.6,
+      "executionReportsPerSec": 106.9,
+      "feedMessagesPerSec": 87.2,
+      "ackMs": {
+        "p50": 5.93,
+        "p99": 7.75
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.008,
+        "market-data": 0.009,
+        "backend": 0.002,
+        "newswire": 0,
+        "simulator": 0.009,
+        "exchange-alpha-postgres": 0.012,
+        "broker-market-data-postgres": 0.022,
+        "broker-postgres": 0.006
+      },
+      "memoryMb": {
+        "gateway": 16.3,
+        "market-data": 125,
+        "backend": 109.9,
+        "newswire": 111.4,
+        "simulator": 135,
+        "exchange-alpha-postgres": 385.1,
+        "broker-market-data-postgres": 191.9,
+        "broker-postgres": 43.5
+      },
+      "failed": []
+    },
+    {
+      "activity": 32,
+      "transactionsPerSec": 111.5,
+      "newOrdersPerSec": 77.9,
+      "cancelsPerSec": 33.6,
+      "simulatorSentPerSec": 111,
+      "tradesPerSec": 43.7,
+      "executionReportsPerSec": 199.1,
+      "feedMessagesPerSec": 160.5,
+      "ackMs": {
+        "p50": 6.89,
+        "p99": 9.1
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.01,
+        "market-data": 0.01,
+        "backend": 0.001,
+        "newswire": 0,
+        "simulator": 0.011,
+        "exchange-alpha-postgres": 0.014,
+        "broker-market-data-postgres": 0.025,
+        "broker-postgres": 0.005
+      },
+      "memoryMb": {
+        "gateway": 19.4,
+        "market-data": 123.8,
+        "backend": 109.7,
+        "newswire": 111.5,
+        "simulator": 136.2,
+        "exchange-alpha-postgres": 390.8,
+        "broker-market-data-postgres": 195.4,
+        "broker-postgres": 46
+      },
+      "failed": []
+    },
+    {
+      "activity": 64,
+      "transactionsPerSec": 188.3,
+      "newOrdersPerSec": 139.4,
+      "cancelsPerSec": 48.8,
+      "simulatorSentPerSec": 187.4,
+      "tradesPerSec": 89.8,
+      "executionReportsPerSec": 369,
+      "feedMessagesPerSec": 290.3,
+      "ackMs": {
+        "p50": 8.35,
+        "p99": 11.05
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.015,
+        "market-data": 0.01,
+        "backend": 0.001,
+        "newswire": 0,
+        "simulator": 0.016,
+        "exchange-alpha-postgres": 0.018,
+        "broker-market-data-postgres": 0.029,
+        "broker-postgres": 0.005
+      },
+      "memoryMb": {
+        "gateway": 25.6,
+        "market-data": 130,
+        "backend": 108.6,
+        "newswire": 111.6,
+        "simulator": 139.5,
+        "exchange-alpha-postgres": 393.8,
+        "broker-market-data-postgres": 195.3,
+        "broker-postgres": 46.1
+      },
+      "failed": []
+    },
+    {
+      "activity": 128,
+      "transactionsPerSec": 313.3,
+      "newOrdersPerSec": 248.9,
+      "cancelsPerSec": 64.4,
+      "simulatorSentPerSec": 311.9,
+      "tradesPerSec": 182.7,
+      "executionReportsPerSec": 679,
+      "feedMessagesPerSec": 522.8,
+      "ackMs": {
+        "p50": 10.45,
+        "p99": 12.99
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.021,
+        "market-data": 0.01,
+        "backend": 0.001,
+        "newswire": 0,
+        "simulator": 0.023,
+        "exchange-alpha-postgres": 0.024,
+        "broker-market-data-postgres": 0.035,
+        "broker-postgres": 0.005
+      },
+      "memoryMb": {
+        "gateway": 46,
+        "market-data": 144.6,
+        "backend": 109.5,
+        "newswire": 111.6,
+        "simulator": 152.7,
+        "exchange-alpha-postgres": 402.7,
+        "broker-market-data-postgres": 205.3,
+        "broker-postgres": 45.3
+      },
+      "failed": []
+    },
+    {
+      "activity": 256,
+      "transactionsPerSec": 517.7,
+      "newOrdersPerSec": 445.7,
+      "cancelsPerSec": 72,
+      "simulatorSentPerSec": 515.5,
+      "tradesPerSec": 365.8,
+      "executionReportsPerSec": 1255.9,
+      "feedMessagesPerSec": 937.6,
+      "ackMs": {
+        "p50": 14.92,
+        "p99": 20.68
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.032,
+        "market-data": 0.012,
+        "backend": 0.001,
+        "newswire": 0,
+        "simulator": 0.031,
+        "exchange-alpha-postgres": 0.036,
+        "broker-market-data-postgres": 0.042,
+        "broker-postgres": 0.004
+      },
+      "memoryMb": {
+        "gateway": 52.2,
+        "market-data": 170.6,
+        "backend": 108.9,
+        "newswire": 111.7,
+        "simulator": 181.9,
+        "exchange-alpha-postgres": 423.4,
+        "broker-market-data-postgres": 219.9,
+        "broker-postgres": 45.8
+      },
+      "failed": []
+    },
+    {
+      "activity": 512,
+      "transactionsPerSec": 857.5,
+      "newOrdersPerSec": 800.2,
+      "cancelsPerSec": 57.3,
+      "simulatorSentPerSec": 857.7,
+      "tradesPerSec": 706.8,
+      "executionReportsPerSec": 2304.7,
+      "feedMessagesPerSec": 1647.3,
+      "ackMs": {
+        "p50": 23.03,
+        "p99": 30.6
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.053,
+        "market-data": 0.018,
+        "backend": 0.001,
+        "newswire": 0,
+        "simulator": 0.045,
+        "exchange-alpha-postgres": 0.051,
+        "broker-market-data-postgres": 0.055,
+        "broker-postgres": 0.005
+      },
+      "memoryMb": {
+        "gateway": 69.7,
+        "market-data": 176.1,
+        "backend": 110,
+        "newswire": 112.1,
+        "simulator": 188.1,
+        "exchange-alpha-postgres": 443.3,
+        "broker-market-data-postgres": 262.9,
+        "broker-postgres": 45.8
+      },
+      "failed": []
+    }
+  ]
+}

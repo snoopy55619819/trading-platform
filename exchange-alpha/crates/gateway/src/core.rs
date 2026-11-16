@@ -34,6 +34,9 @@ pub type ConnId = u64;
 
 /// How long a new connection has to send its Logon before it is dropped.
 const LOGON_TIMEOUT_MS: u64 = 10_000;
+/// At most this many events are handled before the FIX sessions are saved. Whatever has
+/// arrived while the last save was running is handled together and saved once (ADR 0013).
+const MAX_BATCH: usize = 512;
 
 /// What connection tasks (and the timer) tell the core.
 pub enum CoreEvent {
@@ -87,6 +90,10 @@ pub struct Core<S: SessionStore> {
     business_date: String,
     /// When the current business day closes.
     next_roll: UtcMillis,
+    /// What the core has said to connections since the last save: delivered only once the
+    /// sessions are saved, so a client never receives a message the exchange could forget
+    /// in a crash and then number again differently (ADR 0013).
+    held: Vec<(mpsc::UnboundedSender<Outgoing>, Outgoing)>,
 }
 
 impl<S: SessionStore> Core<S> {
@@ -177,6 +184,7 @@ impl<S: SessionStore> Core<S> {
             clock,
             business_date: day.business_date,
             next_roll: clock.next_roll(now),
+            held: Vec::new(),
         };
 
         let rolled = if ended_with_close {
@@ -256,9 +264,18 @@ impl<S: SessionStore> Core<S> {
 
     /// Processes events until every sender is gone. Returns an error only for failures that
     /// must stop the exchange, such as being unable to write the journal.
+    ///
+    /// Events are handled in batches: one, then whatever else has already arrived (up to
+    /// [`MAX_BATCH`]), then a single save of every FIX session they changed, and only then
+    /// are their replies sent. Saving after every message capped the exchange at about one
+    /// event per database round trip (ADR 0013).
     pub async fn run(mut self, mut events: mpsc::Receiver<CoreEvent>) -> Result<()> {
         while let Some(event) = events.recv().await {
             self.handle(event, UtcMillis::now())?;
+            for _ in 1..MAX_BATCH {
+                let Ok(event) = events.try_recv() else { break };
+                self.handle(event, UtcMillis::now())?;
+            }
             self.persist().await?;
         }
         Ok(())
@@ -495,6 +512,7 @@ impl<S: SessionStore> Core<S> {
         Ok(())
     }
 
+    /// Saves every FIX session that changed, then delivers what was held back for them.
     async fn persist(&mut self) -> Result<()> {
         for (comp_id, session) in &mut self.sessions {
             if let Some(changes) = session.take_changes() {
@@ -503,6 +521,9 @@ impl<S: SessionStore> Core<S> {
                     .await
                     .with_context(|| format!("saving FIX session {comp_id}"))?;
             }
+        }
+        for (outbox, outgoing) in self.held.drain(..) {
+            let _ = outbox.send(outgoing); // that connection may have gone meanwhile
         }
         Ok(())
     }
@@ -514,9 +535,11 @@ impl<S: SessionStore> Core<S> {
             .or_insert_with(|| Session::new(session_config(listings, comp_id)))
     }
 
-    fn write(&self, comp_id: &str, bytes: Vec<u8>) {
+    /// Queues bytes for a session's connection, sent after the next save.
+    fn write(&mut self, comp_id: &str, bytes: Vec<u8>) {
         if let Some(connection) = self.connection_of(comp_id) {
-            let _ = connection.outbox.send(Outgoing::Bytes(bytes));
+            let outbox = connection.outbox.clone();
+            self.held.push((outbox, Outgoing::Bytes(bytes)));
         }
     }
 
@@ -534,7 +557,8 @@ impl<S: SessionStore> Core<S> {
 
     fn close_connection(&mut self, conn: ConnId) {
         if let Some(connection) = self.connections.get_mut(&conn) {
-            let _ = connection.outbox.send(Outgoing::Close);
+            // Held like any message, so it follows whatever was written before it (a Logout).
+            self.held.push((connection.outbox.clone(), Outgoing::Close));
             connection.comp_id = None;
         }
     }

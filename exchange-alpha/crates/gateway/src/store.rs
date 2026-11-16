@@ -102,14 +102,27 @@ impl SessionStore for PgStore {
                 .execute(&mut *tx)
                 .await?;
         }
-        for (seq, raw) in &changes.new_outbound {
+        if !changes.new_outbound.is_empty() {
+            // Every new message in one statement: a batch of hundreds is one round trip, not
+            // hundreds (ADR 0013).
+            let seqs: Vec<i64> = changes
+                .new_outbound
+                .iter()
+                .map(|(seq, _)| *seq as i64)
+                .collect();
+            let raws: Vec<&[u8]> = changes
+                .new_outbound
+                .iter()
+                .map(|(_, raw)| raw.as_slice())
+                .collect();
             sqlx::query(
-                "INSERT INTO fix_outbound (comp_id, seq, raw) VALUES ($1, $2, $3)
+                "INSERT INTO fix_outbound (comp_id, seq, raw)
+                 SELECT $1, seq, raw FROM UNNEST($2::bigint[], $3::bytea[]) AS m(seq, raw)
                  ON CONFLICT (comp_id, seq) DO UPDATE SET raw = EXCLUDED.raw",
             )
             .bind(comp_id)
-            .bind(*seq as i64)
-            .bind(raw)
+            .bind(&seqs)
+            .bind(&raws)
             .execute(&mut *tx)
             .await?;
         }

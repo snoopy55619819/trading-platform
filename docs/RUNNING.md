@@ -279,6 +279,13 @@ benchmark:
 pnpm exchange:test && cd exchange-alpha && cargo bench -p matching-engine
 ```
 
+The gateway's Postgres session store has a test of its own that needs the database, so it
+runs only when told where it is (otherwise it passes without checking anything):
+
+```bash
+cd exchange-alpha && ALPHA_TEST_DATABASE_URL=postgres://exchange_alpha:exchange_alpha@127.0.0.1:5433/exchange_alpha cargo test -p gateway --test store
+```
+
 Each TypeScript deployable runs its own with `pnpm test` (and `pnpm typecheck`) from its
 folder.
 
