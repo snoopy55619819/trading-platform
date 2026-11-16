@@ -32,6 +32,11 @@ cargo run -p md-publisher --bin md-watch -- ACME --log    # one line per message
 - [x] `qty == 0` means the level is gone
 - [x] `TradePrint` with `aggressor_side`, no participants
 - [x] `Heartbeat` every second, to every connection
+- [x] `VenueStats` every second, to every connection, unnumbered (spec 1.4.0, ADR 0016): the
+      venue's transactions, orders, cancels, rejects, trades, shares and value a second, FIX
+      messages in and out, feed messages, how long orders take to answer (median, p99), open
+      orders, sessions, and the day's totals. Counted by the gateway's core
+      (`gateway/src/stats.rs`), totals across every session only. `md-watch --log` prints them.
 - [x] WebSocket server; `Subscribe`/`Unsubscribe` per symbol
 - [x] `ResyncRequest` → send a fresh `Snapshot` (do not replay individual deltas)
 - [x] Ring buffer of the last 1024 messages, logged against a `ResyncRequest`

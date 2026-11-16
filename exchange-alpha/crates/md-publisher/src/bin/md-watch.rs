@@ -105,6 +105,16 @@ fn describe(message: &FeedMessage, applied: Applied) -> String {
             side(m.aggressor_side)
         ),
         Some(Payload::Heartbeat(m)) => format!("HEARTBEAT feed_seq={}", m.feed_seq),
+        Some(Payload::VenueStats(m)) => format!(
+            "STATS {:.0} tx/s ({:.0} new, {:.0} cancel), {:.1} trades/s, answer p50 {} us p99 {} us, {} open orders",
+            m.transactions_per_sec,
+            m.new_orders_per_sec,
+            m.cancels_per_sec,
+            m.trades_per_sec,
+            m.answer_p50_us,
+            m.answer_p99_us,
+            m.open_orders
+        ),
         None => "EMPTY".to_string(),
     };
     match applied {

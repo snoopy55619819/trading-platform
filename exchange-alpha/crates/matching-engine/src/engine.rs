@@ -85,6 +85,11 @@ impl Engine {
         engine
     }
 
+    /// The number of the latest trade, which every trade's id counts up from.
+    pub fn last_trade_id(&self) -> u64 {
+        self.ids.last_trade
+    }
+
     pub fn book(&self, symbol: &str) -> Option<&OrderBook> {
         self.books.get(symbol)
     }

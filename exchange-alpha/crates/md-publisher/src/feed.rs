@@ -7,9 +7,10 @@ use matching_engine::Side;
 use serde::{Deserialize, Serialize};
 
 use crate::proto::{
-    self, BookDelta, FeedMessage, Heartbeat, PriceLevel, Snapshot, TradePrint, feed_message,
+    self, BookDelta, FeedMessage, Heartbeat, PriceLevel, Snapshot, TradePrint, VenueStats,
+    feed_message,
 };
-use crate::public::PublicEvent;
+use crate::public::{PublicEvent, VenueActivity};
 
 /// Levels per side in a snapshot when the subscriber does not ask for a number.
 pub const DEFAULT_DEPTH: usize = 10;
@@ -128,6 +129,9 @@ impl Feed {
     /// Applies one public event to the book, gives it the next `feed_seq` and `symbol_seq`,
     /// and returns the message to broadcast.
     pub fn publish(&mut self, event: &PublicEvent, ts_ns: i64) -> FeedMessage {
+        if let PublicEvent::Stats(activity) = event {
+            return self.venue_stats(activity, ts_ns); // no number, no book
+        }
         let (feed_seq, symbol_seq) = self.sequence.next(event.symbol());
         let book = self.books.entry(event.symbol().to_string()).or_default();
 
@@ -184,6 +188,7 @@ impl Feed {
                 aggressor_side: wire_side(*aggressor_side).into(),
                 symbol_seq,
             }),
+            PublicEvent::Stats(_) => unreachable!("answered before sequencing"),
         };
 
         let message = FeedMessage {
@@ -230,6 +235,35 @@ impl Feed {
         }
     }
 
+    /// The venue's activity (ADR 0016). Like a heartbeat it takes no number, and it is not
+    /// kept with the recent messages: it is about the venue, not any book.
+    pub fn venue_stats(&self, a: &VenueActivity, ts_ns: i64) -> FeedMessage {
+        FeedMessage {
+            payload: Some(feed_message::Payload::VenueStats(VenueStats {
+                venue: self.venue.clone(),
+                ts_ns,
+                interval_ms: a.interval_ms,
+                business_date: a.business_date.clone(),
+                transactions_per_sec: a.transactions_per_sec,
+                new_orders_per_sec: a.new_orders_per_sec,
+                cancels_per_sec: a.cancels_per_sec,
+                rejects_per_sec: a.rejects_per_sec,
+                trades_per_sec: a.trades_per_sec,
+                shares_per_sec: a.shares_per_sec,
+                notional_cents_per_sec: a.notional_cents_per_sec,
+                fix_in_per_sec: a.fix_in_per_sec,
+                fix_out_per_sec: a.fix_out_per_sec,
+                feed_messages_per_sec: a.feed_messages_per_sec,
+                answer_p50_us: a.answer_p50_us,
+                answer_p99_us: a.answer_p99_us,
+                open_orders: a.open_orders,
+                sessions: a.sessions,
+                transactions_today: a.transactions_today,
+                trades_today: a.trades_today,
+            })),
+        }
+    }
+
     /// The oldest and newest `feed_seq` still held in the recent-messages buffer.
     pub fn recent_range(&self) -> Option<(u64, u64)> {
         let first = self.recent.front()?.feed_seq();
@@ -263,7 +297,7 @@ impl FeedMessage {
             Some(feed_message::Payload::BookDelta(m)) => m.feed_seq,
             Some(feed_message::Payload::TradePrint(m)) => m.feed_seq,
             Some(feed_message::Payload::Heartbeat(m)) => m.feed_seq,
-            None => 0,
+            Some(feed_message::Payload::VenueStats(_)) | None => 0,
         }
     }
 }

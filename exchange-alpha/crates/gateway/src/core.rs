@@ -15,6 +15,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::time::Instant;
 
 use anyhow::{Context, Result};
 use fix_core::tags::{msg_type, *};
@@ -28,6 +29,7 @@ use crate::days::{DataDir, Day, DayClock};
 use crate::listings::Listings;
 use crate::orders::{OrderTracker, Report};
 use crate::recovery::{ExchangeState, Recovered, recover};
+use crate::stats::{Activity, Now};
 use crate::store::SessionStore;
 
 pub type ConnId = u64;
@@ -94,6 +96,14 @@ pub struct Core<S: SessionStore> {
     /// sessions are saved, so a client never receives a message the exchange could forget
     /// in a crash and then number again differently (ADR 0013).
     held: Vec<(mpsc::UnboundedSender<Outgoing>, Outgoing)>,
+    /// The venue's activity since it was last published (ADR 0016).
+    activity: Activity,
+    /// When each order and cancel in this batch was taken, to time its answer.
+    answering: Vec<Instant>,
+    /// Where the business day began, for its totals: its first journal entry, and the trade
+    /// number before its first trade. Both survive a restart, unlike a counter would.
+    day_first_seq: u64,
+    day_first_trade_id: u64,
 }
 
 impl<S: SessionStore> Core<S> {
@@ -139,6 +149,7 @@ impl<S: SessionStore> Core<S> {
                 (day, ExchangeState::empty())
             }
         };
+        let state_trade_id = state.engine.last_trade_id;
         let Recovered {
             engine,
             orders,
@@ -185,6 +196,10 @@ impl<S: SessionStore> Core<S> {
             business_date: day.business_date,
             next_roll: clock.next_roll(now),
             held: Vec::new(),
+            activity: Activity::new(Instant::now()),
+            answering: Vec::new(),
+            day_first_seq: day.first_seq,
+            day_first_trade_id: state_trade_id,
         };
 
         let rolled = if ended_with_close {
@@ -248,6 +263,8 @@ impl<S: SessionStore> Core<S> {
         );
         self.business_date = day.business_date;
         self.next_roll = self.clock.next_roll(now);
+        self.day_first_seq = day.first_seq;
+        self.day_first_trade_id = state.engine.last_trade_id;
         Ok(())
     }
 
@@ -302,7 +319,10 @@ impl<S: SessionStore> Core<S> {
             CoreEvent::Frame {
                 conn,
                 decoded: Decoded::Message(message),
-            } => self.on_message(conn, message, now)?,
+            } => {
+                self.activity.fix_in();
+                self.on_message(conn, message, now)?;
+            }
             CoreEvent::Disconnected { conn } => {
                 let comp_id = self.connections.remove(&conn).and_then(|c| c.comp_id);
                 if let Some(comp_id) = comp_id {
@@ -381,18 +401,34 @@ impl<S: SessionStore> Core<S> {
     fn on_application(&mut self, comp_id: &str, message: Message, now: UtcMillis) -> Result<()> {
         let reports = match message.msg_type() {
             msg_type::NEW_ORDER_SINGLE => {
+                self.answering.push(Instant::now());
                 match self
                     .orders
                     .new_order_single(comp_id, &message, &self.listings)
                 {
-                    Ok(command) => self.submit(command)?,
-                    Err(rejection) => vec![self.number_rejection(rejection, now)],
+                    Ok(command) => {
+                        self.activity.new_order();
+                        self.submit(command)?
+                    }
+                    Err(rejection) => {
+                        self.activity.reject();
+                        vec![self.number_rejection(rejection, now)]
+                    }
                 }
             }
-            msg_type::ORDER_CANCEL_REQUEST => match self.orders.cancel_request(comp_id, &message) {
-                Ok(command) => self.submit(command)?,
-                Err(rejection) => vec![rejection],
-            },
+            msg_type::ORDER_CANCEL_REQUEST => {
+                self.answering.push(Instant::now());
+                match self.orders.cancel_request(comp_id, &message) {
+                    Ok(command) => {
+                        self.activity.cancel();
+                        self.submit(command)?
+                    }
+                    Err(rejection) => {
+                        self.activity.reject();
+                        vec![rejection]
+                    }
+                }
+            }
             msg_type::REJECT => {
                 warn!(
                     comp_id,
@@ -449,7 +485,11 @@ impl<S: SessionStore> Core<S> {
         // Numbered whether or not anyone is listening, exactly as replay numbers them.
         for event in &public {
             self.feed_sequence.next(event.symbol());
+            if let PublicEvent::Trade { qty, price, .. } = event {
+                self.activity.trade(qty.0, price.0);
+            }
         }
+        self.activity.feed_messages(public.len());
         let Some(market_data) = &self.market_data else {
             return;
         };
@@ -457,6 +497,31 @@ impl<S: SessionStore> Core<S> {
             // Order entry carries on without a feed; subscribers will see heartbeats stop.
             warn!("market data has stopped; no longer publishing");
             self.market_data = None;
+        }
+    }
+
+    /// The venue's activity since last time, on the feed to every connection (ADR 0016).
+    /// Once a second, from the core's timer. Not numbered: it goes straight to the feed's
+    /// server rather than through `publish`, which numbers what it sends.
+    fn publish_stats(&mut self) {
+        let today = Now {
+            business_date: &self.business_date,
+            open_orders: self.orders.open_order_count(),
+            sessions: self
+                .connections
+                .values()
+                .filter(|c| c.comp_id.is_some())
+                .count(),
+            transactions_today: (self.engine.last_seq() + 1).saturating_sub(self.day_first_seq),
+            trades_today: self
+                .engine
+                .engine()
+                .last_trade_id()
+                .saturating_sub(self.day_first_trade_id),
+        };
+        let activity = self.activity.take(Instant::now(), today);
+        if let Some(market_data) = &self.market_data {
+            let _ = market_data.send(vec![PublicEvent::Stats(activity)]);
         }
     }
 
@@ -488,6 +553,7 @@ impl<S: SessionStore> Core<S> {
         if now >= self.next_roll {
             self.end_day(now)?;
         }
+        self.publish_stats();
 
         let stale: Vec<ConnId> = self
             .connections
@@ -525,6 +591,10 @@ impl<S: SessionStore> Core<S> {
         for (outbox, outgoing) in self.held.drain(..) {
             let _ = outbox.send(outgoing); // that connection may have gone meanwhile
         }
+        let now = Instant::now();
+        for taken in self.answering.drain(..) {
+            self.activity.answered(taken, now);
+        }
         Ok(())
     }
 
@@ -540,6 +610,7 @@ impl<S: SessionStore> Core<S> {
         if let Some(connection) = self.connection_of(comp_id) {
             let outbox = connection.outbox.clone();
             self.held.push((outbox, Outgoing::Bytes(bytes)));
+            self.activity.fix_out();
         }
     }
 
