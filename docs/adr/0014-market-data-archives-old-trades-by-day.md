@@ -63,7 +63,7 @@ Option 1, and how:
 
 - **Postgres holds at most two days of trades:** at 1,000 a second, up to about 4.2 GB, then
   back to about 2.1 GB at each day's drop. The disk at its fullest (just before 21:00 UTC,
-  with the journal's day uncompressed) is about 13.8 GB at 500 a second (46%) and about
+  with the journal's day uncompressed) is about 15.8 GB at 500 a second (52%) and about
   25.7 GB at 1,000 (84%): above the 80% alarm. Running at 1,000 a second for long needs a
   larger disk (20 GB more is about $1.60 a month), decided with the numbers when the live
   server gets there (stage 7).
