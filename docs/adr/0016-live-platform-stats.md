@@ -2,7 +2,7 @@
 
 **Status:** accepted, 2026-11-16. Built in three steps: the exchange's stats on its feed
 (spec 1.4.0, built), then market-data and the backend's own (built), then the web app's live
-strip and the "How it works" guide.
+strip, dialog and "How it works" guide (built).
 
 ## Context
 
@@ -83,7 +83,12 @@ orders placed this business day; open accounts.
 
 ### In the web app
 
-- A compact strip in the header: transactions a second, trades a second, answer time.
+- **On screen a transaction is an "order update"**, split into new orders and "withdrawn or
+  moved": a visitor seeing cancels outnumber trades fifty to one would think something was
+  wrong, when most are market makers moving a quote (Alpha has no cancel-and-replace).
+- A compact strip in the header: order updates and trades a second (averaged over five
+  seconds, so they can be read), and the typical answer time; Terminal adds market data
+  updates, Calm shows none.
 - In the "How it works" guide, each arrow of the flow diagram shows its live rate.
 - A panel with every number, today's totals, a five-minute trend each, and one line saying
   what each one means.
