@@ -198,7 +198,7 @@ percentile; nothing above 3% of a core.)
       | 0 | `v0.5.11` | 4, 1, 160 | about 30 a second over the day, 50 in New York hours | 21 a second over the day; CPU 6 to 7.5% |
       | 1 | `v0.5.12` | 4, 30, 400 | about 100 a second over the day, 130 in New York hours | 139 a second at the New York open; CPU 9.5%; answers 7.6 / 25 ms |
       | 2 | `v0.5.13` | 4, 100, 800 | 290 a second locally at New York hours; about 270 over the day | 280 to 317 a second; CPU 8.5 to 10.4% an hour; credits full, nothing charged; answers 8.6 / 20 ms |
-      | 3 | next | 4, 300, 1,000 | 471 a second locally (answers 10 / 15.5 ms; `load-test/results/2026-11-16-step-3.json`) | |
+      | 3 | `v0.5.15` | 4, 300, 1,000 | 471 a second locally (answers 10 / 15.5 ms; `load-test/results/2026-11-16-step-3.json`) | 499 a second after release (evening, UTC); CPU 10.3 to 11% (step 2: 8.5%); credits full; answers 6.8 / 10.8 ms; journal about 75 KB a second. New York hours still to read |
 - [ ] After each step, the ADR 0009 checks: CPU and credits (`CPUSurplusCreditsCharged`
       should stay 0), memory and swap, disk, the resend cap, cost, `pnpm realism`.
 - [ ] If credits drain at the target: decide, with the numbers, between paying the surplus
