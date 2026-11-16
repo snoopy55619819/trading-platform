@@ -14,7 +14,7 @@
 //! owns the order**: a trade produces two reports, one to each side, and neither learns who
 //! the other was.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use serde::{Deserialize, Serialize};
 
@@ -105,9 +105,9 @@ impl Ended {
     }
 }
 
-/// What a session's `ClOrdID` refers to, for the rest of the business day. A `ClOrdID` may
-/// be used once a day, so every one used is remembered, but only a live order keeps its
-/// full record.
+/// What a session's `ClOrdID` refers to. A live order's id is remembered while it lives;
+/// a finished or spent one for as long as it is among the session's latest
+/// `client_order_id_window` (ADR 0015). Only a live order keeps its full record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ClientId {
     /// An order that can still trade; its record is in `orders`.
@@ -199,10 +199,12 @@ fn key_from_text(text: &str) -> ClientKey {
 pub struct OrdersState {
     /// Every live order, by id.
     pub orders: Vec<(OrderId, TrackedOrder)>,
-    /// Every ClOrdID each session used this business day, as (CompID, key in hex).
+    /// The ClOrdIDs each session still remembers, as (CompID, key in hex): its finished and
+    /// spent ones in the order they stopped being live, oldest first (the window evicts
+    /// from the front, so the order matters; ADR 0015), then its live ones.
     #[serde(default)]
     pub used_client_keys: Vec<(String, String)>,
-    /// The orders that finished this business day: (CompID, key in hex, order, how it ended).
+    /// Of those, the orders that finished: (CompID, key in hex, order, how it ended).
     #[serde(default)]
     pub finished_keys: Vec<(String, String, OrderId, Ended)>,
     /// Read from snapshots written before ADR 0011, which named ids by their strings; never
@@ -220,11 +222,24 @@ pub struct OrderTracker {
     /// maker sends is cancelled within seconds, and keeping each one's full record until the
     /// end of the day grew the gateway by about 1.35 KB an order.
     orders: HashMap<OrderId, TrackedOrder>,
-    /// Every `ClOrdID` each session used today, by CompID, and what it refers to, keyed by its
-    /// hash ([`client_key`]). A client names its orders by its own `ClOrdID`, scoped to its
-    /// session, so one client can never address another's order, even by guessing its id.
-    client_ids: HashMap<String, HashMap<MapKey, u64>>,
+    /// The `ClOrdID`s each session's orders and requests used, by CompID, and what each refers
+    /// to, keyed by its hash ([`client_key`]). A client names its orders by its own `ClOrdID`,
+    /// scoped to its session, so one client can never address another's order, even by
+    /// guessing its id.
+    client_ids: HashMap<String, SessionIds>,
+    /// How many finished or spent ids each session remembers (ADR 0015).
+    window: usize,
     pending_cancels: HashMap<OrderId, PendingCancel>,
+}
+
+/// One session's ids: every one it remembers, and the finished and spent ones in the order
+/// they stopped being live, so the oldest can be forgotten once there are more than the
+/// window. Each id enters `retired` once: a live order finishes once, and an id is never
+/// used twice while remembered.
+#[derive(Default)]
+struct SessionIds {
+    ids: HashMap<MapKey, u64>,
+    retired: VecDeque<MapKey>,
 }
 
 impl OrderTracker {
@@ -233,6 +248,7 @@ impl OrderTracker {
             venue: listings.venue.clone(),
             orders: HashMap::new(),
             client_ids: HashMap::new(),
+            window: listings.client_order_id_window,
             pending_cancels: HashMap::new(),
         }
     }
@@ -251,9 +267,7 @@ impl OrderTracker {
                     .iter()
                     .map(|(comp_id, key)| (comp_id.clone(), key_from_text(key))),
             );
-        for (comp_id, key) in used.collect::<Vec<_>>() {
-            tracker.set_key(&comp_id, key, ClientId::Spent);
-        }
+        let used: Vec<(String, ClientKey)> = used.collect();
         let finished = state
             .finished
             .iter()
@@ -268,24 +282,59 @@ impl OrderTracker {
                         (comp_id.clone(), key_from_text(key), *order_id, *ended)
                     }),
             );
-        for (comp_id, key, order_id, ended) in finished.collect::<Vec<_>>() {
-            tracker.set_key(&comp_id, key, ClientId::Finished(order_id, ended));
-        }
-        for (order_id, order) in state.orders {
-            if order.open {
-                let entry = ClientId::Live(order_id);
-                tracker.set_client_id(&order.comp_id, &order.client_order_id, entry);
-                tracker.orders.insert(order_id, order);
-            } else {
-                // Only in snapshots from before finished orders were dropped.
-                let ended = if order.cum_qty == order.qty {
-                    Ended::Filled
-                } else {
-                    Ended::Canceled
-                };
-                let entry = ClientId::Finished(order_id, ended);
-                tracker.set_client_id(&order.comp_id, &order.client_order_id, entry);
+        // Snapshots from before finished orders were dropped list them as closed records.
+        let closed =
+            state
+                .orders
+                .iter()
+                .filter(|(_, order)| !order.open)
+                .map(|(order_id, order)| {
+                    let ended = if order.cum_qty == order.qty {
+                        Ended::Filled
+                    } else {
+                        Ended::Canceled
+                    };
+                    let key = client_key(&order.client_order_id);
+                    (order.comp_id.clone(), key, *order_id, ended)
+                });
+        let finished: HashMap<(String, ClientKey), (OrderId, Ended)> = finished
+            .chain(closed.clone())
+            .map(|(comp_id, key, order_id, ended)| ((comp_id, key), (order_id, ended)))
+            .collect();
+        // Every one of those is in the list below; one that is not (none should be) still
+        // counts as used.
+        let mut used = used;
+        for (comp_id, key, _, _) in closed {
+            if !used.contains(&(comp_id.clone(), key)) {
+                used.push((comp_id, key));
             }
+        }
+        // Finished and spent ids in the order the snapshot lists them, which is the order
+        // they left the live set (ADR 0015); live ones are added from the orders below.
+        let live: std::collections::HashSet<(String, ClientKey)> = state
+            .orders
+            .iter()
+            .filter(|(_, order)| order.open)
+            .map(|(_, order)| (order.comp_id.clone(), client_key(&order.client_order_id)))
+            .collect();
+        for (comp_id, key) in used {
+            if live.contains(&(comp_id.clone(), key)) {
+                continue;
+            }
+            match finished.get(&(comp_id.clone(), key)) {
+                Some((order_id, ended)) => {
+                    tracker.set_key(&comp_id, key, ClientId::Finished(*order_id, *ended));
+                }
+                None => {
+                    tracker.set_key(&comp_id, key, ClientId::Spent);
+                    tracker.retire(&comp_id, key);
+                }
+            }
+        }
+        for (order_id, order) in state.orders.into_iter().filter(|(_, order)| order.open) {
+            let entry = ClientId::Live(order_id);
+            tracker.set_client_id(&order.comp_id, &order.client_order_id, entry);
+            tracker.orders.insert(order_id, order);
         }
         tracker
     }
@@ -305,17 +354,28 @@ impl OrderTracker {
         orders.sort_by_key(|(id, _)| *id);
         let mut used_client_keys = Vec::new();
         let mut finished_keys = Vec::new();
-        for (comp_id, ids) in &self.client_ids {
-            for (key, slot) in ids {
-                let key = key_text(from_map_key(key));
-                if let ClientId::Finished(order_id, ended) = ClientId::unpack(*slot) {
-                    finished_keys.push((comp_id.clone(), key.clone(), order_id, ended));
+        let mut sessions: Vec<_> = self.client_ids.iter().collect();
+        sessions.sort_by(|a, b| a.0.cmp(b.0));
+        for (comp_id, session) in sessions {
+            // Retired ids oldest first, as the window will evict them; then the live ones,
+            // sorted, so the same state always writes the same bytes.
+            for key in &session.retired {
+                let slot = session.ids[key];
+                let text = key_text(from_map_key(key));
+                if let ClientId::Finished(order_id, ended) = ClientId::unpack(slot) {
+                    finished_keys.push((comp_id.clone(), text.clone(), order_id, ended));
                 }
-                used_client_keys.push((comp_id.clone(), key));
+                used_client_keys.push((comp_id.clone(), text));
             }
+            let mut live: Vec<String> = session
+                .ids
+                .iter()
+                .filter(|(_, slot)| matches!(ClientId::unpack(**slot), ClientId::Live(_)))
+                .map(|(key, _)| key_text(from_map_key(key)))
+                .collect();
+            live.sort();
+            used_client_keys.extend(live.into_iter().map(|key| (comp_id.clone(), key)));
         }
-        used_client_keys.sort();
-        finished_keys.sort_by_key(|(_, _, order_id, _)| *order_id);
         OrdersState {
             orders,
             used_client_keys,
@@ -326,13 +386,15 @@ impl OrderTracker {
     }
 
     /// A new business day: forget every finished order and every used `ClOrdID`, keeping
-    /// only the orders still resting (good-till-cancelled ones) and their ids. A `ClOrdID` is
-    /// unique per session and business day, so the next day may use any other id again.
+    /// only the orders still resting (good-till-cancelled ones) and their ids.
     fn start_next_day(&mut self) {
-        for ids in self.client_ids.values_mut() {
-            ids.retain(|_, slot| matches!(ClientId::unpack(*slot), ClientId::Live(_)));
+        for session in self.client_ids.values_mut() {
+            session
+                .ids
+                .retain(|_, slot| matches!(ClientId::unpack(*slot), ClientId::Live(_)));
+            session.retired.clear();
         }
-        self.client_ids.retain(|_, ids| !ids.is_empty());
+        self.client_ids.retain(|_, session| !session.ids.is_empty());
     }
 
     pub fn open_order_count(&self) -> usize {
@@ -342,6 +404,7 @@ impl OrderTracker {
     fn client_id(&self, comp_id: &str, client_order_id: &str) -> Option<ClientId> {
         self.client_ids
             .get(comp_id)?
+            .ids
             .get(&map_key(client_key(client_order_id)))
             .map(|slot| ClientId::unpack(*slot))
     }
@@ -353,14 +416,33 @@ impl OrderTracker {
     fn set_key(&mut self, comp_id: &str, key: ClientKey, entry: ClientId) {
         // Sessions are few and long-lived: look up first, so a new CompID string is only
         // allocated once, not on every order.
-        let (key, slot) = (map_key(key), entry.pack());
-        if let Some(ids) = self.client_ids.get_mut(comp_id) {
-            ids.insert(key, slot);
-        } else {
+        if !self.client_ids.contains_key(comp_id) {
             self.client_ids
-                .entry(comp_id.to_string())
-                .or_default()
-                .insert(key, slot);
+                .insert(comp_id.to_string(), SessionIds::default());
+        }
+        let session = self.client_ids.get_mut(comp_id).expect("just inserted");
+        session.ids.insert(map_key(key), entry.pack());
+        if matches!(entry, ClientId::Finished(..)) {
+            self.retire(comp_id, key);
+        }
+    }
+
+    /// The id is done with for good (its order finished, it was rejected, or it named a
+    /// cancel request): remembered from now while it is among the session's latest `window`
+    /// such ids, then forgotten, oldest first (ADR 0015). Called once per id.
+    fn retire(&mut self, comp_id: &str, key: ClientKey) {
+        let Some(session) = self.client_ids.get_mut(comp_id) else {
+            return;
+        };
+        session.retired.push_back(map_key(key));
+        while session.retired.len() > self.window {
+            let oldest = session.retired.pop_front().expect("longer than the window");
+            // Never a live order's: those are not retired. Checked all the same.
+            if let Some(slot) = session.ids.get(&oldest)
+                && !matches!(ClientId::unpack(*slot), ClientId::Live(_))
+            {
+                session.ids.remove(&oldest);
+            }
         }
     }
 
@@ -392,19 +474,38 @@ impl OrderTracker {
         message: &Message,
         listings: &Listings,
     ) -> Result<Command, Report> {
+        let client_order_id = message.get(CL_ORD_ID).unwrap_or_default();
+        if !self.spend(comp_id, client_order_id) {
+            return Err(Report {
+                comp_id: comp_id.to_string(),
+                message: rejection(
+                    message,
+                    code::REJECT_DUPLICATE_ORDER,
+                    &format!("ClOrdID {client_order_id} has already been used"),
+                ),
+            });
+        }
+        let checked = self.check_new_order(comp_id, message, listings);
+        if checked.is_err() {
+            // Rejected here, so it will never be live: its id is done with.
+            self.retire(comp_id, client_key(client_order_id));
+        }
+        checked
+    }
+
+    /// Everything a new order is checked for after its `ClOrdID`.
+    fn check_new_order(
+        &self,
+        comp_id: &str,
+        message: &Message,
+        listings: &Listings,
+    ) -> Result<Command, Report> {
         let field = |tag| message.get(tag).unwrap_or_default();
         let client_order_id = field(CL_ORD_ID);
         let reject = |reason: &str, text: String| Report {
             comp_id: comp_id.to_string(),
             message: rejection(message, reason, &text),
         };
-
-        if !self.spend(comp_id, client_order_id) {
-            return Err(reject(
-                code::REJECT_DUPLICATE_ORDER,
-                format!("ClOrdID {client_order_id} has already been used"),
-            ));
-        }
 
         let Some(symbol) = listings.symbol(field(SYMBOL)) else {
             return Err(reject(
@@ -543,6 +644,8 @@ impl OrderTracker {
                 "ClOrdID has already been used",
             ));
         }
+        // A cancel request's own id never names a live order.
+        self.retire(comp_id, client_key(cancel_id));
         let order_id = match target {
             Some(ClientId::Live(order_id)) => order_id,
             Some(ClientId::Finished(_, ended)) => {
@@ -907,6 +1010,100 @@ fn tif_to_fix(tif: TimeInForce) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A tracker remembering only `window` retired ids per session (ADR 0015).
+    fn tracker(window: usize) -> (OrderTracker, Listings) {
+        let mut listings = Listings::published();
+        listings.client_order_id_window = window;
+        (OrderTracker::new(&listings), listings)
+    }
+
+    fn order(id: &str, symbol: &str) -> Message {
+        Message::new(msg_type::NEW_ORDER_SINGLE)
+            .with(CL_ORD_ID, id)
+            .with(ACCOUNT, "MM-1")
+            .with(SYMBOL, symbol)
+            .with(SIDE, "2")
+            .with(ORDER_QTY, "10")
+            .with(ORD_TYPE, "2")
+            .with(PRICE, "42.10")
+            .with(TIME_IN_FORCE, "1")
+    }
+
+    /// Why a new order was rejected (OrdRejReason), or "accepted".
+    fn outcome(tracker: &mut OrderTracker, listings: &Listings, id: &str, symbol: &str) -> String {
+        match tracker.new_order_single("SIM", &order(id, symbol), listings) {
+            Ok(_) => "accepted".to_string(),
+            Err(report) => report
+                .message
+                .get(ORD_REJ_REASON)
+                .unwrap_or("?")
+                .to_string(),
+        }
+    }
+
+    #[test]
+    fn a_retired_id_is_remembered_while_it_is_among_the_latest_window() {
+        let (mut tracker, listings) = tracker(2);
+        // Rejected for an unknown symbol (1): spent, and retired.
+        assert_eq!(outcome(&mut tracker, &listings, "r1", "NOPE"), "1");
+        assert_eq!(outcome(&mut tracker, &listings, "r2", "NOPE"), "1");
+        assert_eq!(
+            outcome(&mut tracker, &listings, "r1", "ACME"),
+            "6",
+            "a duplicate"
+        );
+        assert_eq!(outcome(&mut tracker, &listings, "r3", "NOPE"), "1");
+        // r1 is now older than the latest two, so forgotten: usable again.
+        assert_eq!(outcome(&mut tracker, &listings, "r1", "ACME"), "accepted");
+        assert_eq!(
+            outcome(&mut tracker, &listings, "r3", "ACME"),
+            "6",
+            "r3 still is"
+        );
+    }
+
+    #[test]
+    fn a_live_order_s_id_is_never_forgotten() {
+        let (mut tracker, listings) = tracker(2);
+        assert_eq!(outcome(&mut tracker, &listings, "live", "ACME"), "accepted");
+        let accepted = Event::Accepted {
+            order_id: OrderId(1),
+            client_order_id: "live".to_string(),
+            participant: participant("SIM", "MM-1"),
+            symbol: "ACME".to_string(),
+            side: Side::Sell,
+            order_type: OrderType::Limit {
+                price: PriceCents(4_210),
+            },
+            time_in_force: TimeInForce::Gtc,
+            qty: Qty(10),
+        };
+        tracker.apply(&accepted, &listings);
+        for i in 0..10 {
+            outcome(&mut tracker, &listings, &format!("x{i}"), "NOPE");
+        }
+        assert_eq!(outcome(&mut tracker, &listings, "live", "ACME"), "6");
+        // Ten retired, two remembered: memory follows the window, not the day.
+        assert_eq!(tracker.client_ids["SIM"].ids.len(), 3);
+        assert_eq!(tracker.client_ids["SIM"].retired.len(), 2);
+    }
+
+    #[test]
+    fn a_snapshot_keeps_which_ids_go_first() {
+        let (mut tracker, listings) = tracker(3);
+        for id in ["a", "b", "c"] {
+            outcome(&mut tracker, &listings, id, "NOPE");
+        }
+        let mut restored = OrderTracker::restore(&listings, tracker.state());
+        assert_eq!(restored.state(), tracker.state());
+        // One more: in both, "a" is the one forgotten.
+        for t in [&mut tracker, &mut restored] {
+            outcome(t, &listings, "d", "NOPE");
+            assert_eq!(outcome(t, &listings, "b", "NOPE"), "6", "b remembered");
+            assert_eq!(outcome(t, &listings, "a", "NOPE"), "1", "a forgotten");
+        }
+    }
 
     #[test]
     fn an_entry_packs_into_one_u64_and_back() {
