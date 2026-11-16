@@ -1,0 +1,31 @@
+/* Time and sales: a trade that just arrived flashes in its side's colour, then fades, so a
+   new print is easy to spot in a busy tape (green: a buyer lifted the offer; red: a seller
+   hit the bid). Soft and once, not a blink. */
+.tape-arrived-up {
+  animation: tape-arrived-up 900ms ease-out;
+}
+.tape-arrived-down {
+  animation: tape-arrived-down 900ms ease-out;
+}
+@keyframes tape-arrived-up {
+  from {
+    background: color-mix(in srgb, var(--up) 30%, transparent);
+  }
+  to {
+    background: transparent;
+  }
+}
+@keyframes tape-arrived-down {
+  from {
+    background: color-mix(in srgb, var(--down) 30%, transparent);
+  }
+  to {
+    background: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tape-arrived-up,
+  .tape-arrived-down {
+    animation: none;
+  }
+}
