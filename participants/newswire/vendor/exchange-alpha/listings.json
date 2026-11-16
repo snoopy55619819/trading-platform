@@ -1,6 +1,6 @@
 {
   "$comment": "Instruments listed on Alpha Exchange, and Alpha's fee schedule. Published as part of the venue's public spec: this is what a broker downloads to build its security master. Fictional instruments - nothing here is real market data.",
-  "spec_version": "1.2.0",
+  "spec_version": "1.3.0",
   "venue": {
     "code": "ALPHA",
     "name": "Alpha Exchange",
@@ -11,7 +11,9 @@
       "host": "127.0.0.1",
       "port": 9878,
       "$resend_window_messages": "Alpha keeps each session's latest this-many outbound messages for resend. A ResendRequest for older ones is answered with a SequenceReset-GapFill over them; recover their state with an OrderStatusRequest. Added in 1.2.0.",
-      "resend_window_messages": 50000
+      "resend_window_messages": 50000,
+      "$client_order_id_window": "A ClOrdID may not repeat one of the same session's live orders, nor one of its latest this-many finished orders, rejected orders and cancel requests; an older one is forgotten. A cancel naming a forgotten order is rejected as an unknown order (CxlRejReason 1) instead of too late (0). Before 1.3.0, every ClOrdID was remembered for the business day. Added in 1.3.0.",
+      "client_order_id_window": 1000000
     },
     "market_data": { "protocol": "WS", "host": "127.0.0.1", "port": 9879 }
   },
