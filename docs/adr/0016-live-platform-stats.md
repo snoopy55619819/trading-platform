@@ -1,8 +1,8 @@
 # ADR 0016: Live platform stats, published by whoever owns them
 
 **Status:** accepted, 2026-11-16. Built in three steps: the exchange's stats on its feed
-(spec 1.4.0), then market-data and the backend's own, then the web app's live strip and the
-"How it works" guide.
+(spec 1.4.0, built), then market-data and the backend's own (built), then the web app's live
+strip and the "How it works" guide.
 
 ## Context
 
@@ -59,10 +59,12 @@ like a heartbeat; it takes no sequence number):
 | `transactions_today`, `trades_today` | totals since the roll, from the journal and the trade numbers, so a restart does not lose them |
 
 **market-data** (its own, step 2): browsers connected; feed messages received a second; live
-messages sent to browsers a second; trades stored a second and today; feed gaps today.
+messages sent to browsers a second; trades stored a second; feed gaps since it started.
+(Trades today come from the exchange's `trades_today`; counting stored rows each second would
+load the database.)
 
-**The backend** (its own, step 2): API requests a second; customer orders placed today; open
-accounts.
+**The backend** (its own, step 2): API requests a second, over the last ten seconds; customer
+orders placed this business day; open accounts.
 
 ### How it moves
 

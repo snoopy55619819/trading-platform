@@ -32,3 +32,11 @@ export function businessDate(now: Date): string {
   const shifted = new Date(now.getTime() + (24 - rollHourUtc) * 3_600_000);
   return shifted.toISOString().slice(0, 10);
 }
+
+/** When the business day `now` belongs to began: the latest roll at or before it. */
+export function businessDayStart(now: Date): Date {
+  const roll = new Date(now);
+  roll.setUTCHours(rollHourUtc, 0, 0, 0);
+  if (roll > now) roll.setUTCDate(roll.getUTCDate() - 1);
+  return roll;
+}

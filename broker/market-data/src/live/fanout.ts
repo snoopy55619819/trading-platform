@@ -5,9 +5,11 @@
 //   server -> {"type": "book",  "symbol", "live", "bids": [{priceCents, qty, orders}], "asks": [...]}
 //             {"type": "trade", "symbol", "priceCents", "qty", "aggressor", "ts", "tradeId"}
 //             {"type": "news",  "id", "ts", "symbol", "headline", "category", "tone", "severity"}
+//             {"type": "stats", "ts", "venue": {...} | null, "marketData": {...}}   (stats.ts)
 //
 // News goes to every connected browser, whatever it subscribed to: there are only a few
-// stories an hour, and a news panel shows every symbol's.
+// stories an hour, and a news panel shows every symbol's. So do the platform's stats, once a
+// second (ADR 0016).
 //
 // Books are CONFLATED: at most one per symbol every BOOK_INTERVAL_MS, always the latest. A
 // browser needs the current state, not every intermediate one. Trades are sent as they
@@ -23,6 +25,7 @@ import type { Server } from "node:http";
 import { type WebSocket, WebSocketServer } from "ws";
 
 import type { Mirror } from "../feed/mirror.ts";
+import type { Sample } from "../stats.ts";
 import type { Headline } from "../store/news.ts";
 import type { Tick } from "../store/ticks.ts";
 
@@ -37,7 +40,8 @@ export class Fanout {
   private readonly mirrors: () => Map<string, Mirror>;
   private readonly dirty = new Set<string>();
   private readonly timer: NodeJS.Timeout;
-  stats = { dropped: 0 };
+  /** Browsers dropped for falling behind; messages sent to browsers. */
+  stats = { dropped: 0, sent: 0 };
 
   constructor(http: Server, mirrors: () => Map<string, Mirror>) {
     this.mirrors = mirrors;
@@ -73,6 +77,12 @@ export class Fanout {
   /** A newly stored headline, to every browser. */
   news(headline: Headline): void {
     const message = JSON.stringify({ type: "news", ...headline });
+    for (const socket of this.subscribers.keys()) this.send(socket, message);
+  }
+
+  /** The platform's stats, to every browser (ADR 0016). */
+  platformStats(sample: Sample): void {
+    const message = JSON.stringify({ type: "stats", ...sample });
     for (const socket of this.subscribers.keys()) this.send(socket, message);
   }
 
@@ -132,6 +142,7 @@ export class Fanout {
       return;
     }
     socket.send(message);
+    this.stats.sent += 1;
   }
 }
 

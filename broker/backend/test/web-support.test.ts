@@ -120,7 +120,14 @@ async function server() {
 test("status says whether the exchange connection is up, and when it was last heard from", async () => {
   const { base, close } = await server();
   const response = await fetch(`${base}/status`);
-  assert.deepEqual(await response.json(), { venue: "ALPHA", connected: false, lastHeardAt: null });
+  const status = (await response.json()) as Record<string, unknown> & {
+    activity: { requestsPerSec: number; ordersToday: number; accounts: number };
+  };
+  assert.deepEqual({ ...status, activity: undefined }, { venue: "ALPHA", connected: false, lastHeardAt: null, activity: undefined });
+  // The broker's activity: whole numbers from the database, a rate from its own traffic.
+  assert.ok(Number.isInteger(status.activity.ordersToday) && status.activity.ordersToday >= 0);
+  assert.ok(Number.isInteger(status.activity.accounts) && status.activity.accounts >= 0);
+  assert.ok(status.activity.requestsPerSec >= 0);
   close();
 });
 
@@ -148,4 +155,19 @@ test("CORS: the web client's origin is allowed, preflight included; any other or
   const readAnyway = await fetch(`${base}/status`, { headers: { origin: evil } });
   assert.equal(readAnyway.headers.get("access-control-allow-origin"), null, "a browser will not let that page read it");
   close();
+});
+
+test("requests a second are averaged over the last ten whole seconds", async () => {
+  const { Traffic } = await import("../src/api/server.ts");
+  const traffic = new Traffic();
+  for (let i = 0; i < 30; i++) traffic.count(5_000 + i * 100); // 30 in seconds 5 to 7
+  assert.equal(traffic.perSec(8_000), 3);
+  assert.equal(traffic.perSec(30_000), 0);
+});
+
+test("a business day starts at the 21:00 UTC roll", async () => {
+  const { businessDayStart } = await import("../src/oms/venue.ts");
+  assert.equal(businessDayStart(new Date("2026-11-16T22:00:00Z")).toISOString(), "2026-11-16T21:00:00.000Z");
+  assert.equal(businessDayStart(new Date("2026-11-17T08:00:00Z")).toISOString(), "2026-11-16T21:00:00.000Z");
+  assert.equal(businessDayStart(new Date("2026-11-16T21:00:00Z")).toISOString(), "2026-11-16T21:00:00.000Z");
 });

@@ -18,7 +18,8 @@ pnpm test
 | `GET /trades?symbol=ACME&limit=50` | the latest trades, newest first, at most 200: seeds the web client's time and sales, since `/live` only sends trades from the moment a browser subscribes |
 | `GET /news?symbol=ACME&limit=50` | the latest headlines, newest first, at most 200; leave out `symbol` for every symbol's |
 | `GET /health` | feed state (gaps, reconnects, live books), news state (connected, received, stored, rejected), ticks stored, browsers connected |
-| `WS /live` | `{"subscribe": ["ACME"]}`, then `book` and `trade` messages as JSON; every browser also gets each new headline as a `news` message, whatever it subscribed to |
+| `GET /stats` | the platform's live stats (ADR 0016): the exchange's `VenueStats` and this service's own numbers (browsers, feed messages in, live messages out, trades stored a second, feed gaps), with the last five minutes for trend lines |
+| `WS /live` | `{"subscribe": ["ACME"]}`, then `book` and `trade` messages as JSON; every browser also gets each new headline as a `news` message, and the platform's stats as a `stats` message once a second, whatever it subscribed to |
 
 ## Inputs / outputs
 
