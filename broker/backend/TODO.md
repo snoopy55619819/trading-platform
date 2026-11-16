@@ -127,7 +127,9 @@ positions check compare the ledger with itself, each fails a test.
 Done: CORS (an origin allowlist, `BROKER_WEB_ORIGIN`), cost basis on `/positions`
 (`costBasisCents`, `avgCostCents`, `realizedPnlCents`, by the average-cost method from
 `fills`, fees included), a watchlist (`GET /watchlist`, `PUT` and `DELETE
-/watchlist/:symbol`, five defaults for a new account), and `GET /status`. Details in
+/watchlist/:symbol`, five defaults for a new account), and `GET /status` (since ADR 0016 also
+the broker's `activity`: requests a second over the last ten seconds, customer orders this
+business day, open accounts; the database figures cached five seconds). Details in
 [`broker/web/TODO.md`](../web/TODO.md), section 1.
 
 ## Done when
