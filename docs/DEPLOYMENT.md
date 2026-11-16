@@ -68,7 +68,7 @@ changes to deploy it.
 |---|---|
 | gateway | `DATABASE_URL`, `ALPHA_DATA_DIR`, `ALPHA_LISTEN` and `ALPHA_MD_LISTEN` (`0.0.0.0:…` inside its container), `ALPHA_COMP_IDS` |
 | newswire | `NEWS_RATE=1` (one story per company about every 70 minutes) |
-| simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_NEWS_URL=ws://newswire:9890/headlines`, `SIM_ACTIVITY=4` and `SIM_MAX_ORDERS_PER_SEC=160` (four times as busy as local) |
+| simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_NEWS_URL=ws://newswire:9890/headlines`, `SIM_ACTIVITY=4`, `SIM_QUOTE_ACTIVITY=30` and `SIM_MAX_ORDERS_PER_SEC=400` (the scale plan's step 1; `docs/SCALE-PLAN.md` stage 7) |
 | backend | `DATABASE_URL`, `FIX_HOST=gateway`, `FIX_PORT=9878`, `BROKER_WEB_ORIGIN=https://tradeplatform.dev` |
 | market-data | `MD_DATABASE_URL`, `MD_FEED_URL=ws://gateway:9879`, `MD_NEWS_URL=ws://newswire:9890/headlines`; `MD_ARCHIVE_DIR=/archive` (the `trades-archive` volume) |
 | web (at build time) | `VITE_BACKEND_URL=/api`, `VITE_MARKET_DATA_URL=/md`: paths, so the image works on any hostname |
