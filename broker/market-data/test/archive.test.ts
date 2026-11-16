@@ -98,3 +98,25 @@ test("the file has a header and every trade exactly as stored", () =>
     );
     assert.equal(same[0]!.same, true);
   }));
+
+test("every trade is written once, in id order, even across 9 to 10", () =>
+  rolledBack(async (db, dir) => {
+    // Ids chosen, not drawn, so the check does not depend on the database's sequence: as
+    // text, "10" sorts before "9".
+    for (const id of [9, 10, 11]) {
+      await db.query(
+        `INSERT INTO market_data.ticks (tick_id, venue, symbol, ts, ts_ns, price_cents, size, aggressor, feed_seq, symbol_seq, trade_id)
+         OVERRIDING SYSTEM VALUE
+         VALUES ($1, 'TEST', 'T_A', '2026-01-01T10:00:00Z', 1767261600000000000, 100, 1, 'BUY', $2, 1, 't')`,
+        [id, 3_000_000_000 + id],
+      );
+    }
+    await maintainTrades(db, dir, at("2026-01-02T01:00:00Z"), 1);
+    const ids = gunzipSync(readFileSync(join(dir, "ticks-2026-01-01.csv.gz")))
+      .toString()
+      .trimEnd()
+      .split("\n")
+      .slice(1)
+      .map((line) => line.split(",")[0]);
+    assert.deepEqual(ids, ["9", "10", "11"]);
+  }));
