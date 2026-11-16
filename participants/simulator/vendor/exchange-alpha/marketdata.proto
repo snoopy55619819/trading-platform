@@ -24,6 +24,8 @@ syntax = "proto3";
 //
 // Since 1.1.0: symbol_seq. Before it, feed_seq alone could not tell a lost message from a
 // message for a symbol the subscriber had not asked for.
+//
+// Since 1.4.0: VenueStats, the venue's own activity once a second (ADR 0016).
 
 package alpha.v1;
 
@@ -92,12 +94,51 @@ message Heartbeat {
   int64 ts_ns = 3;
 }
 
+// How busy the venue is: published once a second to every connection, subscribed to
+// anything or not, like a Heartbeat, and like it taking no sequence number. Totals across
+// every session: nothing here tells one participant's activity from another's.
+//
+// Rates are over the interval since the last VenueStats (interval_ms, about a second).
+// Totals are since the business day began (business_date). Since 1.4.0.
+message VenueStats {
+  string venue = 1;
+  int64 ts_ns = 2;
+  uint32 interval_ms = 3;
+  string business_date = 4;
+  // New orders and cancel requests the venue accepted (journaled), and the two halves.
+  double transactions_per_sec = 5;
+  double new_orders_per_sec = 6;
+  double cancels_per_sec = 7;
+  // Orders and cancels refused before reaching the book.
+  double rejects_per_sec = 8;
+  double trades_per_sec = 9;
+  double shares_per_sec = 10;
+  double notional_cents_per_sec = 11;
+  // FIX messages received and sent, every session together.
+  double fix_in_per_sec = 12;
+  double fix_out_per_sec = 13;
+  // BookDeltas and TradePrints this feed published.
+  double feed_messages_per_sec = 14;
+  // How long an order or cancel took inside the venue, from the gateway taking it to its
+  // reply going out, over the interval: median and 99th percentile, in microseconds. 0 when
+  // there were none.
+  uint32 answer_p50_us = 15;
+  uint32 answer_p99_us = 16;
+  // Now.
+  uint32 open_orders = 17;
+  uint32 sessions = 18;
+  // Since the business day began.
+  uint64 transactions_today = 19;
+  uint64 trades_today = 20;
+}
+
 message FeedMessage {
   oneof payload {
     Snapshot snapshot = 1;
     BookDelta book_delta = 2;
     TradePrint trade_print = 3;
     Heartbeat heartbeat = 4;
+    VenueStats venue_stats = 5;
   }
 }
 
