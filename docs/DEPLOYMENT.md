@@ -238,11 +238,12 @@ installs with every release (steps in [AWS-SETUP.md](AWS-SETUP.md), section 7):
   - `pg_dump` each of the three databases to the private S3 bucket
     `tradeplatform-dev-backups`, gzipped. A bucket rule deletes dumps after 30 days.
   - Archive the exchange's finished day files (every snapshot and journal except the
-    current pair) there, gzipped, then delete local copies that are archived and over a week
-    old. The gateway only ever reads the newest pair and never deletes anything itself.
-    Measured live, the journal grew about 120 MB a day even at `SIM_ACTIVITY=0.2` (the
-    market makers' re-quoting dominates, and that setting only slows the takers); gzipped,
-    about a tenth of that. A bucket rule deletes archived days after a year.
+    current pair): each is gzipped on the server, the copy goes to S3, and the original is
+    deleted as soon as S3 has it; the compressed copy stays two days. The gateway only ever
+    reads the newest pair and never deletes anything itself. A journal gzips about 16 times
+    smaller (307 MB to 19 MB for a day at `SIM_ACTIVITY=4`), so at most one day is ever
+    kept uncompressed (ADR 0012, `docs/SCALE-PLAN.md` stage 3). A bucket rule deletes
+    archived days after a year.
   - Report a finished backup to CloudWatch.
 - **Hourly** (`disk-metric.sh`): report disk use to CloudWatch.
 - **Alarms**, emailed through an SNS topic: the disk passes 80% or the hourly reports stop
