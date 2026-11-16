@@ -23,10 +23,11 @@ services:
       SIM_ACTIVITY: ${SIM_ACTIVITY:-4}
       # How busy the book is apart from trading (docs/SCALE-PLAN.md, stages 5 and 7): the
       # market makers re-price quotes and patient traders come and go this many times faster
-      # than at 1. Raised in steps, each checked on the server before the next; 30 is step 1,
-      # about 100 transactions a second over the day, trades unchanged.
-      SIM_QUOTE_ACTIVITY: ${SIM_QUOTE_ACTIVITY:-30}
-      SIM_MAX_ORDERS_PER_SEC: ${SIM_MAX_ORDERS_PER_SEC:-400}
+      # than at 1. Raised in steps, each checked on the server before the next: 30 was step 1
+      # (139 a second at the New York open, CPU 9.5%); 100 is step 2, about 270 to 300 a
+      # second, trades unchanged.
+      SIM_QUOTE_ACTIVITY: ${SIM_QUOTE_ACTIVITY:-100}
+      SIM_MAX_ORDERS_PER_SEC: ${SIM_MAX_ORDERS_PER_SEC:-800}
     volumes:
       - state:/data
     networks: [trading]
