@@ -6,6 +6,8 @@
 //     pnpm load-test                       steps 4, 8, 16, ... until something gives
 //     pnpm load-test --steps 4,8 --secs 30 --label quick
 //     pnpm load-test --max-ack-ms 1000         keep going past slow answers, to find the ceiling
+//     pnpm load-test --steps 16:1,16:20,16:60  activity:quote activity (SIM_QUOTE_ACTIVITY,
+//                                              1 if left out): trades and book churn apart
 //
 // A transaction is a new order or a cancel the exchange accepted: counted exactly, from the
 // lines its journal gained during each step. The simulator holds the time of day at New
@@ -41,7 +43,10 @@ const { values: args } = parseArgs({
     "max-ack-ms": { type: "string", default: "50" },
   },
 });
-const STEPS = args.steps.split(",").map(Number);
+const STEPS = args.steps.split(",").map((step) => {
+  const [activity, quotes] = step.split(":").map(Number);
+  return { activity: activity!, quoteActivity: quotes ?? 1 };
+});
 const MEASURE_SECS = Number(args.secs);
 const WARMUP_SECS = Number(args.warmup);
 
@@ -188,10 +193,31 @@ function statuses(sim: Service): SimStatus[] {
   });
 }
 
+/**
+ * The market's shape from the simulator's last status table: the median spread across
+ * symbols, in basis points of fair value, and how many symbols had a side of the book empty.
+ */
+function bookShape(sim: Service): { spreadBps: number; emptySides: number } | null {
+  const lines = sim.output;
+  const last = lines.findLastIndex((line) => STATUS.test(line));
+  const spreads: number[] = [];
+  let emptySides = 0;
+  for (const line of lines.slice(Math.max(0, last - 14), last)) {
+    const m = /^\s*[A-Z]{2,}\s+([\d.]+)\s+(\S+)\s+(\S+)\s+(\S+)\s/.exec(line);
+    if (!m) continue;
+    if (m[2] === "-" || m[3] === "-") emptySides += 1;
+    else spreads.push((Number(m[4]) / Number(m[1])) * 10_000);
+  }
+  if (spreads.length === 0 && emptySides === 0) return null;
+  spreads.sort((a, b) => a - b);
+  return { spreadBps: spreads[Math.floor(spreads.length / 2)] ?? 0, emptySides };
+}
+
 // ---- a step ----
 
 interface Step {
   activity: number;
+  quoteActivity: number;
   transactionsPerSec: number;
   newOrdersPerSec: number;
   cancelsPerSec: number;
@@ -200,6 +226,8 @@ interface Step {
   executionReportsPerSec: number;
   feedMessagesPerSec: number;
   ackMs: { p50: number; p99: number } | null;
+  /** Median spread across symbols at the end of the step, and symbols with a side empty. */
+  book: { spreadBps: number; emptySides: number } | null;
   rejects: number;
   feedGaps: number;
   cpuCores: Record<string, number>;
@@ -207,9 +235,10 @@ interface Step {
   failed: string[];
 }
 
-async function runStep(activity: number, services: Service[]): Promise<Step> {
+async function runStep(activity: number, quoteActivity: number, services: Service[]): Promise<Step> {
   const sim = start("simulator", "participants/simulator", "node", ["src/main.ts"], {
     SIM_ACTIVITY: String(activity),
+    SIM_QUOTE_ACTIVITY: String(quoteActivity),
     SIM_FLAT_DAY: "1",
     SIM_MAX_ORDERS_PER_SEC: "1000000",
     SIM_REPORT_SECS: "5",
@@ -243,6 +272,7 @@ async function runStep(activity: number, services: Service[]): Promise<Step> {
   const feed = feedMessages(before.at, at) / secs;
   const window = statuses(sim).slice(before.lines);
   const after = window.at(-1) ?? before.status;
+  const book = bookShape(sim);
   await stop(sim);
 
   const acks = window.flatMap((s) => (s.ack ? [s.ack] : []));
@@ -266,6 +296,7 @@ async function runStep(activity: number, services: Service[]): Promise<Step> {
 
   return {
     activity,
+    quoteActivity,
     transactionsPerSec: round(transactions),
     newOrdersPerSec: round(tx.news / secs),
     cancelsPerSec: round(tx.cancels / secs),
@@ -274,6 +305,7 @@ async function runStep(activity: number, services: Service[]): Promise<Step> {
     executionReportsPerSec: round(reports),
     feedMessagesPerSec: round(feed),
     ackMs: ackMs && { p50: round(ackMs.p50, 2), p99: round(ackMs.p99, 2) },
+    book: book && { spreadBps: round(book.spreadBps), emptySides: book.emptySides },
     rejects: after.rejects - before.status.rejects,
     feedGaps: after.gaps - before.status.gaps,
     cpuCores: Object.fromEntries(Object.entries(cpu).map(([k, v]) => [k, round(v, 3)])),
@@ -287,9 +319,9 @@ const round = (x: number, places = 1) => Math.round(x * 10 ** places) / 10 ** pl
 function print(step: Step): void {
   const top = Object.entries(step.cpuCores).sort((a, b) => b[1] - a[1]).slice(0, 3);
   console.log(
-    `activity ${String(step.activity).padStart(4)}: ${String(step.transactionsPerSec).padStart(7)} tx/s ` +
+    `activity ${String(step.activity).padStart(4)}, quotes ${String(step.quoteActivity).padStart(3)}: ${String(step.transactionsPerSec).padStart(7)} tx/s ` +
       `(${step.newOrdersPerSec} new, ${step.cancelsPerSec} cancel), ${step.tradesPerSec} trades/s, ` +
-      `${step.executionReportsPerSec} reports/s, ack p50/p99 ${step.ackMs ? `${step.ackMs.p50}/${step.ackMs.p99} ms` : "-"}; ` +
+      `${step.executionReportsPerSec} reports/s, spread ${step.book ? `${step.book.spreadBps} bps${step.book.emptySides ? ` (${step.book.emptySides} one-sided)` : ""}` : "-"}, ack p50/p99 ${step.ackMs ? `${step.ackMs.p50}/${step.ackMs.p99} ms` : "-"}; ` +
       `busiest ${top.map(([k, v]) => `${k} ${v.toFixed(2)}`).join(", ")}` +
       (step.failed.length ? `\n  STOP: ${step.failed.join("; ")}` : ""),
   );
@@ -314,8 +346,8 @@ async function main(): Promise<void> {
   const steps: Step[] = [];
   let stopReason = "every step passed";
   try {
-    for (const activity of STEPS) {
-      const step = await runStep(activity, services);
+    for (const { activity, quoteActivity } of STEPS) {
+      const step = await runStep(activity, quoteActivity, services);
       print(step);
       steps.push(step);
       if (step.failed.length) {
@@ -330,7 +362,7 @@ async function main(): Promise<void> {
   const passed = steps.filter((s) => s.failed.length === 0);
   const best = passed.at(-1);
   const verdict = best
-    ? `handles ${best.transactionsPerSec} transactions a second (activity ${best.activity}); next step stopped by: ${stopReason}`
+    ? `handles ${best.transactionsPerSec} transactions a second (activity ${best.activity}, quotes ${best.quoteActivity}); next step stopped by: ${stopReason}`
     : `the first step failed: ${stopReason}`;
   console.log(`\n${verdict}`);
 
