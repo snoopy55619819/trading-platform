@@ -139,14 +139,17 @@ goes past about 100 a second for long:
 
 ### 4. Finished-order ids at scale
 
-ADR 0011's compact entries are about 570 MB a day at 500 a second and 1.1 GB at 1,000: too much
-for a 2 GB server at the top of the range.
+Done in [ADR 0015](adr/0015-client-order-ids-are-remembered-for-a-window.md), spec 1.3.0.
 
-- [ ] Measure the gateway's real peak at the rate stage 1 reaches.
-- [ ] If it does not fit: an ADR choosing between checking ids against live orders only (Cboe,
-      CME; memory follows the book) and requiring increasing ids per session (Nasdaq OUCH; one
-      number a session). Either changes Alpha's published spec; the simulator and broker
-      follow.
+- [x] Measure the gateway's real peak: the gateway keeps one entry per transaction (cancel
+      requests have their own `ClOrdID` too), and 992,000 took it to 168 MB, about 70 to 150
+      bytes each. At 500 to 1,000 a second that is 3 to 12 GB a day: it does not fit.
+- [x] The rule, chosen: a session's live orders' ids, plus its latest 1,000,000 finished,
+      rejected and cancel ids, then forgotten oldest first. Bounded memory, the same answers as
+      before for anything recent, and no client change (Cboe and CME check live orders only;
+      Nasdaq OUCH requires increasing ids: both considered in the ADR).
+- [x] Measured after: 190 MB at 1.34 million ids and still 190 MB at 1.72 million, at about
+      5,000 transactions a second.
 
 ### 5. The simulator as a load generator
 
