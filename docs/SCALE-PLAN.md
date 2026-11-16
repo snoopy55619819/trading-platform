@@ -153,12 +153,34 @@ Done in [ADR 0015](adr/0015-client-order-ids-are-remembered-for-a-window.md), sp
 
 ### 5. The simulator as a load generator
 
-- [ ] Calmer market makers (the backlog item): fewer cancels per trade, so each transaction
-      does more visible work and the same market costs less.
-- [ ] If one Node process cannot produce the load: split it (a few symbols a process, each with
-      its own FIX session), or lighten what it decodes (a trades-only or conflated feed channel,
-      an additive spec change).
-- [ ] `pnpm realism` at the new rate, so speed does not cost the market its shape.
+What the load test showed first: `SIM_ACTIVITY` only scaled the takers, so a fast market was
+mostly trades. At about 500 transactions a second, 370 were trades, the market makers were
+swept, and spreads reached 76 bps (`ACME`: 32 cents on $42). A real stock's messages are
+mostly quotes placed, changed and pulled, with about one trade per 10 to 30.
+
+- [x] **A second dial, `SIM_QUOTE_ACTIVITY`** (1 by default): how busy the book is apart
+      from trading. Market makers re-price each resting quote about every 30 seconds at 1, more
+      often above, with sizes varied 20% either way; patient traders come and go faster in
+      step. Trades stay where `SIM_ACTIVITY` puts them. (Instead of the backlog's "calmer
+      market makers": a busy book is the point now, and these messages are the realistic
+      kind.)
+- [x] One Node process makes the load: the simulator used at most 15% of a core at 5,000 a
+      second in stage 4. No split needed.
+- [ ] Reach 1,000 a second with this mix: the dial levels off near 520, because a quote can
+      be re-priced at most once per 250 ms step (60 quotes, 4 times a second, an order and a
+      cancel each). A shorter step, or more quote levels per symbol, raises it.
+- [ ] `pnpm realism` at the new rate: on the live server, at stage 7. Quotes do not move fair
+      value (only trades do, through impact), so the price model should keep its shape.
+
+| `SIM_ACTIVITY`, `SIM_QUOTE_ACTIVITY` | Transactions/s | Trades/s | Messages a trade | Median spread |
+|---|---|---|---|---|
+| 256, 1 (before: takers only) | 514 | 366 | 1.4 | 76 bps on `ACME` |
+| 16, 1 | 68 | 22 | 3 | 30 to 43 bps |
+| 16, 200 | **429** | 22 | **19** | 29 bps |
+| 16, 420 | **524** | 24 | **22** | 39 bps |
+
+(`load-test/results/2026-11-16-quote-activity.json`; answers in 11 ms median, 15 ms 99th
+percentile; nothing above 3% of a core.)
 
 ### 6. Whatever the load test finds next
 
