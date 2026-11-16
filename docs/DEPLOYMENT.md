@@ -70,7 +70,7 @@ changes to deploy it.
 | newswire | `NEWS_RATE=1` (one story per company about every 70 minutes) |
 | simulator | `SIM_FIX_HOST=gateway`, `SIM_FEED_URL=ws://gateway:9879`, `SIM_NEWS_URL=ws://newswire:9890/headlines`, `SIM_ACTIVITY=4` and `SIM_MAX_ORDERS_PER_SEC=160` (four times as busy as local) |
 | backend | `DATABASE_URL`, `FIX_HOST=gateway`, `FIX_PORT=9878`, `BROKER_WEB_ORIGIN=https://tradeplatform.dev` |
-| market-data | `MD_DATABASE_URL`, `MD_FEED_URL=ws://gateway:9879`, `MD_NEWS_URL=ws://newswire:9890/headlines` |
+| market-data | `MD_DATABASE_URL`, `MD_FEED_URL=ws://gateway:9879`, `MD_NEWS_URL=ws://newswire:9890/headlines`; `MD_ARCHIVE_DIR=/archive` (the `trades-archive` volume) |
 | web (at build time) | `VITE_BACKEND_URL=/api`, `VITE_MARKET_DATA_URL=/md`: paths, so the image works on any hostname |
 
 **Health checks**, so compose starts things in order:
@@ -244,6 +244,10 @@ installs with every release (steps in [AWS-SETUP.md](AWS-SETUP.md), section 7):
     smaller (307 MB to 19 MB for a day at `SIM_ACTIVITY=4`), so at most one day is ever
     kept uncompressed (ADR 0012, `docs/SCALE-PLAN.md` stage 3). A bucket rule deletes
     archived days after a year.
+  - Send market-data's finished days of trades (`ticks-<date>.csv.gz`, which market-data
+    writes into its `trades-archive` volume each night; ADR 0014) to S3 under
+    `market-data-trades/`, and delete each local file once S3 has it. These are kept
+    indefinitely: Postgres holds only today's and yesterday's trades.
   - Report a finished backup to CloudWatch.
 - **Hourly** (`disk-metric.sh`): report disk use to CloudWatch.
 - **Alarms**, emailed through an SNS topic: the disk passes 80% or the hourly reports stop

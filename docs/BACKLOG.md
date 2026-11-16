@@ -107,15 +107,9 @@ In the plan's suggested order of value.
       re-quoting would cut orders per trade, and with them the journal (about 120 MB a day
       even at `SIM_ACTIVITY=0.2`), disk and CPU, without making the market less lively.
       Check that spreads stay sane (ADR 0005).
-- [ ] **Tick retention without losing data.** market-data keeps every trade in `ticks`
-      forever: about 13 MB a day at the simulator's default activity, so years before a 30 GB
-      disk fills. Only the latest trades are read (`GET /trades`); charts use candles, which
-      stay forever either way. Before it matters, choose a way to move old ticks rather than
-      delete them: monthly partitions archived to S3 as compressed files, or ClickHouse
-      (above), whose column storage compresses this kind of data about 10×. Until then, a
-      disk-usage alert on the server is enough. **Now urgent for scaling**: at 500 to 1,000
-      transactions a second it is 1 to 2.1 GB a day and fills the disk in days
-      (`docs/SCALE-PLAN.md`, stage 3).
+- [x] **Tick retention without losing data.** Done in ADR 0014: `ticks` is partitioned by
+      day, Postgres keeps today and yesterday, and every finished day goes to S3 as a
+      gzipped CSV (about 20 bytes a trade).
 - [ ] **Observability.** OpenTelemetry traces end to end, Prometheus and Grafana, latency
       histograms: one trace from a browser click through FIX and matching to settlement.
 - [ ] **Chaos and performance.** Kill each service mid-flight and assert no lost, duplicated

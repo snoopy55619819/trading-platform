@@ -130,10 +130,12 @@ forever (`ticks`; no ADR yet, only the backlog's "Tick retention without losing 
 about four days. The journal is solved; the trades need a decision before the live market
 goes past about 100 a second for long:
 
-- [ ] Choose how old trades leave the server's disk without being lost: archive them to S3
-      (by day, compressed, like the journal) and keep a few days locally (charts read candles,
-      which stay; time and sales reads only the latest trades); or a columnar store; or a
-      bigger disk (EBS is about $0.08 per GB a month). Its own ADR.
+- [x] Old trades leave the server's disk without being lost
+      ([ADR 0014](adr/0014-market-data-archives-old-trades-by-day.md)): `ticks` is
+      partitioned by day, Postgres keeps today and yesterday, and each finished day goes to
+      S3 as a gzipped CSV, about 20 bytes a trade (12 times smaller). At 1,000 a second the
+      trades then take at most about 4.2 GB, and the disk peaks at about 84%, over the 80%
+      alarm: going that fast for long needs a bigger disk (stage 7).
 
 ### 4. Finished-order ids at scale
 

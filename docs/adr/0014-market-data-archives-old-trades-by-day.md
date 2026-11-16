@@ -46,8 +46,9 @@ Option 1, and how:
   2. It writes each finished day (from 00:30 UTC the day after, so late trades are in) to
      `ticks-<date>.csv.gz` in its archive folder, written under a temporary name and renamed
      when complete, and records it in `market_data.archived_days` with its row count.
-  3. It drops a day's partition once that day is archived and more than
-     `MD_KEEP_TRADE_DAYS` (1) days old. So Postgres holds today and yesterday.
+  3. It drops a day's partition once that day is more than `MD_KEEP_TRADE_DAYS` (1) days
+     old and was written out at least 24 hours before, so the nightly backup has sent the
+     file to S3 first. So Postgres holds today and yesterday.
 - **Gzipped CSV, one file a day, every symbol:** readable by anything (`zcat`, Postgres
   `COPY`, DuckDB, ClickHouse), with a header. Columns are exactly the table's, so a day loads
   back with one `COPY`. Parquet would be smaller and faster to query, but needs a library;
@@ -73,5 +74,8 @@ Option 1, and how:
   always in today's or yesterday's partition.
 - **Old trades are no longer queryable in Postgres.** To look at one: download the day's file
   and `COPY` it into a scratch table (`broker/market-data/TODO.md` has the commands).
+- **Measured locally on real trades:** a day of 334,576 trades is 6.8 MB written out, about
+  20 bytes a trade against 241 in Postgres, and loads back with every column identical. At
+  1,000 a second, S3 gains about 175 MB a day (about $1.50 a month after a year).
 - The migration rewrites `ticks` once, keeping every row and its `tick_id` (the rollup's
   watermark depends on them): about 720,000 rows on the server today, a few seconds.
