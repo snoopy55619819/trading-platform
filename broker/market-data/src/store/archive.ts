@@ -87,10 +87,12 @@ export async function exportDay(db: Db, day: string, dir: string): Promise<{ fil
   let after = 0;
   let trades = 0;
   for (;;) {
-    // Text straight from Postgres (ts in UTC), so the file loads back exactly.
+    // Text straight from Postgres (ts in UTC), so the file loads back exactly. Ordered by
+    // the column, not by its text: an output column named tick_id would sort "10" before
+    // "9", and the paging below would repeat or skip trades.
     const { rows } = await db.query<Record<string, string>>(
-      `SELECT ${COLUMNS.map((c) => (c === "ts" ? "to_char(ts AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS ts" : `${c}::text`)).join(", ")}
-         FROM market_data.${partition(day)} WHERE tick_id > $1 ORDER BY tick_id LIMIT ${BATCH}`,
+      `SELECT ${COLUMNS.map((c) => (c === "ts" ? "to_char(t.ts AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') AS ts" : `t.${c}::text AS ${c}`)).join(", ")}
+         FROM market_data.${partition(day)} t WHERE t.tick_id > $1 ORDER BY t.tick_id LIMIT ${BATCH}`,
       [after],
     );
     if (rows.length === 0) break;
