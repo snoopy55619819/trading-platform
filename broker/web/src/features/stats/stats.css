@@ -1,10 +1,10 @@
-/* Live platform stats (ADR 0016): the top bar's strip and the dialog. */
+/* Live platform stats (ADR 0016): the top bar's throughput and the dialog. */
 
 /* ---------- the strip ---------- */
 .stats-strip {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-height: var(--control-h);
   padding: 0 var(--space-3);
   border: var(--border-width) solid var(--border);
@@ -32,76 +32,76 @@
 .stats-dot.live {
   background: var(--up);
 }
-/* So the strip never pushes the top bar onto another line: a tablet keeps two numbers, a
-   phone the first. The rest are always in the dialog. */
-@media (max-width: 899px) {
-  .stats-wide {
-    display: none;
-  }
-}
-@media (max-width: 640px) {
-  .stats-more {
-    display: none;
-  }
-}
 
 /* ---------- the dialog ---------- */
-.stats-intro {
-  margin: 0 0 var(--space-4);
+/* Short enough to fit any screen, so a description may reach past its edge. */
+.dialog:has(.stats) {
+  overflow: visible;
 }
 .stats-group + .stats-group {
-  margin-top: var(--space-5);
+  margin-top: var(--space-4);
 }
 .stats-group h3 {
   margin: 0 0 var(--space-2);
-  font-size: var(--fs-md);
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-strong);
+  color: var(--text-muted);
 }
-.stats-group h3 .muted {
-  font-size: var(--fs-xs);
-  font-weight: normal;
-  margin-left: var(--space-2);
-}
-.stats-group dl {
+.stats-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
   margin: 0;
 }
-/* Name, value, trend; what it means underneath. */
-.stats-row {
-  display: grid;
-  grid-template-columns: minmax(10em, 1fr) 7em 120px;
-  column-gap: var(--space-3);
-  align-items: center;
-  padding: var(--space-2) 0;
-  border-top: var(--border-width) solid var(--border);
+.stats-tile {
+  position: relative;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  cursor: help;
 }
-.stats-row dt {
+.stats-tile:hover,
+.stats-tile:focus-visible {
+  border-color: var(--accent);
+}
+.stats-tile dt {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.stats-tile dd {
+  margin: 0;
+}
+.stats-tile .numbers {
+  font-size: var(--fs-lg);
   font-weight: var(--weight-strong);
 }
-.stats-row dd {
-  margin: 0;
-}
-.stats-row .numbers {
-  text-align: right;
-}
+/* What a stat means: above its tile, on hover or focus. */
 .stats-about {
-  grid-column: 1 / -1;
+  position: absolute;
+  z-index: 10;
+  bottom: calc(100% + 6px);
+  left: 0;
+  width: max(100%, 240px);
+  max-width: calc(100vw - 64px);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  color: var(--text);
   font-size: var(--fs-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  visibility: hidden;
 }
-.sparkline {
-  display: block;
-  width: 120px;
-  height: 24px;
+/* The right-hand column's open leftwards, so they stay on a phone's screen. */
+.stats-tile:nth-child(even) .stats-about {
+  left: auto;
+  right: 0;
 }
-.sparkline path {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.5;
-  vector-effect: non-scaling-stroke;
+.stats-tile:hover .stats-about,
+.stats-tile:focus .stats-about {
+  visibility: visible;
 }
-@media (max-width: 640px) {
-  .stats-row {
-    grid-template-columns: 1fr auto;
-  }
-  .stats-trend {
-    display: none;
-  }
+.stats-hint {
+  margin: var(--space-4) 0 0;
+  font-size: var(--fs-xs);
 }

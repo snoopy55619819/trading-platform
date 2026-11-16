@@ -1,12 +1,11 @@
-// The live platform stats in the web app (ADR 0016): how numbers are written, what each
-// group holds, the guide's arrow labels, the store, and which styles show the strip.
+// The live platform stats in the web app (ADR 0016): how numbers are written, what the
+// dialog holds, the guide's arrow labels, and the store.
 
 import { describe, expect, test } from "vitest";
 
 import type { StatsMessage, StatsPoint } from "../api/marketData.ts";
 import { HISTORY, StatsStore, mergeHistory, recentAverage } from "../market/stats.ts";
-import { VARIANTS } from "../theme/variants.ts";
-import { flowRates, formatStat, groups, updatesPerTrade } from "./stats/catalog.ts";
+import { flowRates, formatStat, groups } from "./stats/catalog.ts";
 
 const sample = (ts: string, transactionsPerSec = 298): StatsMessage => ({
   type: "stats",
@@ -45,16 +44,13 @@ describe("writing a stat", () => {
     expect(formatStat("rate", null)).toBe("–");
   });
 
-  test("order updates per trade, when there are trades", () => {
-    expect(updatesPerTrade(sample("t").venue)).toBeCloseTo(49.7, 1);
-    expect(updatesPerTrade({ ...sample("t").venue!, tradesPerSec: 0 })).toBeNull();
-  });
 });
 
 describe("the dialog's groups", () => {
-  test("the exchange, market data and the broker, each stat with words to explain it", () => {
+  test("a short list: the exchange, market data and the broker, each stat with words to explain it", () => {
     const all = groups(sample("t"), { venue: "ALPHA", connected: true, lastHeardAt: null, activity: { requestsPerSec: 2.5, ordersToday: 12, accounts: 30 } });
     expect(all.map((g) => g.title)).toEqual(["The exchange", "Market data", "The broker"]);
+    expect(all.flatMap((g) => g.stats)).toHaveLength(10);
     for (const stat of all.flatMap((g) => g.stats)) {
       expect(stat.about.length, stat.id).toBeGreaterThan(20);
       expect(stat.value, stat.id).not.toBeNull();
@@ -114,11 +110,4 @@ describe("the stats store", () => {
     expect(store.get().latest?.venue?.transactionsPerSec).toBe(300);
     expect(store.get().history.map((p) => p.transactionsPerSec)).toEqual([100, 300]);
   });
-});
-
-test("the strip: four numbers in Terminal, three in Pro and Active, none in Calm", () => {
-  expect(VARIANTS.terminal.statsStrip).toBe("full");
-  expect(VARIANTS.pro.statsStrip).toBe("standard");
-  expect(VARIANTS.active.statsStrip).toBe("standard");
-  expect(VARIANTS.calm.statsStrip).toBe("none");
 });

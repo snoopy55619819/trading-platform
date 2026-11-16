@@ -1,16 +1,15 @@
-// The platform's live stats (ADR 0016): a strip in the top bar, sized by style, and a dialog
-// with every number, who reports it, what it means and, for the main ones, five minutes of
-// trend. Everything is a total across the whole market: nothing names a participant.
+// The platform's live stats (ADR 0016): one number in the top bar, the system's throughput,
+// and a short dialog with the rest. Each stat explains itself on hover or focus, so the
+// dialog stays a page of numbers. Everything is a total across the whole market: nothing
+// names a participant.
 
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useId, useSyncExternalStore } from "react";
 
-import type { StatsPoint } from "../../api/marketData.ts";
 import { usePlatformStats } from "../../market/hooks.ts";
 import { recentAverage } from "../../market/stats.ts";
 import { useStatus } from "../../query/hooks.ts";
-import { useVariants } from "../../theme/variants.ts";
 import { Dialog } from "../../ui/Dialog.tsx";
-import { type TrendKey, formatStat, groups } from "./catalog.ts";
+import { type Stat, formatStat, groups } from "./catalog.ts";
 import "./stats.css";
 
 let isOpen = false;
@@ -37,39 +36,17 @@ function useStatsOpen(): boolean {
 }
 
 /**
- * The top bar's strip: order updates and trades a second (averaged over five seconds, so
- * they can be read) and the typical answer time. Terminal adds market data updates; Calm
- * shows none. Opens the dialog.
+ * The top bar's one number: order updates a second across the whole system, averaged over
+ * five seconds so it can be read. Opens the dialog.
  */
 export function StatsStrip() {
-  const { statsStrip } = useVariants();
   const { latest, history } = usePlatformStats();
-  if (statsStrip === "none") return null;
-  const venue = latest?.venue ?? null;
-  const updates = recentAverage(history, "transactionsPerSec");
-  const trades = recentAverage(history, "tradesPerSec");
+  const throughput = recentAverage(history, "transactionsPerSec");
   return (
-    <button
-      type="button"
-      className="stats-strip"
-      onClick={statsDialog.open}
-      title="Live platform stats: what the whole system is handling right now"
-    >
-      <span className={`stats-dot ${venue ? "live" : ""}`} aria-hidden="true" />
-      <span className="stats-item">
-        <b>{formatStat("rate", updates)}</b> order updates
-      </span>
-      <span className="stats-item stats-more">
-        <b>{formatStat("rate", trades)}</b> trades
-      </span>
-      {statsStrip === "full" && (
-        <span className="stats-item stats-wide">
-          <b>{formatStat("rate", venue?.feedMessagesPerSec ?? null)}</b> market data
-        </span>
-      )}
-      <span className="stats-item stats-wide">
-        <b>{formatStat("micros", venue?.answerP50Us ?? null)}</b> answers
-      </span>
+    <button type="button" className="stats-strip" onClick={statsDialog.open} title="Live platform stats">
+      <span className={`stats-dot ${latest?.venue ? "live" : ""}`} aria-hidden="true" />
+      <span className="stats-label">System throughput</span>
+      <b>{formatStat("rate", throughput)}</b>
     </button>
   );
 }
@@ -80,10 +57,10 @@ export function StatsDialog() {
     <Dialog
       open={open}
       title="Live platform stats"
-      wide
       onClose={statsDialog.close}
       actions={
-        <button type="button" className="button primary" onClick={statsDialog.close}>
+        // Focus starts on Close, not on the first stat, so no description opens by itself.
+        <button type="button" className="button primary" onClick={statsDialog.close} data-autofocus>
           Close
         </button>
       }
@@ -95,64 +72,36 @@ export function StatsDialog() {
 
 /** The dialog's contents. Exported for tests and for the guide. */
 export function StatsView() {
-  const { latest, history } = usePlatformStats();
+  const { latest } = usePlatformStats();
   const { data: status } = useStatus();
-  // Opening a dialog focuses its first button, Close, at the bottom of this long one, which
-  // scrolls it to the end. Start at the top instead, once the dialog has opened.
-  const top = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => top.current?.closest("dialog")?.scrollTo(0, 0));
-    return () => cancelAnimationFrame(frame);
-  }, []);
   return (
-    <div className="stats" ref={top}>
-      <p className="stats-intro">
-        What the whole system is handling right now, updated every second: the exchange, the service that sends you prices,
-        and the broker that holds your account. Totals for everyone trading here, never anyone in particular.
-        {latest && !latest.venue && " The exchange has not reported in the last few seconds."}
-      </p>
+    <div className="stats">
+      {latest && !latest.venue && <p className="muted">The exchange has not reported in the last few seconds.</p>}
       {groups(latest, status).map((group) => (
         <section key={group.title} className="stats-group">
-          <h3>
-            {group.title} <span className="muted">{group.source}</span>
-          </h3>
-          <dl>
+          <h3>{group.title}</h3>
+          <dl className="stats-tiles">
             {group.stats.map((stat) => (
-              <div key={stat.id} className="stats-row">
-                <dt>{stat.label}</dt>
-                <dd className="numbers">{formatStat(stat.format, stat.value)}</dd>
-                <dd className="stats-trend">{stat.trend && <Sparkline points={history} field={stat.trend} />}</dd>
-                <dd className="stats-about muted">{stat.about}</dd>
-              </div>
+              <StatTile key={stat.id} stat={stat} />
             ))}
           </dl>
         </section>
       ))}
+      <p className="stats-hint muted">Updated every second. Hover over or tap a number to see what it means.</p>
     </div>
   );
 }
 
-/** Five minutes of one number as a small line, scaled to its own range. No axes: the shape. */
-export function Sparkline({ points, field }: { points: readonly StatsPoint[]; field: TrendKey }) {
-  const values = points.map((p) => p[field]);
-  const known = values.filter((v): v is number => v !== null);
-  if (known.length < 2) return null;
-  const max = Math.max(...known);
-  const min = Math.min(...known, 0);
-  const span = max - min || 1;
-  const width = 120;
-  const height = 24;
-  const step = width / Math.max(1, values.length - 1);
-  let path = "";
-  values.forEach((v, i) => {
-    if (v === null) return;
-    const x = i * step;
-    const y = height - ((v - min) / span) * height;
-    path += `${path && values[i - 1] !== null ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)} `;
-  });
+/** A name and its value; what it means shows on hover, or on focus for keyboards and taps. */
+function StatTile({ stat }: { stat: Stat }) {
+  const id = useId();
   return (
-    <svg className="sparkline" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-      <path d={path.trim()} />
-    </svg>
+    <div className="stats-tile" tabIndex={0} aria-describedby={id}>
+      <dt>{stat.label}</dt>
+      <dd className="numbers">{formatStat(stat.format, stat.value)}</dd>
+      <dd className="stats-about" role="tooltip" id={id}>
+        {stat.about}
+      </dd>
+    </div>
   );
 }

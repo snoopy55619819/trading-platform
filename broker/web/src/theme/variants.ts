@@ -13,20 +13,13 @@ export interface Variants {
   ticket: "form" | "quick" | "simple";
   /** table: a row per holding with every column; list: one line each, value and P&L (Calm) */
   positions: "table" | "list";
-  /**
-   * The live platform stats in the header (ADR 0016):
-   * full      order updates, trades, feed updates and answer time (Terminal)
-   * standard  order updates, trades and answer time (Pro, Active)
-   * none      not in the header: Calm stays quiet; its stats are in "How it works?"
-   */
-  statsStrip: "full" | "standard" | "none";
 }
 
 export const VARIANTS: Record<Style, Variants> = {
-  pro: { ticket: "form", positions: "table", statsStrip: "standard" },
-  active: { ticket: "quick", positions: "table", statsStrip: "standard" },
-  calm: { ticket: "simple", positions: "list", statsStrip: "none" },
-  terminal: { ticket: "form", positions: "table", statsStrip: "full" },
+  pro: { ticket: "form", positions: "table" },
+  active: { ticket: "quick", positions: "table" },
+  calm: { ticket: "simple", positions: "list" },
+  terminal: { ticket: "form", positions: "table" },
 };
 
 export function useVariants(): Variants {
