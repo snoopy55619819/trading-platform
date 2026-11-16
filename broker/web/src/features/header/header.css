@@ -64,51 +64,6 @@
   white-space: nowrap;
 }
 
-/* ---------- quote ---------- */
-.quote {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-}
-.quote.stale .quote-last,
-.quote.stale .quote-facts dd {
-  color: var(--stale);
-}
-.quote-name {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
-}
-.quote-full-name {
-  font-size: var(--fs-sm);
-}
-.quote-last {
-  font-size: var(--fs-xl);
-  font-weight: var(--weight-strong);
-}
-.quote-change {
-  font-weight: var(--weight-strong);
-}
-.quote-facts {
-  display: flex;
-  gap: var(--space-4);
-  margin: 0;
-}
-.quote-facts div {
-  display: flex;
-  gap: var(--space-2);
-  align-items: baseline;
-}
-.quote-facts dt {
-  color: var(--text-muted);
-  font-size: var(--fs-xs);
-  text-transform: uppercase;
-}
-.quote-facts dd {
-  margin: 0;
-}
-
 /* ---------- connections ---------- */
 .connections {
   position: relative;
@@ -161,9 +116,6 @@
 }
 
 @media (max-width: 640px) {
-  .quote-full-name {
-    display: none;
-  }
   /* The connections sit at the left of the bar here, so their details open rightward. */
   .connection-details {
     right: auto;
@@ -173,58 +125,6 @@
     margin-left: 0;
     width: 100%;
     justify-content: space-between;
-  }
-}
-
-/* Wide screens, full-screen layouts (Pro, Active): one line. When the bar runs short, the
-   quote's facts drop off from the end, volume first (bid and ask are in the order book
-   too), then the company's full name gives way with an ellipsis; the price and change never
-   do. Narrower than 1280px the bar wraps as usual rather than squeeze the
-   quote under the buttons. Calm's narrow header stacks its rows, so it is left out. */
-@media (min-width: 1280px) {
-  .fit-screen .topbar {
-    flex-wrap: nowrap;
-  }
-  .fit-screen .topbar > * {
-    flex-shrink: 0;
-  }
-  .fit-screen .topbar > .quote {
-    flex: 1 1 0;
-    min-width: 0;
-    flex-wrap: nowrap;
-  }
-  .fit-screen .quote > * {
-    flex-shrink: 0;
-  }
-  .fit-screen .quote > .quote-name {
-    flex-shrink: 1;
-    min-width: 0;
-    overflow: hidden;
-  }
-  /* Facts that do not fit wrap onto a second line, which is cut off. They give way well
-     before the name does. */
-  .fit-screen .quote > .quote-facts {
-    flex-shrink: 100;
-    min-width: 0;
-    flex-wrap: wrap;
-    height: 1lh;
-    overflow: hidden;
-  }
-  .fit-screen .quote-full-name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-/* Active's larger type needs 1440px for one line; narrower, its bar wraps like any other. */
-@media (min-width: 1280px) and (max-width: 1439px) {
-  :root[data-style="active"] .fit-screen .topbar {
-    flex-wrap: wrap;
-  }
-  :root[data-style="active"] .fit-screen .topbar > .quote {
-    flex: 0 0 auto;
   }
 }
 

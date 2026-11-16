@@ -1,4 +1,4 @@
-// The quote header's numbers, worked out from what the feed and the daily bars say.
+// A symbol's quote (the Quote section, the watchlist, the ticket), worked out from what the feed and the daily bars say.
 // Pure, so it is tested without a browser.
 
 import type { Bar } from "../../api/marketData.ts";
@@ -13,6 +13,9 @@ export interface Quote {
   /** Since the previous business day's close. Undefined without one. */
   changeCents: number | undefined;
   changeBps: number | undefined;
+  /** Today's (this business day's) highest and lowest trade. Undefined before the first. */
+  highCents: number | undefined;
+  lowCents: number | undefined;
   /** Shares traded today (this business day). */
   volume: number;
   /** False when the book cannot be trusted (before its snapshot, after a gap, feed down). */
@@ -37,6 +40,8 @@ export function quoteFrom(market: SymbolMarket, dailyBars: Bar[] | undefined, to
     askCents: market.book?.asks[0]?.priceCents,
     changeCents: lastCents !== undefined && prevClose !== undefined ? lastCents - prevClose : undefined,
     changeBps: lastCents !== undefined && prevClose !== undefined ? changeBps(lastCents, prevClose) : undefined,
+    highCents: today?.highCents,
+    lowCents: today?.lowCents,
     volume: today?.volume ?? 0,
     live: market.book?.live ?? false,
   };

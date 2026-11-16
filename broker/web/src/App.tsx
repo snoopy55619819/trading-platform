@@ -15,6 +15,7 @@ import { TopBar } from "./features/header/TopBar.tsx";
 import { NewsPanel } from "./features/news/NewsPanel.tsx";
 import { Notifier } from "./features/notifications/Notifier.tsx";
 import { TimeAndSales } from "./features/tape/TimeAndSales.tsx";
+import { QuoteSection } from "./features/quote/QuoteSection.tsx";
 import { OrderTicket } from "./features/ticket/OrderTicket.tsx";
 import { Watchlist } from "./features/watchlist/Watchlist.tsx";
 import { DEFAULT_LAYOUTS, type PanelInstance } from "./layout/layouts.ts";
@@ -51,6 +52,8 @@ function Section({
       return <Watchlist symbols={symbols} selected={selected} onSelect={selectSymbol} />;
     case "chart":
       return <ChartSection symbol={selected} />;
+    case "quote":
+      return <QuoteSection symbol={selected} name={symbols.find((s) => s.symbol === selected)?.name} />;
     case "book":
       return <OrderBook symbol={selected} />;
     case "tape":

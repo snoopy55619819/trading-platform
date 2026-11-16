@@ -463,6 +463,16 @@ they read in every style and mode.
   (turning zoom off for the whole page would take it from people who need it, and iPhone
   Safari ignores `user-scalable=no` anyway).
 
+- **A Quote section, out of the top bar:** with the live stats and connection status in the
+  top bar, the quote no longer fitted beside them (the company name was cut short and only
+  the bid showed). It is now its own section, `features/quote/`: ticker and company, last
+  price, change on the day in dollars and percent, and today's high, low and volume, with
+  the watchlist star in its title bar. It sits on top of the order book (Pro, Active),
+  across the top of the book and tape (Terminal), and first in Calm and at phone width.
+  Bid and ask were left out: the book under it shows them. The order book now opens with the
+  spread in the middle when it has fewer rows than levels, so both sides show; Active's
+  ticket gave a row to the book, which it did not need.
+
 ## Done when
 
 Click "Buy 100" in the browser, watch the order fill in the blotter, the book move, and
