@@ -1,0 +1,107 @@
+/* Live platform stats (ADR 0016): the top bar's strip and the dialog. */
+
+/* ---------- the strip ---------- */
+.stats-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.stats-strip:hover {
+  color: var(--text);
+}
+.stats-strip b {
+  color: var(--text);
+  font-family: var(--font-numbers);
+  font-weight: var(--weight-strong);
+}
+.stats-dot {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--stale);
+}
+.stats-dot.live {
+  background: var(--up);
+}
+/* So the strip never pushes the top bar onto another line: a tablet keeps two numbers, a
+   phone the first. The rest are always in the dialog. */
+@media (max-width: 899px) {
+  .stats-wide {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .stats-more {
+    display: none;
+  }
+}
+
+/* ---------- the dialog ---------- */
+.stats-intro {
+  margin: 0 0 var(--space-4);
+}
+.stats-group + .stats-group {
+  margin-top: var(--space-5);
+}
+.stats-group h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-md);
+}
+.stats-group h3 .muted {
+  font-size: var(--fs-xs);
+  font-weight: normal;
+  margin-left: var(--space-2);
+}
+.stats-group dl {
+  margin: 0;
+}
+/* Name, value, trend; what it means underneath. */
+.stats-row {
+  display: grid;
+  grid-template-columns: minmax(10em, 1fr) 7em 120px;
+  column-gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-top: var(--border-width) solid var(--border);
+}
+.stats-row dt {
+  font-weight: var(--weight-strong);
+}
+.stats-row dd {
+  margin: 0;
+}
+.stats-row .numbers {
+  text-align: right;
+}
+.stats-about {
+  grid-column: 1 / -1;
+  font-size: var(--fs-xs);
+}
+.sparkline {
+  display: block;
+  width: 120px;
+  height: 24px;
+}
+.sparkline path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+@media (max-width: 640px) {
+  .stats-row {
+    grid-template-columns: 1fr auto;
+  }
+  .stats-trend {
+    display: none;
+  }
+}

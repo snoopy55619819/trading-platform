@@ -1,5 +1,5 @@
-// The top bar: symbol search and quote, connection status, the "How it works?" guide,
-// settings, sign out.
+// The top bar: symbol search and quote, the platform's live stats (ADR 0016), connection
+// status, the "How it works?" guide, settings, sign out.
 // Fixed chrome, outside the panel layout.
 
 import { useState } from "react";
@@ -10,6 +10,7 @@ import { HowItWorks } from "../guide/HowItWorks.tsx";
 import { guide } from "../guide/store.ts";
 import { useSettings } from "../../settings.ts";
 import { SettingsDialog } from "../settings/SettingsDialog.tsx";
+import { StatsDialog, StatsStrip } from "../stats/StatsDialog.tsx";
 import { ConnectionStatus } from "./ConnectionStatus.tsx";
 import { QuoteHeader } from "./QuoteHeader.tsx";
 import { SymbolSearch } from "./SymbolSearch.tsx";
@@ -37,6 +38,8 @@ export function TopBar({
       {selected && <QuoteHeader symbol={selected} name={security?.name} />}
       {symbolsFailed && symbols.length === 0 && <span className="hint">Could not load the symbol list. Retrying…</span>}
       <div className="topbar-end">
+        <StatsStrip />
+        <StatsDialog />
         <ConnectionStatus />
         {/* Accent coloured, with a dot until this browser has opened it once. */}
         <button type="button" className="button guide-button" onClick={guide.open}>

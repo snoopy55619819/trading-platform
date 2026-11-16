@@ -5,8 +5,10 @@
 import { useEffect, useState } from "react";
 
 import { formatDollars } from "../../money.ts";
-import { useLastPrices, useNews } from "../../market/hooks.ts";
-import { usePositions } from "../../query/hooks.ts";
+import { useLastPrices, useNews, usePlatformStats } from "../../market/hooks.ts";
+import { usePositions, useStatus } from "../../query/hooks.ts";
+import { flowRates } from "../stats/catalog.ts";
+import { statsDialog } from "../stats/StatsDialog.tsx";
 import { Dialog } from "../../ui/Dialog.tsx";
 import { FLOWS, type FlowId, flowById } from "./flows.ts";
 import { FlowDiagram } from "./FlowDiagram.tsx";
@@ -26,9 +28,21 @@ export function HowItWorks({ symbol, live = true }: { symbol?: string | undefine
       wide
       onClose={guide.close}
       actions={
-        <button type="button" className="button primary" onClick={guide.close}>
-          Close
-        </button>
+        <>
+          <button
+            type="button"
+            className="button"
+            onClick={() => {
+              guide.close();
+              statsDialog.open();
+            }}
+          >
+            All the live numbers
+          </button>
+          <button type="button" className="button primary" onClick={guide.close}>
+            Close
+          </button>
+        </>
       }
     >
       <Guide symbol={symbol} live={live} />
@@ -43,6 +57,10 @@ function Guide({ symbol, live }: { symbol: string | undefined; live: boolean }) 
   const flow = flowById(flowId);
   const last = flow.steps.length - 1;
   const current = flow.steps[step]!;
+  // What is flowing along each arrow right now (ADR 0016).
+  const { latest } = usePlatformStats();
+  const { data: status } = useStatus();
+  const rates = flowRates(latest, status);
 
   useEffect(() => {
     if (!playing) return;
@@ -78,7 +96,7 @@ function Guide({ symbol, live }: { symbol: string | undefined; live: boolean }) 
       </div>
       <p className="guide-summary">{flow.summary}</p>
 
-      <FlowDiagram flow={flow} step={step} />
+      <FlowDiagram flow={flow} step={step} rates={rates} />
 
       <div className="guide-step" aria-live="polite">
         <div className="guide-count">
