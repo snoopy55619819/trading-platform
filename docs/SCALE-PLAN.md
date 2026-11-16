@@ -195,9 +195,9 @@ percentile; nothing above 3% of a core.)
 
       | Step | Release | `SIM_ACTIVITY`, `SIM_QUOTE_ACTIVITY`, order cap | Expected | Measured |
       |---|---|---|---|---|
-      | 0 | `v0.5.11` | 4, 1, 160 | about 30 a second over the day, 50 in New York hours | (below) |
-      | 1 | next | 4, 30, 400 | about 100 a second over the day, 130 in New York hours | |
-      | 2 | | 4 to 8, 100 | about 300 | |
+      | 0 | `v0.5.11` | 4, 1, 160 | about 30 a second over the day, 50 in New York hours | 21 a second over the day; CPU 6 to 7.5% |
+      | 1 | `v0.5.12` | 4, 30, 400 | about 100 a second over the day, 130 in New York hours | 139 a second at the New York open; CPU 9.5%; answers 7.6 / 25 ms |
+      | 2 | next | 4, 100, 800 | 290 a second locally at New York hours; about 270 over the day | |
       | 3 | | 8 to 16, 200 | about 500 | |
 - [ ] After each step, the ADR 0009 checks: CPU and credits (`CPUSurplusCreditsCharged`
       should stay 0), memory and swap, disk, the resend cap, cost, `pnpm realism`.
