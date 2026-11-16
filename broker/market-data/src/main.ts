@@ -20,7 +20,8 @@
 //
 // Configuration, all optional: MD_PORT (8081), MD_FEED_URL (from listings.json),
 // MD_NEWS_URL (from newswire.json; empty for no news), MD_DATABASE_URL (the local container
-// on 5434).
+// on 5434), MD_ARCHIVE_DIR (where finished days of trades are written; `archive`) and
+// MD_KEEP_TRADE_DAYS (finished days kept in Postgres besides today; 1). See ADR 0014.
 
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
@@ -29,6 +30,7 @@ import { createPool } from "./db.ts";
 import { Subscriber } from "./feed/subscriber.ts";
 import { Fanout } from "./live/fanout.ts";
 import { NewsSubscriber } from "./news/subscriber.ts";
+import { DAYS_AHEAD, dayOf, ensurePartitions, maintainTrades } from "./store/archive.ts";
 import { recentNews } from "./store/news.ts";
 import { INTERVALS, INTERVAL_SECONDS, type Interval, bars, rollup } from "./store/rollup.ts";
 import { type Tick, insertTicks, recentTrades, tickFrom } from "./store/ticks.ts";
@@ -38,6 +40,9 @@ const ROLLUP_EVERY_MS = 1000;
 const MAX_BARS = 1000;
 const MAX_TRADES = 200;
 const MAX_NEWS = 200;
+const MAINTAIN_EVERY_MS = 60 * 60 * 1000;
+const archiveDir = process.env.MD_ARCHIVE_DIR ?? "archive";
+const keepTradeDays = Number(process.env.MD_KEEP_TRADE_DAYS ?? 1);
 
 interface Listings {
   venue: { market_data: { host: string; port: number } };
@@ -61,6 +66,7 @@ const newsUrl = process.env.MD_NEWS_URL ?? `ws://${wire.host}:${wire.port}${wire
 const pool = createPool();
 let pending: Tick[] = [];
 const stats = { stored: 0, duplicates: 0, rolledUp: 0 };
+const archive = { lastRun: "", lastError: "", archivedDays: 0, droppedDays: 0 };
 
 const http = createServer((req, res) => {
   void handle(req.url ?? "/").then(({ status, body }) => {
@@ -94,6 +100,7 @@ async function handle(path: string): Promise<{ status: number; body: object }> {
           feed: { ...subscriber.stats, liveBooks: live, symbols: symbols.length },
           news: news?.stats ?? "off",
           ...stats,
+          archive,
           clients: fanout.clients(),
           droppedClients: fanout.stats.dropped,
         },
@@ -173,6 +180,33 @@ const roller = setInterval(() => serial(async () => {
   }
 }), ROLLUP_EVERY_MS);
 
+// Trades by day (ADR 0014): today's partition must exist before anything is stored; writing
+// finished days out can take minutes at a high rate, so it runs on its own, never alongside
+// itself.
+const now = Date.now();
+await ensurePartitions(pool, dayOf(now), dayOf(now + DAYS_AHEAD * 24 * 60 * 60 * 1000));
+let maintaining = false;
+async function maintain(): Promise<void> {
+  if (maintaining) return;
+  maintaining = true;
+  try {
+    const done = await maintainTrades(pool, archiveDir, Date.now(), keepTradeDays);
+    for (const { day, trades } of done.archived) console.log(`archive: wrote ${day} (${trades} trades)`);
+    if (done.dropped.length) console.log(`archive: dropped ${done.dropped.join(", ")} from Postgres`);
+    archive.archivedDays += done.archived.length;
+    archive.droppedDays += done.dropped.length;
+    archive.lastRun = new Date().toISOString();
+    archive.lastError = "";
+  } catch (error) {
+    archive.lastError = (error as Error).message;
+    console.error(`archive: ${archive.lastError}`);
+  } finally {
+    maintaining = false;
+  }
+}
+const firstMaintain = setTimeout(() => void maintain(), 10_000);
+const maintainer = setInterval(() => void maintain(), MAINTAIN_EVERY_MS);
+
 const port = Number(process.env.MD_PORT ?? 8081);
 http.listen(port, () => console.log(`market-data: http://127.0.0.1:${port}/history, ws://127.0.0.1:${port}/live`));
 subscriber.start();
@@ -182,6 +216,8 @@ async function shutdown(): Promise<void> {
   console.log("market-data: shutting down");
   clearInterval(flusher);
   clearInterval(roller);
+  clearTimeout(firstMaintain);
+  clearInterval(maintainer);
   subscriber.stop();
   news?.stop();
   fanout.close();

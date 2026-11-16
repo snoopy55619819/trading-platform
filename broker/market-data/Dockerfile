@@ -20,6 +20,9 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 COPY . .
 COPY --from=gen /app/gen gen
+# Finished days of trades are written here (ADR 0014); a volume in production.
+RUN mkdir /archive && chown node:node /archive
+ENV MD_ARCHIVE_DIR=/archive
 USER node
 EXPOSE 8081
 CMD ["sh", "-c", "node scripts/migrate.mjs && exec node src/main.ts"]

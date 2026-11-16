@@ -13,6 +13,7 @@ import { fromBinary } from "@bufbuild/protobuf";
 import { FeedMessageSchema, type TradePrint } from "../gen/marketdata_pb.js";
 import { type Db, createPool } from "../src/db.ts";
 import { Subscriber } from "../src/feed/subscriber.ts";
+import { ensurePartitions } from "../src/store/archive.ts";
 import { type Bar, bars, rollup } from "../src/store/rollup.ts";
 import { type Tick, insertTicks, recentTrades, tickFrom } from "../src/store/ticks.ts";
 
@@ -24,6 +25,8 @@ async function rolledBack(work: (db: Db) => Promise<void>): Promise<void> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // ticks is partitioned by day (ADR 0014): the days these tests trade on need one.
+    await ensurePartitions(client, "2026-11-01", "2026-11-30");
     await work(client);
   } finally {
     await client.query("ROLLBACK");

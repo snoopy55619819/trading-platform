@@ -76,4 +76,25 @@ echo "S3 unreachable"
 check "the original is kept" '[ -f "$days/alpha-2026-11-14.1.journal" ]'
 check "and so is every compressed copy" '[ -f "$days/alpha-2026-11-15.1.journal.gz" ]'
 
+# market-data's days of trades: sent as they are, then removed; one being written is not.
+trades=$work/trades
+mkdir -p "$trades"
+echo trades | gzip > "$trades/ticks-2026-11-15.csv.gz"
+echo partial > "$trades/ticks-2026-11-16.csv.gz.tmp"
+aws() { # reachable again
+
+  case "$1 $2" in
+    "s3 cp")
+      mkdir -p "$(dirname "$s3/${4#s3://"$bucket"/}")"
+      cp "$3" "$s3/${4#s3://"$bucket"/}"
+      ;;
+    "s3api head-object") [ -f "$s3/$(sed -nE 's/.*--key ([^ ]+).*/\1/p' <<< "$*")" ] ;;
+  esac
+}
+archive_trades "$trades" > /dev/null
+echo "a day of trades"
+check "is sent unchanged" 'cmp -s "$s3/market-data-trades/ticks-2026-11-15.csv.gz" <(echo trades | gzip)'
+check "and removed locally" '[ ! -f "$trades/ticks-2026-11-15.csv.gz" ]'
+check "one being written is left alone" '[ -f "$trades/ticks-2026-11-16.csv.gz.tmp" ] && [ ! -e "$s3/market-data-trades/ticks-2026-11-16.csv.gz.tmp" ]'
+
 exit $failed

@@ -43,3 +43,6 @@ participants/simulator/data/
 
 # Load test process logs (load-test/run.ts); results/ is kept
 load-test/logs/
+
+# market-data: finished days of trades, written locally (ADR 0014)
+broker/market-data/archive/
