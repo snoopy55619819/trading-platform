@@ -104,11 +104,36 @@ and finished-order memory at these rates (stages 3 and 4).
 
 At 500 to 1,000 a second the journal is 7 to 13.5 GB a day; seven days do not fit 30 GB.
 
-- [ ] Keep one or two finished days locally instead of seven (`hosting/backup.sh`); S3 already
-      keeps every day, compressed, for a year.
-- [ ] If disk is still tight: batch the journal's writes (one system call per batch, not per
-      command), then compress it as it is written, or a binary format (about 30 to 40 bytes a
-      transaction instead of 156). Each its own decision.
+- [x] Keep at most one day uncompressed: `hosting/backup.sh` now gzips each finished day on
+      the server, sends that to S3, and deletes the original as soon as S3 has it, keeping the
+      compressed copy two days (it kept the originals a week). A journal gzips about 16 times
+      smaller (measured: 307 MB to 19 MB for a day at activity 4). Tested by
+      `hosting/backup.test.sh`, now in CI.
+- [ ] ~~Batch the journal's writes, compress it as it is written, or a binary format~~: not
+      needed for disk. With the change above the journal fits even at 1,000 a second (below).
+      Batching its writes may still matter for CPU; the load test will say.
+
+**The disk at the target** (30 GB; today about 6.3 GB is the system, images, swap and
+databases). The fullest moment is just before the 21:00 roll, with the day's journal still
+uncompressed:
+
+| | Today (activity 4, about 25 a second) | 500 a second | 1,000 a second |
+|---|---|---|---|
+| The day's journal, uncompressed | 0.3 GB | 6.7 GB | 13.5 GB |
+| Two compressed days | 0.04 GB | 0.8 GB | 1.7 GB |
+| Peak, with the 6.3 GB base | 6.7 GB (22%) | 13.8 GB (46%) | 21.5 GB (72%) |
+| **Trades kept by market-data, a day** (241 bytes each, measured) | 17 MB | 1 GB | 2.1 GB |
+
+**What this found: market-data's trades are now the disk's limit.** It keeps every trade
+forever (`ticks`; no ADR yet, only the backlog's "Tick retention without losing data"). At
+500 a second that alone fills the disk's remaining 16 GB in about two weeks; at 1,000, in
+about four days. The journal is solved; the trades need a decision before the live market
+goes past about 100 a second for long:
+
+- [ ] Choose how old trades leave the server's disk without being lost: archive them to S3
+      (by day, compressed, like the journal) and keep a few days locally (charts read candles,
+      which stay; time and sales reads only the latest trades); or a columnar store; or a
+      bigger disk (EBS is about $0.08 per GB a month). Its own ADR.
 
 ### 4. Finished-order ids at scale
 

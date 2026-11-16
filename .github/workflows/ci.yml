@@ -157,6 +157,13 @@ jobs:
 
   # The production images still build. Built for the runner's own architecture and thrown
   # away: the deploy workflow builds the ones that ship, for ARM.
+  hosting:
+    name: hosting (scripts)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - run: bash hosting/backup.test.sh
+
   images:
     name: images
     runs-on: ubuntu-24.04

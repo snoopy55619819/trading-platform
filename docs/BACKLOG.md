@@ -113,7 +113,9 @@ In the plan's suggested order of value.
       stay forever either way. Before it matters, choose a way to move old ticks rather than
       delete them: monthly partitions archived to S3 as compressed files, or ClickHouse
       (above), whose column storage compresses this kind of data about 10×. Until then, a
-      disk-usage alert on the server is enough.
+      disk-usage alert on the server is enough. **Now urgent for scaling**: at 500 to 1,000
+      transactions a second it is 1 to 2.1 GB a day and fills the disk in days
+      (`docs/SCALE-PLAN.md`, stage 3).
 - [ ] **Observability.** OpenTelemetry traces end to end, Prometheus and Grafana, latency
       histograms: one trace from a browser click through FIX and matching to settlement.
 - [ ] **Chaos and performance.** Kill each service mid-flight and assert no lost, duplicated
