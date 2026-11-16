@@ -10,8 +10,8 @@ use common::*;
 use futures_util::{SinkExt, StreamExt};
 use gateway::MemoryStore;
 use md_publisher::proto::{
-    BookDelta, ClientMessage, FeedMessage, Side, Snapshot, Subscribe, TradePrint, client_message,
-    feed_message::Payload,
+    BookDelta, ClientMessage, FeedMessage, Side, Snapshot, Subscribe, TradePrint, VenueStats,
+    client_message, feed_message::Payload,
 };
 use md_publisher::{Applied, Mirror};
 use prost::Message as _;
@@ -52,7 +52,7 @@ impl Subscriber {
         (subscriber, snapshot)
     }
 
-    /// The next message that is not a heartbeat, within five seconds.
+    /// The next message that is not a heartbeat or the venue's stats, within five seconds.
     async fn next(&mut self) -> FeedMessage {
         // One deadline for the whole wait: heartbeats arrive every second, so a timeout per
         // frame would never fire.
@@ -68,7 +68,10 @@ impl Subscriber {
             };
             self.raw.push(bytes.to_vec());
             let message = FeedMessage::decode(bytes).unwrap();
-            if !matches!(message.payload, Some(Payload::Heartbeat(_))) {
+            if !matches!(
+                message.payload,
+                Some(Payload::Heartbeat(_) | Payload::VenueStats(_))
+            ) {
                 return message;
             }
         }
@@ -88,18 +91,43 @@ impl Subscriber {
         }
     }
 
-    /// Waits for a heartbeat, which proves nothing else was queued ahead of it.
+    /// Waits for a heartbeat, which proves nothing else was queued ahead of it. The venue's
+    /// stats, which go to everyone every second too, may come first.
     async fn expect_only_heartbeats(&mut self) {
-        let frame = tokio::time::timeout(Duration::from_secs(3), self.socket.next())
-            .await
-            .expect("no heartbeat")
-            .unwrap()
-            .unwrap();
-        let message = FeedMessage::decode(frame.into_data()).unwrap();
-        assert!(
-            matches!(message.payload, Some(Payload::Heartbeat(_))),
-            "expected only a heartbeat, got {message:?}"
-        );
+        loop {
+            let frame = tokio::time::timeout(Duration::from_secs(3), self.socket.next())
+                .await
+                .expect("no heartbeat")
+                .unwrap()
+                .unwrap();
+            let message = FeedMessage::decode(frame.into_data()).unwrap();
+            match message.payload {
+                Some(Payload::Heartbeat(_)) => return,
+                Some(Payload::VenueStats(_)) => continue,
+                other => panic!("expected only a heartbeat, got {other:?}"),
+            }
+        }
+    }
+
+    /// The next `VenueStats` whose totals have reached `transactions`, within five seconds.
+    async fn stats_after(&mut self, transactions: u64) -> VenueStats {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        loop {
+            let frame = tokio::time::timeout_at(deadline, self.socket.next())
+                .await
+                .expect("timed out waiting for the venue's stats")
+                .expect("feed closed")
+                .unwrap();
+            let Message::Binary(bytes) = frame else {
+                continue;
+            };
+            self.raw.push(bytes.to_vec());
+            if let Some(Payload::VenueStats(stats)) = FeedMessage::decode(bytes).unwrap().payload
+                && stats.transactions_today >= transactions
+            {
+                return stats;
+            }
+        }
     }
 
     fn saw(&self, text: &str) -> bool {
@@ -219,4 +247,33 @@ async fn after_a_crash_the_feed_carries_on_with_the_same_numbers() {
     broker.send(limit("b4", "2", "5", "BLTZ", "18.85")).await;
     let delta = watcher.delta().await;
     assert_eq!((delta.feed_seq, delta.symbol_seq), (5, 2));
+}
+
+#[tokio::test]
+async fn the_venue_publishes_its_activity_to_everyone_once_a_second() {
+    let journal = TempData::new();
+    let gateway = start_gateway(&journal, MemoryStore::default()).await;
+    // Subscribed to a symbol nobody trades: the stats come anyway.
+    let (mut watcher, _) = Subscriber::subscribe(gateway.md_addr, &["JOLT"]).await;
+
+    let mut broker = Client::logon(gateway.addr, "BROKER").await;
+    let mut sim = Client::logon(gateway.addr, "SIM").await;
+    broker.send(limit("b1", "2", "100", "ACME", "42.10")).await;
+    broker.next().await;
+    sim.send(limit("s1", "1", "60", "ACME", "42.10")).await;
+    sim.next().await;
+    sim.send(limit("s2", "1", "10", "NOPE", "1.00")).await; // rejected: not listed
+    sim.next().await;
+
+    let stats = watcher.stats_after(2).await;
+    assert_eq!(stats.venue, "ALPHA");
+    assert_eq!((stats.transactions_today, stats.trades_today), (2, 1));
+    assert_eq!((stats.sessions, stats.open_orders), (2, 1)); // 40 of b1 rest
+    assert!(stats.interval_ms > 0 && stats.interval_ms < 3_000);
+    for private in ["BROKER", "SIM", "b1", "s1", "ALPHA-1"] {
+        assert!(
+            !watcher.saw(private),
+            "{private} appeared on the public feed"
+        );
+    }
 }

@@ -8,6 +8,7 @@
 //! - [`days`] decides when a business day ends and keeps each day's snapshot and journal.
 //! - [`orders`] validates orders and translates between FIX and engine commands and events.
 //! - [`store`] persists FIX session state in the exchange's own database.
+//! - [`stats`] counts the venue's activity for the public feed (ADR 0016).
 //! - [`listings`] is the published instrument list and fee schedule.
 //! - [`recovery`] rebuilds state on start, from the journal or a snapshot plus the journal.
 //!
@@ -19,6 +20,7 @@ pub mod listings;
 pub mod orders;
 pub mod recovery;
 pub mod server;
+pub mod stats;
 pub mod store;
 
 pub use crate::core::Core;

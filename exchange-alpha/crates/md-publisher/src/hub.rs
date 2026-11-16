@@ -70,7 +70,8 @@ impl Hub {
     }
 
     /// Sequences a batch of events (everything one command did) and sends each message to
-    /// the subscribers of its symbol. Every message is encoded once, however many receive it.
+    /// the subscribers of its symbol; the venue's stats go to every connection, like a
+    /// heartbeat. Every message is encoded once, however many receive it.
     pub fn publish(&mut self, events: &[PublicEvent], ts_ns: i64) {
         for event in events {
             let message = self.feed.publish(event, ts_ns);
@@ -78,7 +79,9 @@ impl Hub {
             let receivers: Vec<SubscriberId> = self
                 .subscribers
                 .iter()
-                .filter(|(_, s)| s.symbols.contains(event.symbol()))
+                .filter(|(_, s)| {
+                    matches!(event, PublicEvent::Stats(_)) || s.symbols.contains(event.symbol())
+                })
                 .map(|(id, _)| *id)
                 .collect();
             for id in receivers {
@@ -224,9 +227,39 @@ mod tests {
                 Some(feed_message::Payload::BookDelta(_)) => "delta",
                 Some(feed_message::Payload::TradePrint(_)) => "trade",
                 Some(feed_message::Payload::Heartbeat(_)) => "heartbeat",
+                Some(feed_message::Payload::VenueStats(_)) => "stats",
                 None => "empty",
             })
             .collect()
+    }
+
+    #[test]
+    fn the_venue_s_stats_go_to_everyone_and_take_no_number() {
+        use crate::public::VenueActivity;
+        let mut hub = hub();
+        let (tx, mut rx) = mpsc::channel(16);
+        hub.connect(1, tx); // subscribed to nothing
+        let stats = VenueActivity {
+            transactions_per_sec: 300.0,
+            ..VenueActivity::default()
+        };
+        hub.publish(&[PublicEvent::Stats(stats)], 0);
+        let messages = drain(&mut rx);
+        assert_eq!(kinds(&messages), ["stats"]);
+        let Some(feed_message::Payload::VenueStats(sent)) = &messages[0].payload else {
+            unreachable!()
+        };
+        assert_eq!(
+            (sent.venue.as_str(), sent.transactions_per_sec),
+            ("ALPHA", 300.0)
+        );
+        // The next book change is still number 1.
+        hub.on_client(1, subscribe(&["ACME"]), 0);
+        hub.publish(&[level("ACME", 4200)], 0);
+        let Some(feed_message::Payload::BookDelta(delta)) = &drain(&mut rx)[1].payload else {
+            panic!("expected the snapshot, then a delta")
+        };
+        assert_eq!((delta.feed_seq, delta.symbol_seq), (1, 1));
     }
 
     #[test]
