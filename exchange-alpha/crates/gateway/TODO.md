@@ -119,6 +119,10 @@ mid-day, almost all of it market maker quotes cancelled within seconds (ADR 0005
   until it is saved, so a client never has a message the exchange forgot; but the reports
   of the last batch can still be lost this way.) The fix is to regenerate reports from the journal on recovery, or to keep FIX
   state in the same journal. Worth doing before anything depends on it.
+  Planned in ADR 0017, step 3.
+- **The journal is flushed, not synced.** A power loss or kernel panic can lose the last
+  commands while Postgres keeps the replies sent for them. Group commit (one `sync_data`
+  per batch, before replying) is ADR 0017, step 2.
 - **Rejected `ClOrdID`s are forgotten on restart.** Accepted orders are rebuilt from the
   journal; orders rejected before the engine, and cancel requests, are not journaled. Since
   business days, only ids used since the day's snapshot can be lost this way.
