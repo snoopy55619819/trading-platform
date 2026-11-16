@@ -14,15 +14,18 @@ import {
   fetchHistory,
   fetchNews,
   fetchRecentTrades,
+  fetchStats,
 } from "../api/marketData.ts";
 import { bucketStart, foldTrade } from "./candles.ts";
 import { NewsStore, mergeNews } from "./news.ts";
+import { type StatsState, StatsStore } from "./stats.ts";
 import { MarketStore, RECENT_TRADES, type SymbolMarket } from "./store.ts";
 import { mergeTrades } from "./tape.ts";
 import { quoteFrom } from "../features/header/quote.ts";
 
 export const marketStore = new MarketStore();
 export const newsStore = new NewsStore();
+export const statsStore = new StatsStore();
 
 // The feed's connection state, as a tiny store of its own.
 let feedState: ConnectionState = "closed";
@@ -47,6 +50,7 @@ export function startMarketData(): void {
     onMessage: (message) => {
       feedLastMessageAt = Date.now();
       if (message.type === "news") newsStore.add(message);
+      else if (message.type === "stats") statsStore.add(message);
       else marketStore.apply(message);
     },
     onState: setFeedState,
@@ -193,4 +197,22 @@ export function useLastPrices(symbols: readonly string[]): Map<string, number | 
   });
   const todayStart = bucketStart(Date.now(), "1d");
   return new Map(symbols.map((symbol, i) => [symbol, quoteFrom(markets[i]!, daily[i]?.data, todayStart).lastCents]));
+}
+
+let statsSeeded = false;
+/**
+ * The platform's live stats (ADR 0016): updated once a second from the feed, with the last
+ * five minutes fetched once, the first time anything asks, so trend lines start full.
+ */
+export function usePlatformStats(): StatsState {
+  useEffect(() => {
+    if (statsSeeded) return;
+    statsSeeded = true;
+    fetchStats()
+      .then(({ latest, history }) => statsStore.seed(latest, history))
+      .catch(() => {
+        statsSeeded = false; // try again next time
+      });
+  }, []);
+  return useSyncExternalStore(statsStore.subscribe, statsStore.get);
 }
