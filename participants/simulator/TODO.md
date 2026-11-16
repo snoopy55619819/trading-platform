@@ -36,8 +36,9 @@ All optional, by environment variable (`src/config.ts`):
 | `SIM_ACTIVITY` | `1` | how often the takers trade; below 1 for a quieter market (the deployed instance ran at `0.2` until ADR 0005, then `1`, then `2`, now `4`) |
 | `SIM_IMPACT` | `1` | how hard trading moves the price, as a multiple of the model's (`src/market/model/impact.ts`, ADR 0008); `0` turns it off |
 | `SIM_SPEED` | `1` | fair value runs this many times faster than the clock, to see hours in minutes |
+| `SIM_FLAT_DAY` | `0` | `1` holds the time of day at New York market hours instead of following the clock (the load test uses it, so its steps are comparable) |
 | `SIM_SEED` | the clock | the same seed replays the same price paths |
-| `SIM_REPORT_SECS` | `30` | how often the status table prints |
+| `SIM_REPORT_SECS` | `30` | how often the status table prints; its last line also gives how long the exchange took to answer orders since the last one (`ack p50`, `p99`) |
 | `SIM_COMP_ID` | `SIM` | must be in the exchange's `ALPHA_COMP_IDS` |
 | `SIM_SESSION_RESET_EVERY_SECS` | `0` | also start the FIX session over this often; `0` means only daily, at the venue's roll |
 | `SIM_FIX_HOST` / `SIM_FIX_PORT` / `SIM_FEED_URL` | from `listings.json` | where the venue is |

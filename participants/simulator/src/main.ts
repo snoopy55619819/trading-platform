@@ -121,7 +121,7 @@ function step(): void {
   const now = Date.now();
   const dtSec = (now - last) / 1000;
   last = now;
-  context.activity = diurnal(new Date(now));
+  context.activity = config.flatDay ? 1 : diurnal(new Date(now));
   for (const value of fair.values()) value.step(dtSec, context.activity, rng);
   if (!fix.isActive() || resetting) return;
   for (const agent of agents) agent.step(now, dtSec);
@@ -149,7 +149,8 @@ async function resetSession(): Promise<void> {
 
 console.log(
   `simulator: ${config.listings.length} symbols, spec ${config.specVersion}, seed ${config.seed}, ` +
-    `up to ${config.maxOrdersPerSec} orders/s, activity x${config.activity}, impact x${config.impact}, speed x${config.speed}`,
+    `up to ${config.maxOrdersPerSec} orders/s, activity x${config.activity}, impact x${config.impact}, speed x${config.speed}` +
+    (config.flatDay ? ", flat day" : ""),
 );
 fix.start();
 feed.start();

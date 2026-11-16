@@ -64,6 +64,11 @@ export interface Config {
   impact: number;
   /** Runs fair value this many times faster than the clock, to see hours in minutes. */
   speed: number;
+  /**
+   * Holds the time of day at New York market hours (1), instead of following the clock, so
+   * a load test's steps are comparable whatever time it runs (load-test/run.ts).
+   */
+  flatDay: boolean;
   /** Seconds between status reports. */
   reportSecs: number;
   /** Where open orders are saved, so a restart can cancel what a crash left resting. */
@@ -116,6 +121,7 @@ export function loadConfig(): Config {
     activity: number("SIM_ACTIVITY", 1),
     impact: number("SIM_IMPACT", 1),
     speed: number("SIM_SPEED", 1),
+    flatDay: env("SIM_FLAT_DAY", "0") === "1",
     reportSecs: number("SIM_REPORT_SECS", 30),
     stateFile: env("SIM_STATE_FILE", new URL("../data/open-orders.json", import.meta.url).pathname),
     sessionResetUtc: published.market.business_date_roll_utc,

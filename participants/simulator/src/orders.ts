@@ -35,6 +35,8 @@ export interface Order {
   leaves: number;
   state: State;
   orderId?: string;
+  /** When it was sent (`performance.now()`), until the exchange first answers. */
+  sentAt?: number;
 }
 
 export interface SavedOrder {
@@ -90,6 +92,8 @@ export class Orders {
   /** cancel request ClOrdID -> the order it cancels */
   private readonly cancels = new Map<string, Order>();
   stats = { sent: 0, cancels: 0, fills: 0, rejects: 0, throttled: 0 };
+  /** Milliseconds from sending an order to the exchange's first answer, since last asked. */
+  private acks: number[] = [];
 
   constructor(send: Send, limit: RateLimit, onFill: (fill: Fill) => void) {
     this.send = send;
@@ -129,6 +133,7 @@ export class Orders {
       qty: placement.qty,
       leaves: placement.qty,
       state: "pending",
+      sentAt: performance.now(),
     };
     this.byClOrdId.set(clOrdId, order);
     this.stats.sent += 1;
@@ -155,6 +160,19 @@ export class Orders {
     this.cancels.set(cancelId, order);
     this.stats.cancels += 1;
     return true;
+  }
+
+  /**
+   * How long the exchange took to answer orders sent since the last call: the median and
+   * the 99th percentile, in milliseconds, as this process saw them (its own event loop
+   * included). Undefined when nothing was answered.
+   */
+  takeAckLatency(): { p50: number; p99: number } | undefined {
+    const acks = this.acks.sort((a, b) => a - b);
+    this.acks = [];
+    if (acks.length === 0) return undefined;
+    const at = (q: number) => acks[Math.min(acks.length - 1, Math.floor(q * acks.length))]!;
+    return { p50: at(0.5), p99: at(0.99) };
   }
 
   /** What to save so a restarted simulator can cancel what this one left resting. */
@@ -205,6 +223,10 @@ export class Orders {
     const order =
       this.byClOrdId.get(clOrdId) ?? this.cancels.get(clOrdId) ?? this.byOrderId.get(orderId);
     if (!order) return; // from before a restart: nothing of ours to update
+    if (order.sentAt !== undefined) {
+      this.acks.push(performance.now() - order.sentAt);
+      delete order.sentAt;
+    }
     if (orderId && !order.orderId) {
       order.orderId = orderId;
       this.byOrderId.set(orderId, order);

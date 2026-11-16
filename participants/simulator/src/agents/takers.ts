@@ -62,15 +62,18 @@ export class NoiseTrader implements Agent {
     const { listings, fair, feed, orders, positions, rng, activity } = this.context;
     for (const [symbol, listing] of listings) {
       const heat = fair.get(symbol)?.heat ?? 0;
-      if (!rng.chance(this.rate * activity * tradeRateMultiplier(heat), dtSec)) continue;
-      if (!feed.mirrors.get(symbol)?.isLive()) continue;
+      // Usually none, sometimes one; several a step at a high activity (a load test).
+      const count = rng.count(this.rate * activity * tradeRateMultiplier(heat), dtSec);
+      if (count === 0 || !feed.mirrors.get(symbol)?.isLive()) continue;
       const lot = lotFor(listing.referenceCents);
-      const held = positions.get(this.name, symbol).qty;
-      // Unbiased, except that a large position is more likely to be reduced than grown.
-      const lean = Math.max(-0.3, Math.min(0.3, -held / (lot * 40)));
-      const side: Side = rng.next() < 0.5 + lean ? "buy" : "sell";
-      const qty = Math.max(1, Math.round(lot * 0.3 * tradeSizeMultiplier(heat) * Math.exp(0.7 * rng.normal())));
-      orders.place({ account: this.name, symbol, side, qty }, now);
+      for (let i = 0; i < count; i++) {
+        const held = positions.get(this.name, symbol).qty;
+        // Unbiased, except that a large position is more likely to be reduced than grown.
+        const lean = Math.max(-0.3, Math.min(0.3, -held / (lot * 40)));
+        const side: Side = rng.next() < 0.5 + lean ? "buy" : "sell";
+        const qty = Math.max(1, Math.round(lot * 0.3 * tradeSizeMultiplier(heat) * Math.exp(0.7 * rng.normal())));
+        orders.place({ account: this.name, symbol, side, qty }, now);
+      }
     }
   }
 }

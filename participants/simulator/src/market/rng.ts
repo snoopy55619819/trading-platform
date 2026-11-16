@@ -28,6 +28,20 @@ export class Rng {
     return this.next() < 1 - Math.exp(-ratePerSec * dtSec);
   }
 
+  /**
+   * How many events with `ratePerSec` happened in the last `dtSec` (a Poisson count). The
+   * same as `chance` while events are rare; unlike it, more than one when they are not, so
+   * a fast rate is not capped at one event a step.
+   */
+  count(ratePerSec: number, dtSec: number): number {
+    const mean = ratePerSec * dtSec;
+    if (mean > 30) return Math.max(0, Math.round(mean + Math.sqrt(mean) * this.normal()));
+    const limit = Math.exp(-mean);
+    let k = 0;
+    for (let p = this.next(); p > limit; p *= this.next()) k += 1;
+    return k;
+  }
+
   /** A whole number in [low, high]. */
   int(low: number, high: number): number {
     return low + Math.floor(this.next() * (high - low + 1));

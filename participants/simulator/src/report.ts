@@ -42,6 +42,7 @@ export function report(context: Context & { makers: MarketMaker[]; gaps: number;
   const widths = rows[0]!.map((_, i) => Math.max(...rows.map((r) => r[i]!.length)));
   const table = rows.map((r) => r.map((cell, i) => cell.padStart(widths[i]!)).join("  ")).join("\n");
   const { sent, cancels, fills, rejects, throttled } = orders.stats;
+  const ack = orders.takeAckLatency();
   const takers = TAKERS.map((name) => `${name} ${dollars(takerPnl.get(name) ?? 0)}`).join(", ");
   return [
     "",
@@ -49,6 +50,7 @@ export function report(context: Context & { makers: MarketMaker[]; gaps: number;
     `market makers ${dollars(makerPnl)}; ${takers} (marked at fair value)`,
     `orders ${sent}, cancels ${cancels}, fills ${fills}, rejects ${rejects}, throttled ${throttled}, ` +
       `feed gaps ${context.gaps}, activity x${context.activity.toFixed(1)}, ` +
-      (context.news === undefined ? "news off" : `headlines ${context.news}`),
+      (context.news === undefined ? "news off" : `headlines ${context.news}`) +
+      (ack ? `, ack p50 ${ack.p50.toFixed(2)} ms p99 ${ack.p99.toFixed(2)} ms` : ""),
   ].join("\n");
 }
