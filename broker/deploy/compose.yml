@@ -71,6 +71,10 @@ services:
       MD_DATABASE_URL: postgres://market_data:${MARKET_DATA_DB_PASSWORD}@market-data-postgres:5432/market_data
       MD_FEED_URL: ws://gateway:9879
       MD_NEWS_URL: ws://newswire:9890/headlines
+    volumes:
+      # Finished days of trades (ADR 0014). The server's nightly backup sends them to S3 from
+      # /var/lib/docker/volumes/broker-deploy_trades-archive/_data and deletes them once sent.
+      - trades-archive:/archive
     depends_on:
       market-data-postgres:
         condition: service_healthy
@@ -100,6 +104,7 @@ services:
 volumes:
   broker-pgdata:
   market-data-pgdata:
+  trades-archive:
   caddy-data:
   caddy-config:
 

@@ -68,6 +68,23 @@ Go without touching anything else.
 - [x] A slow browser client must not stall ingest — decide the policy and write it down
 - [x] Test: replay a recorded feed, assert candles match a hand-computed expectation
 - [x] Test: kill mid-stream, restart, no gap and no duplicate bars
+- [x] **Trades by day** (ADR 0014, migration `0004_ticks_by_day`): `ticks` is partitioned
+      by UTC day. Hourly (`src/store/archive.ts`), the service makes partitions three days
+      ahead, writes each finished day to `$MD_ARCHIVE_DIR/ticks-<date>.csv.gz` (from 00:30
+      UTC the day after; recorded in `archived_days`), and drops a day's partition once it is
+      more than `MD_KEEP_TRADE_DAYS` (1) days old and was written at least a day before, so
+      the server has sent it to S3 (`hosting/backup.sh`, `market-data-trades/`). Postgres
+      keeps today and yesterday; candles are kept forever. `/health` shows `archive`.
+      Measured: a day of 334,576 trades is 6.8 MB written out, about 20 bytes a trade
+      against 241 in Postgres.
+
+  To look at an archived day: download it, then load it into a scratch table:
+
+  ```bash
+  aws s3 cp s3://tradeplatform-dev-backups/market-data-trades/ticks-2026-11-15.csv.gz .
+  psql "$MD_DATABASE_URL" -c "CREATE TABLE market_data.old_trades (LIKE market_data.ticks)"
+  gzip -dc ticks-2026-11-15.csv.gz | psql "$MD_DATABASE_URL" -c "\copy market_data.old_trades FROM stdin WITH (FORMAT csv, HEADER)"
+  ```
 
 ## Done when
 
@@ -140,4 +157,6 @@ Alpha feed (protobuf, WS) -> Subscriber + Mirror per symbol -> trades -> ticks (
   the same loss as being down for that long.
 - **One writer only.** The rollup's watermark assumes this process is the only thing
   inserting ticks, one batch at a time.
-- **No retention.** Ticks are kept forever.
+- **Trades older than yesterday are not in Postgres** (ADR 0014): they are files in S3. Fine
+  for everything that reads them today; a query over months of trades would want a
+  columnar store.
