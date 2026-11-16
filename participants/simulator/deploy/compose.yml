@@ -21,7 +21,12 @@ services:
       # sustains without extra charges (ADR 0009). This setting only scales the traders who
       # take prices, so the cap on orders a second goes up with it. Set either to override.
       SIM_ACTIVITY: ${SIM_ACTIVITY:-4}
-      SIM_MAX_ORDERS_PER_SEC: ${SIM_MAX_ORDERS_PER_SEC:-160}
+      # How busy the book is apart from trading (docs/SCALE-PLAN.md, stages 5 and 7): the
+      # market makers re-price quotes and patient traders come and go this many times faster
+      # than at 1. Raised in steps, each checked on the server before the next; 30 is step 1,
+      # about 100 transactions a second over the day, trades unchanged.
+      SIM_QUOTE_ACTIVITY: ${SIM_QUOTE_ACTIVITY:-30}
+      SIM_MAX_ORDERS_PER_SEC: ${SIM_MAX_ORDERS_PER_SEC:-400}
     volumes:
       - state:/data
     networks: [trading]
