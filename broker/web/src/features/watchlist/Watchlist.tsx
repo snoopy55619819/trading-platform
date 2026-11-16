@@ -8,7 +8,7 @@ import { bucketStart } from "../../market/candles.ts";
 import { useHistory, useMarket } from "../../market/hooks.ts";
 import { useToggleWatch, useWatchlist } from "../../query/hooks.ts";
 import { Panel } from "../../ui/Shell.tsx";
-import { type Quote, quoteFrom } from "../header/quote.ts";
+import { type Quote, quoteFrom } from "../quote/quote.ts";
 import { baselineY, sparklinePath, todaysCloses } from "./sparkline.ts";
 import "./watchlist.css";
 

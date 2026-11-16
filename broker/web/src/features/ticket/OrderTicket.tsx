@@ -19,7 +19,7 @@ import { Panel } from "../../ui/Shell.tsx";
 import { Segmented, Stepper } from "../../ui/controls.tsx";
 import { type Variants, useVariants } from "../../theme/variants.ts";
 import { STATUS_LABEL, availableToSell, sharesOwned } from "../activity/orders.ts";
-import { quoteFrom } from "../header/quote.ts";
+import { quoteFrom } from "../quote/quote.ts";
 import { type Draft, updateDraft, useDraft } from "./draft.ts";
 import { type TicketCheck, checkTicket, ownedText } from "./ticket.ts";
 import "./ticket.css";

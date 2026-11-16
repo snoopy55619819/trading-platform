@@ -21,7 +21,7 @@ import { NewsStore, mergeNews } from "./news.ts";
 import { type StatsState, StatsStore } from "./stats.ts";
 import { MarketStore, RECENT_TRADES, type SymbolMarket } from "./store.ts";
 import { mergeTrades } from "./tape.ts";
-import { quoteFrom } from "../features/header/quote.ts";
+import { quoteFrom } from "../features/quote/quote.ts";
 
 export const marketStore = new MarketStore();
 export const newsStore = new NewsStore();

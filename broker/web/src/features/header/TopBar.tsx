@@ -1,4 +1,4 @@
-// The top bar: symbol search and quote, the platform's live stats (ADR 0016), connection
+// The top bar: symbol search, the platform's live stats (ADR 0016), connection
 // status, the "How it works?" guide, settings, sign out.
 // Fixed chrome, outside the panel layout.
 
@@ -12,7 +12,6 @@ import { useSettings } from "../../settings.ts";
 import { SettingsDialog } from "../settings/SettingsDialog.tsx";
 import { StatsDialog, StatsStrip } from "../stats/StatsDialog.tsx";
 import { ConnectionStatus } from "./ConnectionStatus.tsx";
-import { QuoteHeader } from "./QuoteHeader.tsx";
 import { SymbolSearch } from "./SymbolSearch.tsx";
 import "./header.css";
 
@@ -28,14 +27,12 @@ export function TopBar({
   /** The symbol list could not be loaded (it is being retried). */
   symbolsFailed?: boolean;
 }) {
-  const security = symbols.find((s) => s.symbol === selected);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { guideSeen } = useSettings();
   return (
     <div className="topbar">
       <span className="brand">Trading Platform</span>
       <SymbolSearch symbols={symbols} selected={selected} onSelect={onSelect} />
-      {selected && <QuoteHeader symbol={selected} name={security?.name} />}
       {symbolsFailed && symbols.length === 0 && <span className="hint">Could not load the symbol list. Retrying…</span>}
       <div className="topbar-end">
         <StatsStrip />

@@ -1,9 +1,10 @@
 // The order book: ten price levels a side, the spread between them, and depth bars showing
 // the running total. Greyed out, with the last known levels, while the feed cannot vouch
 // for it (before its snapshot, after a gap, or with the feed down). Click a level to put
-// its price on the order ticket.
+// its price on the order ticket. When the panel is too short for every level, it opens
+// with the spread in the middle, so both sides show.
 
-import type { CSSProperties } from "react";
+import { type CSSProperties, useLayoutEffect, useRef } from "react";
 
 import type { BookMessage } from "../../api/marketData.ts";
 import { formatCents } from "../../money.ts";
@@ -23,7 +24,7 @@ export function OrderBook({ symbol }: { symbol: string | undefined }) {
       </Panel>
     );
   }
-  return <BookView book={market.book} onPick={pick} />;
+  return <BookView key={symbol} book={market.book} onPick={pick} />;
 }
 
 export function BookView({ book, onPick }: { book: BookMessage | undefined; onPick: (priceCents: number) => void }) {
@@ -43,6 +44,7 @@ export function BookView({ book, onPick }: { book: BookMessage | undefined; onPi
 
 function Ladder({ book, stale, onPick }: { book: BookMessage; stale: boolean; onPick: (priceCents: number) => void }) {
   const { asks, bids, spreadCents, midCents } = ladder(book);
+  const spread = useSpreadInView(asks.length);
   return (
     <table className={stale ? "data-table book stale" : "data-table book"}>
       <thead>
@@ -56,7 +58,7 @@ function Ladder({ book, stale, onPick }: { book: BookMessage; stale: boolean; on
         {asks.map((row) => (
           <Level key={`a${row.priceCents}`} row={row} side="ask" onPick={onPick} />
         ))}
-        <tr className="book-spread">
+        <tr className="book-spread" ref={spread}>
           <td className="numbers">{midCents === undefined ? "–" : formatCents(midCents)}</td>
           <td colSpan={2} className="muted">
             {spreadCents === undefined ? "One side empty" : `Spread ${formatCents(spreadCents)}`}
@@ -81,4 +83,27 @@ function Level({ row, side, onPick }: { row: LadderRow; side: "bid" | "ask"; onP
       <td className="numbers">{row.total.toLocaleString("en-US")}</td>
     </tr>
   );
+}
+
+/**
+ * Keeps the spread in the middle of the panel when the ladder is taller than it: when the
+ * ladder first shows (for each symbol), when the panel is resized, and when the number of
+ * ask levels changes (which moves the spread). Scrolling by hand is left alone otherwise.
+ */
+function useSpreadInView(askLevels: number) {
+  const row = useRef<HTMLTableRowElement>(null);
+  useLayoutEffect(() => {
+    const spread = row.current;
+    const body = spread?.closest<HTMLElement>(".panel-body");
+    if (!spread || !body) return;
+    const centre = () => {
+      const offset = spread.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
+      body.scrollTop = offset - (body.clientHeight - spread.offsetHeight) / 2;
+    };
+    centre();
+    const resized = new ResizeObserver(centre);
+    resized.observe(body);
+    return () => resized.disconnect();
+  }, [askLevels]);
+  return row;
 }
