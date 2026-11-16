@@ -10,6 +10,9 @@
 #    The gateway only ever reads the newest pair, and never deletes anything itself, so
 #    without this the disk would fill: at 1,000 transactions a second a day's journal is
 #    about 13.5 GB (ADR 0012, docs/SCALE-PLAN.md stage 3).
+# 3. Sends market-data's finished days of trades (ticks-<date>.csv.gz, already compressed)
+#    to S3 under market-data-trades/, and deletes each once S3 has it (ADR 0014). S3 keeps
+#    them: this is where old trades live.
 # 3. Reports that it finished, so a missed night raises an alarm.
 #
 # Settings: /etc/trading-platform/aws.env (BACKUP_BUCKET, AWS_REGION). The server reaches
@@ -28,6 +31,7 @@ main() {
   bucket=${BACKUP_BUCKET:?BACKUP_BUCKET is not set in $settings}
   repo=${DEPLOY_REPO:-/opt/trading-platform}
   local days=${EXCHANGE_DAYS:-/var/lib/docker/volumes/exchange-alpha-deploy_days/_data}
+  local trades=${TRADES_ARCHIVE:-/var/lib/docker/volumes/broker-deploy_trades-archive/_data}
   today=$(date -u +%F)
 
   dump exchange-alpha/deploy postgres exchange_alpha exchange
@@ -35,6 +39,7 @@ main() {
   dump broker/deploy market-data-postgres market_data market-data
 
   archive_days "$days"
+  archive_trades "$trades"
 
   aws cloudwatch put-metric-data --namespace TradingPlatform --metric-name BackupCompleted \
     --dimensions Server=trading-platform --value 1 --unit Count
@@ -81,6 +86,24 @@ archive_days() {
     if [ -n "$(find "$file" -mmin +$((keep_days * 24 * 60)))" ] && archived "exchange-days/$name"; then
       rm -f "$file"
       echo "removed local $name"
+    fi
+  done
+}
+
+# market-data's finished days of trades: already gzipped, and it never writes to one again
+# once it has its final name (a file still being written ends in .tmp).
+archive_trades() {
+  local dir=$1 file name key
+  for file in "$dir"/ticks-*.csv.gz; do
+    [ -f "$file" ] || continue
+    name=$(basename "$file")
+    key=market-data-trades/$name
+    if ! archived "$key"; then
+      aws s3 cp "$file" "s3://$bucket/$key" --only-show-errors
+      echo "archived $name"
+    fi
+    if archived "$key"; then
+      rm -f "$file"
     fi
   done
 }
