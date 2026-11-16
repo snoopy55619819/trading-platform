@@ -16,6 +16,7 @@
 //   GET  /news?symbol=ACME&limit=50                             latest headlines, newest first;
 //                                                               no symbol for every symbol's
 //   GET  /health                                                feed and fanout state
+//   GET  /stats                                                 the platform's live stats and the last five minutes (ADR 0016)
 //   WS   /live                                                  see live/fanout.ts
 //
 // Configuration, all optional: MD_PORT (8081), MD_FEED_URL (from listings.json),
@@ -29,6 +30,7 @@ import { createServer } from "node:http";
 import { createPool } from "./db.ts";
 import { Subscriber } from "./feed/subscriber.ts";
 import { Fanout } from "./live/fanout.ts";
+import { Stats } from "./stats.ts";
 import { NewsSubscriber } from "./news/subscriber.ts";
 import { DAYS_AHEAD, dayOf, ensurePartitions, maintainTrades } from "./store/archive.ts";
 import { recentNews } from "./store/news.ts";
@@ -67,6 +69,7 @@ const pool = createPool();
 let pending: Tick[] = [];
 const stats = { stored: 0, duplicates: 0, rolledUp: 0 };
 const archive = { lastRun: "", lastError: "", archivedDays: 0, droppedDays: 0 };
+const platform = new Stats();
 
 const http = createServer((req, res) => {
   void handle(req.url ?? "/").then(({ status, body }) => {
@@ -84,6 +87,9 @@ const subscriber = new Subscriber(feedUrl, symbols, {
   },
   onBook(mirror) {
     fanout.bookChanged(mirror.symbol);
+  },
+  onVenueStats(venue) {
+    platform.venueStats(venue, Date.now());
   },
 });
 const fanout = new Fanout(http, () => subscriber.mirrors);
@@ -105,6 +111,9 @@ async function handle(path: string): Promise<{ status: number; body: object }> {
           droppedClients: fanout.stats.dropped,
         },
       };
+    }
+    if (url.pathname === "/stats") {
+      return { status: 200, body: { latest: platform.latest(), history: platform.history() } };
     }
     if (url.pathname === "/history") {
       const symbol = url.searchParams.get("symbol") ?? "";
@@ -166,6 +175,21 @@ async function flush(): Promise<void> {
 }
 
 const flusher = setInterval(() => serial(flush), FLUSH_EVERY_MS);
+// The platform's stats, once a second, to every browser (ADR 0016).
+const statsTimer = setInterval(() => {
+  const sample = platform.sample(
+    {
+      browsers: fanout.clients(),
+      feedMessages: subscriber.stats.messages,
+      liveMessages: fanout.stats.sent,
+      tradesStored: stats.stored,
+      gaps: subscriber.stats.gaps,
+    },
+    Date.now(),
+  );
+  fanout.platformStats(sample);
+}, 1000);
+
 const roller = setInterval(() => serial(async () => {
   const client = await pool.connect();
   try {
@@ -216,6 +240,7 @@ async function shutdown(): Promise<void> {
   console.log("market-data: shutting down");
   clearInterval(flusher);
   clearInterval(roller);
+  clearInterval(statsTimer);
   clearTimeout(firstMaintain);
   clearInterval(maintainer);
   subscriber.stop();

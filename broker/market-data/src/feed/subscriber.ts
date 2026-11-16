@@ -3,13 +3,15 @@
 
 import { type MessageInitShape, create, fromBinary, toBinary } from "@bufbuild/protobuf";
 
-import { ClientMessageSchema, type FeedMessage, FeedMessageSchema, type TradePrint } from "../../gen/marketdata_pb.js";
+import { ClientMessageSchema, type FeedMessage, FeedMessageSchema, type TradePrint, type VenueStats } from "../../gen/marketdata_pb.js";
 import { Mirror } from "./mirror.ts";
 
 export interface FeedEvents {
   onTrade(trade: TradePrint): void;
   /** A symbol's book changed (or went stale, or came back). */
   onBook(mirror: Mirror): void;
+  /** The venue's own activity, once a second (spec 1.4.0, ADR 0016). */
+  onVenueStats?(stats: VenueStats): void;
 }
 
 export class Subscriber {
@@ -62,6 +64,10 @@ export class Subscriber {
 
   /** Exposed for tests: applies one message as if it had arrived on the socket. */
   handle(socket: WebSocket | undefined, message: FeedMessage): void {
+    if (message.payload.case === "venueStats") {
+      this.events.onVenueStats?.(message.payload.value); // about the venue, not any book
+      return;
+    }
     for (const mirror of this.mirrors.values()) {
       const applied = mirror.apply(message);
       switch (applied.kind) {
