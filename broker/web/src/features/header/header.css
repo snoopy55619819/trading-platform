@@ -176,11 +176,11 @@
   }
 }
 
-/* Wide screens, full-screen layouts (Pro, Active): one line. When the bar runs short
-   (Active's larger type at 1440px), the company's full name gives way with an ellipsis; the
-   ticker, price and change never do. From 1280px everything else always fits; narrower,
-   the bar wraps as usual rather than squeeze the quote under the buttons. Calm's narrow
-   header stacks its rows, so it is left out. */
+/* Wide screens, full-screen layouts (Pro, Active): one line. When the bar runs short, the
+   quote's facts drop off from the end, volume first (bid and ask are in the order book
+   too), then the company's full name gives way with an ellipsis; the price and change never
+   do. Narrower than 1280px the bar wraps as usual rather than squeeze the
+   quote under the buttons. Calm's narrow header stacks its rows, so it is left out. */
 @media (min-width: 1280px) {
   .fit-screen .topbar {
     flex-wrap: nowrap;
@@ -199,12 +199,32 @@
   .fit-screen .quote > .quote-name {
     flex-shrink: 1;
     min-width: 0;
+    overflow: hidden;
+  }
+  /* Facts that do not fit wrap onto a second line, which is cut off. They give way well
+     before the name does. */
+  .fit-screen .quote > .quote-facts {
+    flex-shrink: 100;
+    min-width: 0;
+    flex-wrap: wrap;
+    height: 1lh;
+    overflow: hidden;
   }
   .fit-screen .quote-full-name {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+}
+
+/* Active's larger type needs 1440px for one line; narrower, its bar wraps like any other. */
+@media (min-width: 1280px) and (max-width: 1439px) {
+  :root[data-style="active"] .fit-screen .topbar {
+    flex-wrap: wrap;
+  }
+  :root[data-style="active"] .fit-screen .topbar > .quote {
+    flex: 0 0 auto;
   }
 }
 

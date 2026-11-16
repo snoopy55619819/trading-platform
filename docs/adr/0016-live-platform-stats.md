@@ -2,7 +2,7 @@
 
 **Status:** accepted, 2026-11-16. Built in three steps: the exchange's stats on its feed
 (spec 1.4.0, built), then market-data and the backend's own (built), then the web app's live
-strip and the "How it works" guide.
+throughput, dialog and "How it works" guide (built).
 
 ## Context
 
@@ -83,10 +83,17 @@ orders placed this business day; open accounts.
 
 ### In the web app
 
-- A compact strip in the header: transactions a second, trades a second, answer time.
+- **One number in the header: "System throughput"**, order updates a second across the
+  whole system, averaged over five seconds so it can be read. It is the same in every style.
+- **Clicking it opens a short dialog**: ten numbers in three groups (the exchange, market
+  data, the broker), each a name and a value. What each one means shows on hover, or on tap
+  or keyboard focus, so the dialog stays a page of numbers. The exchange publishes more than
+  this (the full list above); the rest are left out on purpose, and adding one back is a line
+  in `features/stats/catalog.ts`.
+- **On screen a transaction is an "order update"**, never a cancel: a visitor seeing cancels
+  outnumber trades fifty to one would think something was wrong, when most are market makers
+  moving a quote (Alpha has no cancel-and-replace). The description says so.
 - In the "How it works" guide, each arrow of the flow diagram shows its live rate.
-- A panel with every number, today's totals, a five-minute trend each, and one line saying
-  what each one means.
 
 ## Consequences
 
@@ -95,7 +102,8 @@ orders placed this business day; open accounts.
 - **The answer time is the exchange's own view.** The full round trip a client sees (network
   and its own event loop too) can only be measured by the client; the simulator does, for
   itself.
-- **Per-second figures are as of the last second,** so they jump; the web app may smooth
-  them for display, and keeps the trend lines for the shape.
+- **Per-second figures are as of the last second,** so they jump; the web app smooths the
+  header's number over five seconds. Five minutes of history is kept for trend lines, which
+  the web app does not draw yet.
 - **Nothing is stored** beyond five minutes in memory. A history of these numbers is the
   backlog's observability item (Prometheus), which can read the same counters.

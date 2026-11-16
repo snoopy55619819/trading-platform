@@ -20,6 +20,8 @@ export interface VenueStatus {
   connected: boolean;
   /** When the exchange last sent anything over FIX, heartbeats included (ISO), or null if never. */
   lastHeardAt: string | null;
+  /** The broker's own activity (ADR 0016); missing from a backend older than it. */
+  activity?: { requestsPerSec: number; ordersToday: number; accounts: number };
 }
 
 export interface Security {

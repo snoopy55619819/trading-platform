@@ -5,9 +5,14 @@
 
 import { useId } from "react";
 
+import type { RateLabel as Label } from "../stats/catalog.ts";
 import { BOX, type Flow, VIEW, arrowLine, arrowsOf, nodeStates } from "./flows.ts";
 
-export function FlowDiagram({ flow, step }: { flow: Flow; step: number }) {
+/**
+ * `rates`: a live label per arrow, keyed "from>to" (ADR 0016), drawn beside its middle. An
+ * arrow with no label, or no stats yet, shows none.
+ */
+export function FlowDiagram({ flow, step, rates }: { flow: Flow; step: number; rates?: ReadonlyMap<string, Label> }) {
   // useId's characters are not all valid in url(#...), so keep letters and digits only.
   const uid = `flow${useId().replace(/[^a-z0-9]/gi, "")}`;
   const nodes = new Map(flow.nodes.map((n) => [n.id, n]));
@@ -34,6 +39,7 @@ export function FlowDiagram({ flow, step }: { flow: Flow; step: number }) {
         return (
           <g key={`${from}>${to}`} className={`flow-arrow ${state}`}>
             <line {...line} markerEnd={`url(#${uid}${lit ? "-lit" : ""})`} />
+            {rates?.has(`${from}>${to}`) && <RateLabel line={line} label={rates.get(`${from}>${to}`)!} />}
             {lit && (
               // Keyed by step, so the dot starts again from the beginning on each step.
               <circle key={step} r="5" className="flow-dot">
@@ -56,5 +62,27 @@ export function FlowDiagram({ flow, step }: { flow: Flow; step: number }) {
         </g>
       ))}
     </svg>
+  );
+}
+
+/**
+ * A live rate beside the middle of an arrow, on the side away from its pair. Between two
+ * boxes side by side there is room for the short form only ("133/s"); the whole label is
+ * its tooltip. Slanted and upright arrows have room for all of it.
+ */
+function RateLabel({ line, label }: { line: { x1: number; y1: number; x2: number; y2: number }; label: Label }) {
+  const dx = line.x2 - line.x1;
+  const dy = line.y2 - line.y1;
+  const length = Math.hypot(dx, dy) || 1;
+  const level = Math.abs(dy) < 1;
+  // Level arrows: above the line. Others: right of the direction of travel, like the
+  // arrow's own offset, and a little further.
+  const x = (line.x1 + line.x2) / 2 - (level ? 0 : (dy / length) * 12);
+  const y = level ? line.y1 - 8 : (line.y1 + line.y2) / 2 + (dx / length) * 12 + 4;
+  return (
+    <text x={x} y={y} className="flow-rate">
+      <title>{label.full}</title>
+      {level ? label.short : label.full}
+    </text>
   );
 }

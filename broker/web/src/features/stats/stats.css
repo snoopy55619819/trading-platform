@@ -1,0 +1,107 @@
+/* Live platform stats (ADR 0016): the top bar's throughput and the dialog. */
+
+/* ---------- the strip ---------- */
+.stats-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.stats-strip:hover {
+  color: var(--text);
+}
+.stats-strip b {
+  color: var(--text);
+  font-family: var(--font-numbers);
+  font-weight: var(--weight-strong);
+}
+.stats-dot {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--stale);
+}
+.stats-dot.live {
+  background: var(--up);
+}
+
+/* ---------- the dialog ---------- */
+/* Short enough to fit any screen, so a description may reach past its edge. */
+.dialog:has(.stats) {
+  overflow: visible;
+}
+.stats-group + .stats-group {
+  margin-top: var(--space-4);
+}
+.stats-group h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-sm);
+  font-weight: var(--weight-strong);
+  color: var(--text-muted);
+}
+.stats-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-2);
+  margin: 0;
+}
+.stats-tile {
+  position: relative;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--radius);
+  cursor: help;
+}
+.stats-tile:hover,
+.stats-tile:focus-visible {
+  border-color: var(--accent);
+}
+.stats-tile dt {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.stats-tile dd {
+  margin: 0;
+}
+.stats-tile .numbers {
+  font-size: var(--fs-lg);
+  font-weight: var(--weight-strong);
+}
+/* What a stat means: above its tile, on hover or focus. */
+.stats-about {
+  position: absolute;
+  z-index: 10;
+  bottom: calc(100% + 6px);
+  left: 0;
+  width: max(100%, 240px);
+  max-width: calc(100vw - 64px);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  visibility: hidden;
+}
+/* The right-hand column's open leftwards, so they stay on a phone's screen. */
+.stats-tile:nth-child(even) .stats-about {
+  left: auto;
+  right: 0;
+}
+.stats-tile:hover .stats-about,
+.stats-tile:focus .stats-about {
+  visibility: visible;
+}
+.stats-hint {
+  margin: var(--space-4) 0 0;
+  font-size: var(--fs-xs);
+}

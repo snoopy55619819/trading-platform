@@ -58,7 +58,54 @@ export interface NewsMessage {
 }
 
 /** What /live sends. Every browser gets every headline, whatever it subscribed to. */
-export type LiveMessage = BookMessage | TradeMessage | NewsMessage;
+/** The exchange's own numbers (spec 1.4.0 VenueStats), as market-data passes them on (ADR 0016). */
+export interface VenueNumbers {
+  businessDate: string;
+  transactionsPerSec: number;
+  newOrdersPerSec: number;
+  cancelsPerSec: number;
+  rejectsPerSec: number;
+  tradesPerSec: number;
+  sharesPerSec: number;
+  notionalCentsPerSec: number;
+  fixInPerSec: number;
+  fixOutPerSec: number;
+  feedMessagesPerSec: number;
+  answerP50Us: number;
+  answerP99Us: number;
+  openOrders: number;
+  sessions: number;
+  transactionsToday: number;
+  tradesToday: number;
+}
+
+/** market-data's own numbers. */
+export interface MarketDataNumbers {
+  browsers: number;
+  feedMessagesInPerSec: number;
+  liveMessagesOutPerSec: number;
+  tradesStoredPerSec: number;
+  feedGaps: number;
+}
+
+/** The platform's stats, once a second (ADR 0016). `venue` is null while the exchange is silent. */
+export interface StatsMessage {
+  type: "stats";
+  ts: string;
+  venue: VenueNumbers | null;
+  marketData: MarketDataNumbers;
+}
+
+/** One second of the last five minutes, as GET /stats keeps it for trend lines. */
+export interface StatsPoint {
+  ts: string;
+  transactionsPerSec: number | null;
+  tradesPerSec: number | null;
+  answerP99Us: number | null;
+  liveMessagesOutPerSec: number;
+}
+
+export type LiveMessage = BookMessage | TradeMessage | NewsMessage | StatsMessage;
 
 /** The most bars the service returns at once; ask for a wider interval to see further back. */
 export const MAX_BARS = 1000;
@@ -94,6 +141,14 @@ export async function fetchNews(symbol: string | undefined, limit = 50): Promise
   const body = (await response.json()) as { news?: Omit<NewsMessage, "type">[]; text?: string };
   if (!response.ok || !body.news) throw new Error(body.text ?? `news: HTTP ${response.status}`);
   return body.news.map((n) => ({ ...n, type: "news" }));
+}
+
+/** The latest stats and the last five minutes, for a page's first view. */
+export async function fetchStats(): Promise<{ latest: StatsMessage | null; history: StatsPoint[] }> {
+  const response = await fetch(`${config.marketDataUrl}/stats`);
+  if (!response.ok) throw new Error(`stats: HTTP ${response.status}`);
+  const body = (await response.json()) as { latest: Omit<StatsMessage, "type"> | null; history: StatsPoint[] };
+  return { latest: body.latest && { ...body.latest, type: "stats" }, history: body.history };
 }
 
 export type ConnectionState = "connecting" | "open" | "closed";

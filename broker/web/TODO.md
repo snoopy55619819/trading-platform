@@ -264,6 +264,12 @@ Decisions:
 - [x] **Notifications:** a toast on fill, rejection or lost connection
 - [x] **Add funds**
 - [x] **Settings:** mode, style, default order quantity
+- [x] **Live platform stats** (ADR 0016, `src/features/stats/`): "System throughput" in the
+      top bar (order updates a second), opening a short dialog of ten numbers from the
+      exchange, market-data and the broker, each explained on hover or tap; and live rates on
+      the "How it works?" diagram's arrows. Fed by the `stats` message on `/live`, seeded from
+      `GET /stats`, and the broker's `activity` from `/status`. An order or a cancel is an
+      "order update" on screen.
 - [x] Empty, loading and error states for every section
 Step 5d done. The activity panel opens with the account: total value, cash, buying power,
 cash held for working orders, unrealized and realized P&L, and an Add funds button

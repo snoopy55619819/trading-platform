@@ -63,6 +63,13 @@
   font-size: 11px;
   fill: var(--text-muted) !important;
 }
+/* A live rate beside an arrow (ADR 0016). */
+.flow-rate {
+  font-size: 10px;
+  text-anchor: middle;
+  fill: var(--accent);
+  font-family: var(--font-numbers);
+}
 
 .flow-arrow line {
   stroke: var(--text-muted);
