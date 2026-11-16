@@ -34,7 +34,7 @@ cargo run -p gateway                           # FIX on 127.0.0.1:9878, market d
 - [x] `qty % lot_size == 0` and `qty > 0`
 - [x] Price within `reference_price_cents ± price_band_pct`
 - [x] `Price` present for Limit, absent for Market
-- [x] Duplicate `ClOrdID` for this session and business date
+- [x] Duplicate `ClOrdID` for this session: its live orders and its latest 1,000,000 others (ADR 0015)
 - [x] Each rejection maps to a specific `OrdRejReason` — never a bare "rejected"
 
 ### 3. Translation
@@ -81,8 +81,9 @@ engine events, so replaying the journal rebuilds it exactly. Nothing extra to pe
 
 Only a **live** order keeps that full record. When it fills, is cancelled or expires, it
 shrinks to a small entry under its `ClOrdID` (order id and how it ended), which is enough to
-answer a late cancel "too late" with the right status and to keep the `ClOrdID` spent for the
-day. Keeping every order's full record until the roll grew the live gateway to 234 MB by
+answer a late cancel "too late" with the right status and to keep the `ClOrdID` spent. Since
+ADR 0015 those entries are kept for each session's latest 1,000,000 (spec 1.3.0), not all
+day: a day's worth grew by about 70 to 150 bytes a transaction, gigabytes at 500 a second. Keeping every order's full record until the roll grew the live gateway to 234 MB by
 mid-day, almost all of it market maker quotes cancelled within seconds (ADR 0005).
 
 ## Decisions

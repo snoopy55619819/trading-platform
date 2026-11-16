@@ -70,7 +70,7 @@ don't align to UTC midnight.
 
 | ID | Assigned by | Format | Uniqueness |
 |---|---|---|---|
-| `client_order_id` (ClOrdID) | the client | ULID | Unique per FIX session per business date |
+| `client_order_id` (ClOrdID) | the client | ULID | Unique per FIX session among its live orders and its latest 1,000,000 others (ADR 0015) |
 | `order_id` | the exchange | `{VENUE}-{monotonic}` | Per venue, forever |
 | `exec_id` | the exchange | `{VENUE}-E{monotonic}` | Per venue, forever |
 | `trade_id` | the exchange | `{VENUE}-T{monotonic}` | Per venue, forever |
@@ -236,7 +236,8 @@ At the roll the gateway journals an `EndOfDay` command:
 - Resting `Day` orders expire; each owner gets an `ExecutionReport` with `ExecType=C`.
   `GTC` orders stay.
 - The engine then emits `DayClosed`, and the gateway forgets the day's finished orders and
-  used `ClOrdID`s. Uniqueness of a `ClOrdID` is per FIX session per business date (§3).
+  used `ClOrdID`s. A `ClOrdID` is unique per FIX session among its live orders and its
+  latest 1,000,000 finished, rejected and cancel ids (§3; ADR 0015, spec 1.3.0).
 - A **snapshot** of everything replay would rebuild is written (the books, the order
   tracker, the feed's sequence numbers), and the journal continues in the next day's file.
   Sequence numbers carry on across files, because execution ids are built from them.
