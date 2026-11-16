@@ -88,7 +88,7 @@ const news = config.newsUrl
     })
   : undefined;
 
-const context: Context = { listings, fair, feed, orders, positions, rng, activity: 1 };
+const context: Context = { listings, fair, feed, orders, positions, rng, activity: 1, quoteActivity: config.quoteActivity };
 const makers = config.listings.map((l) => new MarketMaker(l.ticker, context));
 const agents: Agent[] = [
   ...makers,
@@ -149,7 +149,8 @@ async function resetSession(): Promise<void> {
 
 console.log(
   `simulator: ${config.listings.length} symbols, spec ${config.specVersion}, seed ${config.seed}, ` +
-    `up to ${config.maxOrdersPerSec} orders/s, activity x${config.activity}, impact x${config.impact}, speed x${config.speed}` +
+    `up to ${config.maxOrdersPerSec} orders/s, activity x${config.activity}, quotes x${config.quoteActivity}, ` +
+    `impact x${config.impact}, speed x${config.speed}` +
     (config.flatDay ? ", flat day" : ""),
 );
 fix.start();

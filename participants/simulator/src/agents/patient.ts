@@ -7,7 +7,8 @@
 //
 // Cheap on purpose: about one order per symbol every 20 seconds, scaled by the time of day,
 // each resting for about 20 minutes. Next to the market makers' constant re-quoting, a few
-// percent more orders.
+// percent more orders. SIM_QUOTE_ACTIVITY makes them come faster and leave sooner, in step,
+// so the book churns more without growing deeper.
 
 import type { Mirror } from "../feed/mirror.ts";
 import type { Listing } from "../market/fair-value.ts";
@@ -81,20 +82,21 @@ export class PatientTrader implements Agent {
   }
 
   step(now: number, dtSec: number): void {
-    const { listings, feed, orders, positions, rng, activity } = this.context;
+    const { listings, feed, orders, positions, rng, activity, quoteActivity } = this.context;
     for (const [symbol, listing] of listings) {
       const mirror = feed.mirrors.get(symbol);
       const mine = (this.resting.get(symbol) ?? []).filter((r) => r.order.state !== "done");
       this.resting.set(symbol, mine);
       this.giveUp(mine, mirror, now);
-      if (mine.length >= MAX_RESTING || !rng.chance(RATE_PER_SYMBOL * activity, dtSec)) continue;
+      if (mine.length >= MAX_RESTING || !rng.chance(RATE_PER_SYMBOL * activity * quoteActivity, dtSec)) continue;
       const bestBid = mirror?.bestBid();
       const bestAsk = mirror?.bestAsk();
       if (bestBid === undefined || bestAsk === undefined) continue;
       const wanted = patientOrder({ bestBid, bestAsk }, listing, positions.get(this.name, symbol).qty, rng);
       if (!wanted) continue;
       const order = orders.place({ account: this.name, symbol, ...wanted }, now);
-      if (order) mine.push({ order, expiresAt: now + MEAN_LIFETIME_SEC * 1000 * -Math.log(1 - rng.next()) });
+      const lifetimeMs = (MEAN_LIFETIME_SEC * 1000) / quoteActivity;
+      if (order) mine.push({ order, expiresAt: now + lifetimeMs * -Math.log(1 - rng.next()) });
     }
   }
 

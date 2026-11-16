@@ -22,6 +22,12 @@ export interface Context {
   rng: Rng;
   /** Diurnal activity times the configured multiplier. Recomputed every step. */
   activity: number;
+  /**
+   * How busy the order book is, apart from trading (SIM_QUOTE_ACTIVITY): how often market
+   * makers re-price their quotes and patient traders place and give up orders. 1 is the
+   * deployed default; the takers' trading has its own dial (SIM_ACTIVITY).
+   */
+  quoteActivity: number;
 }
 
 /** A sensible order size for a symbol: about $10,000 of stock, in whole shares. */

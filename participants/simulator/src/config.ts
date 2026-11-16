@@ -60,6 +60,8 @@ export interface Config {
   maxOrdersPerSec: number;
   /** Multiplies how often the takers trade. 0.2 for a quiet deployed instance. */
   activity: number;
+  /** Multiplies how often the book changes without a trade: re-quoting, resting orders. */
+  quoteActivity: number;
   /** How hard trading moves the price, as a multiple of the model's own (model/impact.ts); 0 is off. */
   impact: number;
   /** Runs fair value this many times faster than the clock, to see hours in minutes. */
@@ -119,6 +121,7 @@ export function loadConfig(): Config {
     seed: number("SIM_SEED", Date.now() % 2 ** 31),
     maxOrdersPerSec: number("SIM_MAX_ORDERS_PER_SEC", 40),
     activity: number("SIM_ACTIVITY", 1),
+    quoteActivity: number("SIM_QUOTE_ACTIVITY", 1),
     impact: number("SIM_IMPACT", 1),
     speed: number("SIM_SPEED", 1),
     flatDay: env("SIM_FLAT_DAY", "0") === "1",
