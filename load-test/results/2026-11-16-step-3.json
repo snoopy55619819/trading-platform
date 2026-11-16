@@ -1,0 +1,103 @@
+{
+  "at": "2026-11-16T23:06:21.104Z",
+  "commit": "9379ab5",
+  "machine": {
+    "cpu": "Apple M5 Pro",
+    "cores": 15,
+    "memoryGb": 24
+  },
+  "measureSecs": 60,
+  "warmupSecs": 15,
+  "limits": {
+    "core": 0.9,
+    "accepted": 0.9,
+    "ackP99Ms": 50
+  },
+  "verdict": "handles 471.1 transactions a second (activity 4, quotes 300); next step stopped by: every step passed",
+  "steps": [
+    {
+      "activity": 4,
+      "quoteActivity": 200,
+      "transactionsPerSec": 418.8,
+      "newOrdersPerSec": 212.4,
+      "cancelsPerSec": 206.4,
+      "simulatorSentPerSec": 420.7,
+      "tradesPerSec": 5.9,
+      "executionReportsPerSec": 432.2,
+      "feedMessagesPerSec": 417.6,
+      "ackMs": {
+        "p50": 8.91,
+        "p99": 10.8
+      },
+      "book": {
+        "spreadBps": 45.1,
+        "emptySides": 0
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.017,
+        "market-data": 0.009,
+        "backend": 0.001,
+        "newswire": 0,
+        "simulator": 0.018,
+        "exchange-alpha-postgres": 0.014,
+        "broker-market-data-postgres": 0.012,
+        "broker-postgres": 0.004
+      },
+      "memoryMb": {
+        "gateway": 47.8,
+        "market-data": 134.3,
+        "backend": 117.1,
+        "newswire": 111.6,
+        "simulator": 156,
+        "exchange-alpha-postgres": 126.1,
+        "broker-market-data-postgres": 60.1,
+        "broker-postgres": 41
+      },
+      "failed": []
+    },
+    {
+      "activity": 4,
+      "quoteActivity": 300,
+      "transactionsPerSec": 471.1,
+      "newOrdersPerSec": 238.6,
+      "cancelsPerSec": 232.4,
+      "simulatorSentPerSec": 471.3,
+      "tradesPerSec": 6.2,
+      "executionReportsPerSec": 485.3,
+      "feedMessagesPerSec": 473.3,
+      "ackMs": {
+        "p50": 10.03,
+        "p99": 15.5
+      },
+      "book": {
+        "spreadBps": 35.7,
+        "emptySides": 0
+      },
+      "rejects": 0,
+      "feedGaps": 0,
+      "cpuCores": {
+        "gateway": 0.02,
+        "market-data": 0.011,
+        "backend": 0.001,
+        "newswire": 0,
+        "simulator": 0.021,
+        "exchange-alpha-postgres": 0.019,
+        "broker-market-data-postgres": 0.014,
+        "broker-postgres": 0.005
+      },
+      "memoryMb": {
+        "gateway": 41.5,
+        "market-data": 112.3,
+        "backend": 93.8,
+        "newswire": 90.3,
+        "simulator": 147.7,
+        "exchange-alpha-postgres": 150.9,
+        "broker-market-data-postgres": 65.2,
+        "broker-postgres": 40.1
+      },
+      "failed": []
+    }
+  ]
+}
