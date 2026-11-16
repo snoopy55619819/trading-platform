@@ -32,7 +32,7 @@ All optional, by environment variable (`src/config.ts`):
 
 | Variable | Default | |
 |---|---|---|
-| `SIM_MAX_ORDERS_PER_SEC` | `40` | ceiling on orders and cancels, every agent together (the deployed instance uses `160`) |
+| `SIM_MAX_ORDERS_PER_SEC` | `40` | ceiling on orders and cancels, every agent together (the deployed instance uses `400`) |
 | `SIM_ACTIVITY` | `1` | how often the takers trade; below 1 for a quieter market (the deployed instance ran at `0.2` until ADR 0005, then `1`, then `2`, now `4`) |
 | `SIM_QUOTE_ACTIVITY` | `1` | how busy the order book is apart from trading: market makers re-price each resting quote about every 30 seconds at 1 (more often above), and patient traders come and go faster. Trades stay where `SIM_ACTIVITY` puts them, so this is how to reach hundreds of transactions a second with a realistic mix (`docs/SCALE-PLAN.md` stage 5) |
 | `SIM_IMPACT` | `1` | how hard trading moves the price, as a multiple of the model's (`src/market/model/impact.ts`, ADR 0008); `0` turns it off |

@@ -189,8 +189,16 @@ percentile; nothing above 3% of a core.)
 
 ### 7. The live server, in steps
 
-- [ ] Raise `SIM_ACTIVITY` (and its order cap) in steps, 4 to 10 to 25 and on, only to what the
-      local test has shown the code can take.
+- [ ] Raise the dials in steps, only to what the local test has shown the code can take.
+      Since stage 5 that is mostly `SIM_QUOTE_ACTIVITY` (the book), with `SIM_ACTIVITY`
+      (trades) kept near 4 so the price model's realism stays comparable:
+
+      | Step | Release | `SIM_ACTIVITY`, `SIM_QUOTE_ACTIVITY`, order cap | Expected | Measured |
+      |---|---|---|---|---|
+      | 0 | `v0.5.11` | 4, 1, 160 | about 30 a second over the day, 50 in New York hours | (below) |
+      | 1 | next | 4, 30, 400 | about 100 a second over the day, 130 in New York hours | |
+      | 2 | | 4 to 8, 100 | about 300 | |
+      | 3 | | 8 to 16, 200 | about 500 | |
 - [ ] After each step, the ADR 0009 checks: CPU and credits (`CPUSurplusCreditsCharged`
       should stay 0), memory and swap, disk, the resend cap, cost, `pnpm realism`.
 - [ ] If credits drain at the target: decide, with the numbers, between paying the surplus
