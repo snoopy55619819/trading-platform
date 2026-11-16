@@ -5,7 +5,8 @@
 //   POST   /users          {email, password, name}         sign up: a user and an account with $10,000.00
 //   POST   /sessions       {email, password}                log in: {token}
 //   GET    /symbols                                         what can be traded
-//   GET    /status                                          is the exchange connection up, and when it was last heard from
+//   GET    /status                                          is the exchange connection up, when it was last heard from,
+//                                                           and the broker's activity (ADR 0016)
 //   ---- with Authorization: Bearer <token> ----
 //   POST   /deposits       {amountCents, reference?}        add cash (stands in for a bank transfer)
 //   GET    /positions                                       cash, buying power, holdings with cost
@@ -35,6 +36,7 @@ import { cashBalance, costs, creditCash, holdings } from "../ledger/index.ts";
 import type { OrderRow } from "../oms/orders.ts";
 import type { OrderRequest } from "../oms/risk.ts";
 import type { Oms } from "../oms/service.ts";
+import { businessDayStart } from "../oms/venue.ts";
 import { unwatch, watch, watchlist } from "../watchlist.ts";
 import { Sessions, signUp } from "./auth.ts";
 
@@ -140,13 +142,48 @@ class RequestLimiter {
   }
 }
 
+/** Requests a second, averaged over the last ten whole seconds. */
+export class Traffic {
+  private readonly seconds = new Map<number, number>();
+  count(now = Date.now()): void {
+    const second = Math.floor(now / 1000);
+    this.seconds.set(second, (this.seconds.get(second) ?? 0) + 1);
+    for (const old of this.seconds.keys()) if (old < second - TRAFFIC_WINDOW_SECS) this.seconds.delete(old);
+  }
+  perSec(now = Date.now()): number {
+    const second = Math.floor(now / 1000);
+    let total = 0;
+    for (const [at, n] of this.seconds) if (at < second && at >= second - TRAFFIC_WINDOW_SECS) total += n;
+    return total / TRAFFIC_WINDOW_SECS;
+  }
+}
+const TRAFFIC_WINDOW_SECS = 10;
+/** The database figures in /status are read at most this often, however often it is asked. */
+const ACTIVITY_CACHE_MS = 5000;
+
 export function createApi(pool: pg.Pool, oms: Oms, webOrigins = process.env.BROKER_WEB_ORIGIN ?? DEFAULT_WEB_ORIGINS) {
   const sessions = new Sessions();
   const limiter = new RequestLimiter();
+  const traffic = new Traffic();
+  let counted: { at: number; ordersToday: number; accounts: number } | undefined;
+  /** Customer orders this business day and open accounts, from the database, cached. */
+  async function counts(): Promise<{ ordersToday: number; accounts: number }> {
+    const now = Date.now();
+    if (!counted || now - counted.at > ACTIVITY_CACHE_MS) {
+      const { rows } = await pool.query<{ orders: string; accounts: string }>(
+        `SELECT (SELECT count(*) FROM broker.orders WHERE created_at >= $1) AS orders,
+                (SELECT count(*) FROM broker.accounts) AS accounts`,
+        [businessDayStart(new Date(now))],
+      );
+      counted = { at: now, ordersToday: Number(rows[0]!.orders), accounts: Number(rows[0]!.accounts) };
+    }
+    return { ordersToday: counted.ordersToday, accounts: counted.accounts };
+  }
   const allowedOrigins = new Set(webOrigins.split(",").map((o) => o.trim()).filter(Boolean));
 
   async function handle(req: IncomingMessage, res: ServerResponse): Promise<{ status: number; body: object }> {
     const url = new URL(req.url ?? "/", "http://localhost");
+    traffic.count();
     const route = `${req.method} ${url.pathname.replace(/\/[0-9A-HJKMNP-TV-Z]{26}$/, "/:id")}`;
     const token = /^Bearer (.+)$/.exec(req.headers.authorization ?? "")?.[1];
     if (!limiter.allow(token ?? req.socket.remoteAddress ?? "unknown")) {
@@ -174,7 +211,13 @@ export function createApi(pool: pg.Pool, oms: Oms, webOrigins = process.env.BROK
       const heard = oms.venueLastHeardAt();
       return {
         status: 200,
-        body: { venue: "ALPHA", connected: oms.venueUp(), lastHeardAt: heard === undefined ? null : new Date(heard).toISOString() },
+        body: {
+          venue: "ALPHA",
+          connected: oms.venueUp(),
+          lastHeardAt: heard === undefined ? null : new Date(heard).toISOString(),
+          // The broker's own activity, for the web app's live stats (ADR 0016).
+          activity: { requestsPerSec: traffic.perSec(), ...(await counts()) },
+        },
       };
     }
     if (route === "GET /symbols") {
